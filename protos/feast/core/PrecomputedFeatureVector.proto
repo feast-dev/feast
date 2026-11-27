@@ -22,6 +22,10 @@ message PrecomputedFeatureVector {
 
   // Wall-clock time when this vector was assembled.
   google.protobuf.Timestamp precomputed_at = 4;
+
+  // Fingerprint of the FeatureService's ordered "<fv>__<feature>" names. Lets a
+  // vector omit feature_names and still be validated against the service.
+  string schema_fingerprint = 5;
 }
 
 // Event timestamp associated with a specific feature view within the vector.

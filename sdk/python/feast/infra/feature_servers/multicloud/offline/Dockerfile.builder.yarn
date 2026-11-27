@@ -1,6 +1,0 @@
-FROM registry.access.redhat.com/ubi9/python-312-minimal:latest
-
-USER 0
-RUN microdnf install -y npm git && microdnf clean all
-RUN npm install -g yarn yalc && rm -rf .npm
-USER 1001

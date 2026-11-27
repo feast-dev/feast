@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="540" viewBox="0 0 1120 540" role="img" aria-labelledby="title desc">
+  <title id="title">Feast and Chronon retrieval architecture</title>
+  <desc id="desc">Chronon computes and materializes features. Its Parquet outputs feed Feast historical retrieval, and its service answers Feast online requests. Feast registers feature definitions for both paths.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#49786e"/></marker>
+    <style>text{font-family:Arial,Helvetica,sans-serif;fill:#183a33}.heading{font-size:24px;font-weight:700}.body{font-size:20px}.small{font-size:17px;fill:#47625b}.label{font-size:16px;font-weight:700;letter-spacing:1.6px}.line{fill:none;stroke:#49786e;stroke-width:2.5;marker-end:url(#arrow)}</style>
+  </defs>
+  <rect width="1120" height="540" rx="20" fill="#f3f8f6"/>
+  <text x="46" y="52" class="label">COMPUTE AND MATERIALIZE</text>
+  <text x="690" y="52" class="label">REGISTER AND RETRIEVE</text>
+  <rect x="40" y="190" width="225" height="190" rx="16" fill="#d9ede5" stroke="#99c8b8"/>
+  <text x="66" y="238" class="heading">Chronon</text>
+  <text x="66" y="278" class="body">Feature computation</text>
+  <text x="66" y="310" class="body">and backfills</text>
+  <text x="66" y="351" class="small">Chronon-managed jobs</text>
+  <rect x="342" y="128" width="270" height="126" rx="14" fill="#fff" stroke="#b7cdc5"/>
+  <text x="367" y="175" class="heading">Parquet output</text>
+  <text x="367" y="210" class="body">Materialized history</text>
+  <rect x="342" y="328" width="270" height="126" rx="14" fill="#fff" stroke="#b7cdc5"/>
+  <text x="367" y="375" class="heading">Chronon service</text>
+  <text x="367" y="410" class="body">Join or GroupBy</text>
+  <path d="M265 246 H300 V192 H328" class="line"/>
+  <path d="M265 327 H300 V390 H328" class="line"/>
+  <rect x="686" y="85" width="394" height="406" rx="16" fill="#e3f2ec" stroke="#99c8b8"/>
+  <text x="716" y="126" class="heading">Feast feature definitions</text>
+  <text x="716" y="155" class="small">Entities · Feature views · Feature services</text>
+  <rect x="710" y="184" width="346" height="110" rx="12" fill="#fff"/>
+  <text x="732" y="222" class="heading">Historical retrieval</text>
+  <text x="732" y="255" class="body">Local point-in-time joins</text>
+  <rect x="710" y="342" width="346" height="110" rx="12" fill="#fff"/>
+  <text x="732" y="380" class="heading">Online retrieval</text>
+  <text x="732" y="413" class="body">Python API → HTTP request</text>
+  <path d="M612 192 H650 V238 H696" class="line"/>
+  <path d="M696 396 H626" class="line" marker-start="url(#arrow)"/>
+  <text x="46" y="505" class="small">Chronon owns feature values. Feast registers definitions and retrieves features through common APIs.</text>
+</svg>

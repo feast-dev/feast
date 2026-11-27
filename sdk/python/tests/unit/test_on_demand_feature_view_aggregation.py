@@ -17,6 +17,9 @@
 import pyarrow as pa
 
 from feast.aggregation import Aggregation
+from feast.field import Field
+from feast.on_demand_feature_view import OnDemandFeatureView, on_demand_feature_view
+from feast.types import Float32, Int64
 from feast.utils import _apply_aggregations_to_response
 
 
@@ -87,3 +90,42 @@ def test_empty_data_returns_empty():
     result = _apply_aggregations_to_response(data, aggs, ["driver_id"], "python")
 
     assert result == data
+
+
+def test_aggregation_without_time_window_survives_proto_roundtrip():
+    """An Aggregation with no time window keeps None through to_proto/from_proto."""
+    agg = Aggregation(column="trips", function="sum")
+    assert agg.time_window is None
+    assert agg.slide_interval is None
+
+    restored = Aggregation.from_proto(agg.to_proto())
+
+    assert restored.time_window is None
+    assert restored.slide_interval is None
+    assert restored == agg
+
+
+def test_odfv_aggregation_still_serves_online_after_proto_roundtrip():
+    """A registry round-trip must not turn an unset window into a zero window."""
+
+    @on_demand_feature_view(
+        sources=[],
+        input_schema=[
+            Field(name="driver_id", dtype=Int64),
+            Field(name="trips", dtype=Int64),
+        ],
+        schema=[Field(name="sum_trips", dtype=Float32)],
+        aggregations=[Aggregation(column="trips", function="sum")],
+        mode="python",
+    )
+    def agg_view(inputs):
+        return {"sum_trips": inputs["sum_trips"]}
+
+    restored = OnDemandFeatureView.from_proto(agg_view.to_proto())
+
+    data = {"driver_id": [1, 1, 2, 2], "trips": [10, 20, 15, 25]}
+    result = _apply_aggregations_to_response(
+        data, restored.aggregations, ["driver_id"], "python"
+    )
+
+    assert result == {"driver_id": [1, 2], "sum_trips": [30, 40]}

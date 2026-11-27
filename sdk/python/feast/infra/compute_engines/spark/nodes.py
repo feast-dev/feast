@@ -6,7 +6,6 @@ from typing import Callable, Dict, List, Optional, Set, Union, cast
 import pandas as pd
 from pyspark.sql import DataFrame, SparkSession, Window
 from pyspark.sql import functions as F
-from pyspark.sql.pandas.types import from_arrow_schema
 from pyspark.sql.types import (
     ArrayType,
     BinaryType,
@@ -45,6 +44,7 @@ from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
 from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
     SparkSource,
 )
+from feast.transformation.udf_rehydrate import resolve_udf
 
 logger = logging.getLogger(__name__)
 
@@ -75,13 +75,18 @@ def from_feast_to_spark_type(feast_type) -> Optional[SparkDataType]:
     if isinstance(feast_type, PrimitiveFeastType):
         mapping = {
             PrimitiveFeastType.BYTES: BinaryType(),
+            PrimitiveFeastType.PDF_BYTES: BinaryType(),
+            PrimitiveFeastType.IMAGE_BYTES: BinaryType(),
             PrimitiveFeastType.STRING: StringType(),
+            PrimitiveFeastType.UUID: StringType(),
+            PrimitiveFeastType.TIME_UUID: StringType(),
             PrimitiveFeastType.INT32: IntegerType(),
             PrimitiveFeastType.INT64: LongType(),
             PrimitiveFeastType.FLOAT64: DoubleType(),
             PrimitiveFeastType.FLOAT32: FloatType(),
             PrimitiveFeastType.BOOL: BooleanType(),
             PrimitiveFeastType.UNIX_TIMESTAMP: TimestampType(),
+            PrimitiveFeastType.ZONED_TIMESTAMP: TimestampType(),
             PrimitiveFeastType.MAP: MapType(StringType(), StringType()),
             PrimitiveFeastType.JSON: StringType(),
         }
@@ -191,13 +196,7 @@ class SparkReadNode(DAGNode):
             spark_df = cast(SparkRetrievalJob, retrieval_job).to_spark_df()
         else:
             arrow_table = retrieval_job.to_arrow()
-            if arrow_table.num_rows == 0:
-                spark_schema = from_arrow_schema(arrow_table.schema)
-                spark_df = self.spark_session.createDataFrame(
-                    self.spark_session.sparkContext.emptyRDD(), schema=spark_schema
-                )
-            else:
-                spark_df = self.spark_session.createDataFrame(arrow_table.to_pandas())
+            spark_df = self.spark_session.createDataFrame(arrow_table)
 
         return DAGValue(
             data=spark_df,
@@ -602,9 +601,32 @@ class SparkWriteNode(DAGNode):
 
 
 class SparkTransformationNode(DAGNode):
-    def __init__(self, name: str, udf: Callable, inputs: List[DAGNode]):
+    def __init__(
+        self,
+        name: str,
+        udf: Callable,
+        inputs: List[DAGNode],
+        udf_string: str = "",
+    ):
         super().__init__(name, inputs)
         self.udf = udf
+        self.udf_string = udf_string or ""
+        self._resolved_udf: Optional[Callable] = None
+
+    def _resolve_udf(self) -> Callable:
+        """Prefer source reconstruction over dill callables.
+
+        Dill-deserialized functions that call DataFrame.withColumn / __getitem__
+        can segfault (exit 139) on Spark 4.0.1. Re-executing ``udf_string``
+        yields a healthy callable. Result is cached for the lifetime of the node.
+        """
+        if self._resolved_udf is None:
+            self._resolved_udf = resolve_udf(
+                udf_string=self.udf_string,
+                fallback_udf=self.udf,
+                preferred_name=self.name,
+            )
+        return self._resolved_udf
 
     def execute(self, context: ExecutionContext) -> DAGValue:
         input_values = self.get_input_values(context)
@@ -613,7 +635,7 @@ class SparkTransformationNode(DAGNode):
 
         input_dfs: List[DataFrame] = [val.data for val in input_values]
 
-        transformed_df = self.udf(*input_dfs)
+        transformed_df = self._resolve_udf()(*input_dfs)
 
         return DAGValue(
             data=transformed_df, format=DAGFormat.SPARK, metadata={"transformed": True}

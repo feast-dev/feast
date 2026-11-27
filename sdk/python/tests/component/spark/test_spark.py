@@ -4,9 +4,14 @@ from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pyarrow as pa
+import pytest
+from pyspark.sql.pandas.types import from_arrow_schema
 
 from feast.entity import Entity
 from feast.feature_view import FeatureView, Field
+from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
+    IcebergSource,
+)
 from feast.infra.offline_stores.contrib.spark_offline_store import spark as spark_module
 from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
     SparkOfflineStore,
@@ -16,9 +21,43 @@ from feast.infra.offline_stores.contrib.spark_offline_store.spark import (
 from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
     SparkSource,
 )
-from feast.infra.offline_stores.offline_store import RetrievalJob
+from feast.infra.offline_stores.file_source import FileSource
+from feast.infra.offline_stores.offline_store import RetrievalJob, RetrievalMetadata
+from feast.on_demand_feature_view import on_demand_feature_view
 from feast.repo_config import RepoConfig
-from feast.types import Float32, ValueType
+from feast.types import Bytes, Float32, Float64, ValueType
+
+
+@pytest.mark.parametrize("empty", [False, True])
+def test_register_iceberg_source_preserves_arrow_values_and_schema(
+    spark_session, empty
+):
+    schema = pa.schema(
+        [pa.field("id", pa.int64(), nullable=False), pa.field("count", pa.int32())]
+    )
+    rows = [{"id": 1, "count": 2}, {"id": 2, "count": None}]
+    table = pa.concat_tables(
+        [pa.Table.from_pylist(rows[:1], schema), pa.Table.from_pylist(rows[1:], schema)]
+    )
+    if empty:
+        table = table.slice(0, 0)
+        rows = []
+    source = IcebergSource(warehouse="test", namespace="test", table="arrow_input")
+    iceberg_table = MagicMock()
+    iceberg_table.scan.return_value.to_arrow.return_value = table
+    view_name = "iceberg_tmp_arrow_input"
+    try:
+        with patch.object(
+            spark_module, "_load_pyiceberg_table", return_value=iceberg_table
+        ):
+            spark_module._register_iceberg_source_as_temp_view(
+                spark_session, source, MagicMock()
+            )
+        result = spark_session.table(view_name)
+        assert result.schema == from_arrow_schema(schema)
+        assert [row.asDict() for row in result.orderBy("id").collect()] == rows
+    finally:
+        spark_session.catalog.dropTempView(view_name)
 
 
 @patch(
@@ -712,3 +751,81 @@ def test_to_remote_storage_lists_with_azure_scheme(mock_list_azure_files):
     )
     mock_list_azure_files.assert_called_once()
     assert result == mock_list_azure_files.return_value
+
+
+def test_to_spark_df_applies_odfvs(spark_session):
+    driver_stats = FeatureView(
+        name="driver_stats",
+        entities=_mock_entity(),
+        schema=[Field(name="conv_rate", dtype=Float64)],
+        source=FileSource(
+            path="driver_stats.parquet", timestamp_field="event_timestamp"
+        ),
+    )
+
+    @on_demand_feature_view(
+        sources=[driver_stats],
+        schema=[
+            Field(name="conv_rate_x2", dtype=Float64),
+            Field(name="conv_rate_x3", dtype=Float64),
+            Field(name="conv_rate_bytes", dtype=Bytes),
+        ],
+        mode="pandas",
+    )
+    def conv_rate_odfv(inputs: pd.DataFrame) -> pd.DataFrame:
+        df = pd.DataFrame()
+        df["conv_rate_x2"] = inputs["conv_rate"] * 2
+        df["conv_rate_x3"] = inputs["conv_rate"] * 3
+        df["conv_rate_bytes"] = inputs["conv_rate"].astype(str).str.encode("utf-8")
+        return df
+
+    spark_session.createDataFrame(
+        pd.DataFrame(
+            {
+                "driver_id": [1, 2],
+                "event_timestamp": [datetime(2021, 1, 1)] * 2,
+                "conv_rate": [0.5, 0.25],
+            }
+        )
+    ).repartition(2).createOrReplaceTempView("odfv_input")
+
+    # The alias must reach the executors, where the ODFV is rebuilt from its proto.
+    job = SparkRetrievalJob(
+        spark_session=spark_session,
+        query="select * from odfv_input",
+        full_feature_names=True,
+        config=RepoConfig(
+            project="test_project",
+            registry="test_registry",
+            provider="local",
+            offline_store=SparkOfflineStoreConfig(type="spark"),
+        ),
+        on_demand_feature_views=[conv_rate_odfv.with_name("rates")],
+        metadata=RetrievalMetadata(
+            features=[
+                "driver_stats:conv_rate",
+                "rates:conv_rate_x2",
+                "rates:conv_rate_bytes",
+            ],
+            keys=["driver_id"],
+        ),
+    )
+
+    try:
+        result = job.to_spark_df().drop("event_timestamp")
+        assert [row.asDict() for row in result.orderBy("driver_id").collect()] == [
+            {
+                "driver_id": 1,
+                "conv_rate": 0.5,
+                "rates__conv_rate_x2": 1.0,
+                "rates__conv_rate_bytes": b"0.5",
+            },
+            {
+                "driver_id": 2,
+                "conv_rate": 0.25,
+                "rates__conv_rate_x2": 0.5,
+                "rates__conv_rate_bytes": b"0.25",
+            },
+        ]
+    finally:
+        spark_session.catalog.dropTempView("odfv_input")

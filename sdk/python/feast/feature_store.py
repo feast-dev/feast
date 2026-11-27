@@ -115,6 +115,7 @@ from feast.utils import (
     _get_feature_view_vector_field_metadata,
     _utc_now,
 )
+from feast.value_type import ValueType
 from feast.vector_store_utils import feature_view_to_vs_id
 from feast.version_utils import parse_version
 
@@ -376,6 +377,7 @@ class FeatureStore:
                 ol_config = self.config.openlineage.to_openlineage_config()
                 emitter = FeastOpenLineageEmitter(ol_config)
                 if emitter.is_enabled:
+                    self._wire_local_processor(emitter)
                     return emitter
         except ImportError:
             # OpenLineage not installed, silently skip
@@ -383,6 +385,21 @@ class FeatureStore:
         except Exception as e:
             warnings.warn(f"Failed to initialize OpenLineage emitter: {e}")
         return None
+
+    def _wire_local_processor(self, emitter: Any) -> None:
+        """Wire the local OL consumer processor into the emitter so
+        Feast-produced events are also stored in the consumer DB."""
+        try:
+            from feast.api.registry.rest import get_ol_processor
+
+            processor = get_ol_processor()
+            if processor and hasattr(emitter, "_client") and emitter._client:
+                emitter._client.set_local_processor(processor)
+                _logger.info(
+                    "Feast OL emitter wired to local consumer processor (lazy)"
+                )
+        except Exception as e:
+            _logger.debug(f"Could not wire emitter to local processor: {e}")
 
     def __repr__(self) -> str:
         # Show lazy loading status without triggering initialization
@@ -509,8 +526,15 @@ class FeatureStore:
         Transition a feature view to MATERIALIZING state.
 
         Rolls back all already-transitioned FVs if this one can't transition.
+        Already MATERIALIZING is a no-op (async server may have reserved the state
+        before returning 202); rollback target is GENERATED in that case.
         """
-        previous_state = getattr(feature_view, "state", None)
+        current = getattr(feature_view, "state", None)
+        if current == FeatureViewState.MATERIALIZING:
+            previous_states[feature_view.name] = FeatureViewState.GENERATED
+            return
+
+        previous_states[feature_view.name] = current
         if (
             hasattr(feature_view, "state")
             and feature_view.state != FeatureViewState.STATE_UNSPECIFIED
@@ -523,7 +547,6 @@ class FeatureStore:
                 )
             feature_view.state = FeatureViewState.MATERIALIZING
             self.registry.apply_feature_view(feature_view, self.project, commit=True)
-        previous_states[feature_view.name] = previous_state
 
     def _submit_and_process_materialization_jobs(
         self,
@@ -532,6 +555,7 @@ class FeatureStore:
         regular_fvs: list,
         previous_states: dict,
         date_range: "_MaterializationDateRange",
+        openlineage_run_id: Optional[str] = None,
     ) -> None:
         """
         Submit all tasks to the engine in one call and process the results.
@@ -544,8 +568,22 @@ class FeatureStore:
         )
 
         batch_start = time.monotonic()
+        materialize_kwargs: Dict[str, Any] = {}
+        if openlineage_run_id and self.openlineage_emitter is not None:
+            from feast.openlineage.identity import (
+                LineageParentContext,
+                materialize_job_name,
+            )
+
+            materialize_kwargs["lineage_parent"] = LineageParentContext(
+                job_namespace=self.openlineage_emitter.namespace_for(self.project),
+                job_name=materialize_job_name(self.project),
+                run_id=openlineage_run_id,
+            )
         try:
-            jobs = provider.batch_engine.materialize(self.registry, tasks)
+            jobs = provider.batch_engine.materialize(
+                self.registry, tasks, **materialize_kwargs
+            )
         except Exception:
             self._rollback_fv_states(regular_fvs, previous_states)
             raise
@@ -602,6 +640,7 @@ class FeatureStore:
         end_date: datetime,
         tqdm_builder,
         disable_event_timestamp: bool = False,
+        openlineage_run_id: Optional[str] = None,
     ) -> None:
         """Batch path: collect all FVs, submit to engine in one call.
 
@@ -638,6 +677,7 @@ class FeatureStore:
                 regular_fvs,
                 previous_states,
                 date_range,
+                openlineage_run_id=openlineage_run_id,
             )
 
     @property
@@ -1219,7 +1259,23 @@ class FeatureStore:
                 *lvs_to_update,
             ]
         }
+        # Includes all ODFVs (not just write-enabled) so string refs can
+        # resolve any ODFV created in the same apply.
+        fvs_to_resolve_map = {
+            view.name: view
+            for view in [
+                *views_to_update,
+                *sfvs_to_update,
+                *odfvs_to_update,
+                *lvs_to_update,
+            ]
+        }
         for feature_service in feature_services_to_update:
+            # Resolve string feature refs (e.g. "driver_stats@v2") before
+            # inference. No-op for object-only services.
+            feature_service.resolve_pending_refs(
+                self.project, self.registry, fvs_to_update=fvs_to_resolve_map
+            )
             feature_service.infer_features(fvs_to_update=fvs_to_update_map)
 
     def _validate_materialize_version(
@@ -1419,7 +1475,16 @@ class FeatureStore:
                 desired_repo_contents.stream_feature_views,
                 desired_repo_contents.label_views,
             )
-        _validate_data_sources(desired_repo_contents.data_sources)
+        all_fvs_for_validation = [
+            *desired_repo_contents.feature_views,
+            *desired_repo_contents.on_demand_feature_views,
+            *desired_repo_contents.stream_feature_views,
+            *desired_repo_contents.label_views,
+        ]
+        _validate_data_sources(
+            desired_repo_contents.data_sources,
+            all_feature_views=all_fvs_for_validation,
+        )
         self._make_inferences(
             desired_repo_contents.data_sources,
             desired_repo_contents.entities,
@@ -1694,7 +1759,7 @@ class FeatureStore:
         # Handle all entityless feature views by using DUMMY_ENTITY as a placeholder entity.
         entities_to_update.append(DUMMY_ENTITY)
 
-        # Validate all feature views and make inferences.
+        # Validate all feature views and data sources, then make inferences.
         if not skip_feature_view_validation:
             self._validate_all_feature_views(
                 views_to_update,
@@ -1702,6 +1767,16 @@ class FeatureStore:
                 sfvs_to_update,
                 lvs_to_update,
             )
+        all_fvs_for_validation = [
+            *views_to_update,
+            *odfvs_to_update,
+            *sfvs_to_update,
+            *(lvs_to_update or []),
+        ]
+        _validate_data_sources(
+            data_sources_to_update,
+            all_feature_views=all_fvs_for_validation,
+        )
         self._make_inferences(
             data_sources_to_update,
             entities_to_update,
@@ -1777,6 +1852,9 @@ class FeatureStore:
             lvs_to_delete = [
                 ob for ob in objects_to_delete if isinstance(ob, LabelView)
             ]
+            saved_datasets_to_delete = [
+                ob for ob in objects_to_delete if isinstance(ob, SavedDataset)
+            ]
 
             for data_source in data_sources_to_delete:
                 self.registry.delete_data_source(
@@ -1809,6 +1887,10 @@ class FeatureStore:
             for validation_references in validation_references_to_delete:
                 self.registry.delete_validation_reference(
                     validation_references.name, project=self.project, commit=False
+                )
+            for saved_dataset in saved_datasets_to_delete:
+                self.registry.delete_saved_dataset(
+                    saved_dataset.name, project=self.project, commit=False
                 )
             for permission in permissions_to_delete:
                 self.registry.delete_permission(
@@ -1874,8 +1956,17 @@ class FeatureStore:
             _logger.debug("MLflow apply logging failed: %s", e)
 
     def _emit_openlineage_apply(self, objects: List[Any]):
-        """Emit OpenLineage events for applied objects."""
+        """Emit OpenLineage events for applied objects.
+
+        Skips when using a remote registry — the RegistryServer already
+        emits OL events in its Apply* handlers, so emitting here would
+        double-count every object.
+        """
         if self.openlineage_emitter is None:
+            return
+        from feast.infra.registry.remote import RemoteRegistry
+
+        if isinstance(self._registry, RemoteRegistry):
             return
         try:
             self.openlineage_emitter.emit_apply(objects, self.project)
@@ -1915,21 +2006,9 @@ class FeatureStore:
     def _teardown_openlineage(self):
         """Clean up OpenLineage data for this project's namespace during teardown."""
         try:
-            if (
-                hasattr(self.config, "openlineage")
-                and self.config.openlineage is not None
-                and self.config.openlineage.enabled
-            ):
-                ol_config = self.config.openlineage.to_openlineage_config()
-                consumer_cfg = getattr(ol_config, "consumer", None)
-                if consumer_cfg and getattr(consumer_cfg, "enabled", False):
-                    conn_str = getattr(consumer_cfg, "connection_string", None)
-                    if conn_str:
-                        from feast.openlineage.store import OpenLineageStore
-
-                        ol_store = OpenLineageStore(connection_string=conn_str)
-                        namespace = f"{self.project}/{self.project}"
-                        ol_store.purge_namespace(namespace)
+            emitter = self.openlineage_emitter
+            if emitter is not None:
+                emitter.teardown_project(self.project)
         except Exception as e:
             warnings.warn(f"Failed to clean up OpenLineage data during teardown: {e}")
 
@@ -2016,7 +2095,7 @@ class FeatureStore:
             )
 
         if entity_df is None and end_date is None:
-            end_date = datetime.now()
+            end_date = datetime.now(tz=_timezone.utc)
 
         _feature_refs = utils._get_features(
             self.registry, self.project, features, allow_cache=True
@@ -2333,8 +2412,9 @@ class FeatureStore:
     ):
         """Helper to materialize a single OnDemandFeatureView."""
         if not feature_view.source_feature_view_projections:
-            print(
-                f"[WARNING] ODFV {feature_view.name} materialization: No source feature views found."
+            _logger.warning(
+                "ODFV %s materialization: No source feature views found.",
+                feature_view.name,
             )
             return
         start_date = utils.make_tzaware(start_date)
@@ -2361,20 +2441,27 @@ class FeatureStore:
         all_join_keys = {key for key in all_join_keys if key}
 
         if not all_join_keys:
-            print(
-                f"[WARNING] ODFV {feature_view.name} materialization: No join keys found in source views. Cannot create entity_df. Skipping."
+            _logger.warning(
+                "ODFV %s materialization: No join keys found in source views. "
+                "Cannot create entity_df. Skipping.",
+                feature_view.name,
             )
             return
 
         if len(entity_timestamp_col_names) > 1:
-            print(
-                f"[WARNING] ODFV {feature_view.name} materialization: Found multiple timestamp columns in sources ({entity_timestamp_col_names}). This is not supported. Skipping."
+            _logger.warning(
+                "ODFV %s materialization: Found multiple timestamp columns in "
+                "sources (%s). This is not supported. Skipping.",
+                feature_view.name,
+                entity_timestamp_col_names,
             )
             return
 
         if not entity_timestamp_col_names:
-            print(
-                f"[WARNING] ODFV {feature_view.name} materialization: No batch sources with timestamp columns found for sources. Skipping."
+            _logger.warning(
+                "ODFV %s materialization: No batch sources with timestamp "
+                "columns found for sources. Skipping.",
+                feature_view.name,
             )
             return
 
@@ -2403,8 +2490,10 @@ class FeatureStore:
                 all_source_dfs.append(df)
 
         if not all_source_dfs:
-            print(
-                f"No source data found for ODFV {feature_view.name} in the given time range. Skipping materialization."
+            _logger.warning(
+                "No source data found for ODFV %s in the given time range. "
+                "Skipping materialization.",
+                feature_view.name,
             )
             return
 
@@ -2435,12 +2524,116 @@ class FeatureStore:
         )
         self.write_to_online_store(feature_view.name, df=transformed_df)
 
+    def _get_remote_materialize_url(self) -> str:
+        """Get the feature server URL from online_store.path for remote materialization."""
+        online_cfg = self.config.online_store
+        url = getattr(online_cfg, "path", None)
+        if not url:
+            raise ValueError(
+                "online_store.path must be set to use remote materialization. "
+                "Configure online_store with type: remote and a valid path."
+            )
+        return url.rstrip("/")
+
+    def _get_remote_http_session(self):
+        """Get an HTTP session with auth configured for the feature server."""
+        import requests
+
+        auth_config = getattr(self.config, "auth_config", None)
+        if auth_config and getattr(auth_config, "type", "no_auth") != "no_auth":
+            from feast.permissions.client.http_auth_requests_wrapper import (
+                get_http_auth_requests_session,
+            )
+
+            return get_http_auth_requests_session(auth_config)
+
+        return requests.Session()
+
+    def _is_remote_topology(self) -> bool:
+        """True when this client talks to a remote feature server for online ops."""
+        return getattr(self.config.online_store, "type", None) == "remote"
+
+    def _post_to_feature_server(
+        self,
+        endpoint: str,
+        payload: Dict[str, Any],
+        query_params: Optional[Dict[str, str]] = None,
+    ) -> Dict[str, Any]:
+        """POST JSON to the feature server; raise on 409 / 4xx / 5xx."""
+        url = f"{self._get_remote_materialize_url()}{endpoint}"
+        session = self._get_remote_http_session()
+        cert = getattr(self.config.online_store, "cert", "") or ""
+        verify: Any = cert if cert else True
+        try:
+            response = session.post(
+                url,
+                json=payload,
+                params=query_params or {},
+                verify=verify,
+            )
+            if response.status_code == 409:
+                try:
+                    detail = response.json()
+                    message = detail.get("error", response.text)
+                except Exception:
+                    message = response.text
+                raise RuntimeError(
+                    f"Remote materialization conflict (409): {message}"
+                ) from None
+            if response.status_code >= 400:
+                raise RuntimeError(
+                    f"Remote materialization failed "
+                    f"({response.status_code}): {response.text}"
+                )
+            if not response.content:
+                return {}
+            try:
+                return response.json()
+            except Exception:
+                return {"status": "accepted", "raw": response.text}
+        finally:
+            session.close()
+
+    def _delegate_remote_materialize(
+        self,
+        endpoint: str,
+        payload: Dict[str, Any],
+        force: bool = False,
+        run_async: bool = False,
+    ) -> None:
+        """POST materialize to the feature server.
+
+        When run_async=False (default), omits async and blocks until the server
+        finishes synchronous materialization (HTTP response).
+        When run_async=True, sends ?async=true and returns after 202.
+        force=True is only valid with run_async=True (server force applies to async).
+        """
+        if force and not run_async:
+            raise ValueError(
+                "force=True requires run_async=True. "
+                "force only overrides stuck MATERIALIZING on the async path."
+            )
+
+        query_params: Dict[str, str] = {}
+        if run_async:
+            query_params["async"] = "true"
+        if force:
+            query_params["force"] = "true"
+
+        result = self._post_to_feature_server(endpoint, payload, query_params or None)
+        if run_async:
+            _logger.info("Remote materialization accepted (%s): %s", endpoint, result)
+        else:
+            _logger.info("Remote materialization completed (%s): %s", endpoint, result)
+
     def materialize_incremental(
         self,
         end_date: datetime,
         feature_views: Optional[List[str]] = None,
         full_feature_names: bool = False,
         version: Optional[str] = None,
+        force: bool = False,
+        run_async: bool = False,
     ) -> None:
         """
         Materialize incremental new data from the offline store into the online store.
@@ -2459,6 +2652,11 @@ class FeatureStore:
                 feature view name.
             version (str): Optional version to materialize (e.g., 'v2'). Requires feature_views
                 with exactly one entry and enable_online_feature_view_versioning to be enabled.
+            force (bool): When using remote topology with run_async=True, pass force=true to
+                override stuck MATERIALIZING state on the feature server. Ignored for local topology.
+            run_async (bool): When using remote topology, if False (default) POST without async and
+                block until the server finishes sync materialization. If True, POST with ?async=true
+                and return after 202. Ignored for local topology.
 
         Raises:
             Exception: A feature view being materialized does not have a TTL set.
@@ -2474,6 +2672,22 @@ class FeatureStore:
             <BLANKLINE>
             ...
         """
+        if self._is_remote_topology():
+            payload: Dict[str, Any] = {
+                "end_ts": end_date.isoformat(),
+                "feature_views": feature_views,
+                "full_feature_names": full_feature_names,
+            }
+            if version is not None:
+                payload["version"] = version
+            self._delegate_remote_materialize(
+                "/materialize-incremental",
+                payload,
+                force=force,
+                run_async=run_async,
+            )
+            return
+
         parsed_version = self._validate_materialize_version(version, feature_views)
         feature_views_to_materialize = self._get_feature_views_to_materialize(
             feature_views, version=parsed_version
@@ -2565,13 +2779,14 @@ class FeatureStore:
                     regular_fvs_with_dates,
                     end_date_tz,
                     tqdm_builder,
+                    openlineage_run_id=ol_run_id,
                 )
             else:
                 for feature_view, start_date in regular_fvs_with_dates:
-                    # Transition state to MATERIALIZING before starting.
-                    # Only enforce when the state machine is active (not STATE_UNSPECIFIED).
                     previous_state = getattr(feature_view, "state", None)
-                    if (
+                    if previous_state == FeatureViewState.MATERIALIZING:
+                        previous_state = FeatureViewState.GENERATED
+                    elif (
                         hasattr(feature_view, "state")
                         and feature_view.state != FeatureViewState.STATE_UNSPECIFIED
                     ):
@@ -2601,7 +2816,6 @@ class FeatureStore:
                         )
                     except Exception:
                         fv_success = False
-                        # Roll back state to previous value on failure.
                         if (
                             hasattr(feature_view, "state")
                             and previous_state is not None
@@ -2663,6 +2877,8 @@ class FeatureStore:
         disable_event_timestamp: bool = False,
         full_feature_names: bool = False,
         version: Optional[str] = None,
+        force: bool = False,
+        run_async: bool = False,
     ) -> None:
         """
         Materialize data from the offline store into the online store.
@@ -2676,11 +2892,16 @@ class FeatureStore:
             end_date (datetime): End date for time range of data to materialize into the online store
             feature_views (List[str]): Optional list of feature view names. If selected, will only run
                 materialization for the specified feature views.
-            disable_event_timestamp (bool): If True, materializes all available data using current datetime as event timestamp instead of source event timestamps
+            disable_event_timestamp (bool): If True, materializes all available data (from 1970-01-01 up to the current UTC time). Rows keep their source event timestamps.
             full_feature_names (bool): If True, feature names will be prefixed with the corresponding
                 feature view name.
             version (str): Optional version to materialize (e.g., 'v2'). Requires feature_views
                 with exactly one entry and enable_online_feature_view_versioning to be enabled.
+            force (bool): When using remote topology with run_async=True, pass force=true to
+                override stuck MATERIALIZING state on the feature server. Ignored for local topology.
+            run_async (bool): When using remote topology, if False (default) POST without async and
+                block until the server finishes sync materialization. If True, POST with ?async=true
+                and return after 202. Ignored for local topology.
 
         Examples:
             Materialize all features into the online store over the interval
@@ -2695,6 +2916,21 @@ class FeatureStore:
             <BLANKLINE>
             ...
         """
+        if self._is_remote_topology():
+            payload: Dict[str, Any] = {
+                "start_ts": start_date.isoformat(),
+                "end_ts": end_date.isoformat(),
+                "feature_views": feature_views,
+                "disable_event_timestamp": disable_event_timestamp,
+                "full_feature_names": full_feature_names,
+            }
+            if version is not None:
+                payload["version"] = version
+            self._delegate_remote_materialize(
+                "/materialize", payload, force=force, run_async=run_async
+            )
+            return
+
         if utils.make_tzaware(start_date) > utils.make_tzaware(end_date):
             raise ValueError(
                 f"The given start_date {start_date} is greater than the given end_date {end_date}."
@@ -2757,13 +2993,14 @@ class FeatureStore:
                     end_date,
                     tqdm_builder,
                     disable_event_timestamp=disable_event_timestamp,
+                    openlineage_run_id=ol_run_id,
                 )
             else:
                 for feature_view, fv_start in regular_fvs_with_dates:
-                    # Transition state to MATERIALIZING before starting.
-                    # Only enforce when the state machine is active (not STATE_UNSPECIFIED).
                     previous_state = getattr(feature_view, "state", None)
-                    if (
+                    if previous_state == FeatureViewState.MATERIALIZING:
+                        previous_state = FeatureViewState.GENERATED
+                    elif (
                         hasattr(feature_view, "state")
                         and feature_view.state != FeatureViewState.STATE_UNSPECIFIED
                     ):
@@ -2794,7 +3031,6 @@ class FeatureStore:
                         )
                     except Exception:
                         fv_success = False
-                        # Roll back state to previous value on failure.
                         if (
                             hasattr(feature_view, "state")
                             and previous_state is not None
@@ -2882,7 +3118,11 @@ class FeatureStore:
             return None
         try:
             run_id, success = self.openlineage_emitter.emit_materialize_start(
-                feature_views, start_date, end_date, self.project
+                feature_views,
+                start_date,
+                end_date,
+                self.project,
+                online_store=getattr(self.config, "online_store", None),
             )
             # Return run_id only if START was successfully emitted
             # This prevents orphaned COMPLETE/FAIL events
@@ -2901,7 +3141,10 @@ class FeatureStore:
             return
         try:
             self.openlineage_emitter.emit_materialize_complete(
-                run_id, feature_views, self.project
+                run_id,
+                feature_views,
+                self.project,
+                online_store=getattr(self.config, "online_store", None),
             )
         except Exception as e:
             warnings.warn(f"Failed to emit OpenLineage materialize complete event: {e}")
@@ -2958,6 +3201,7 @@ class FeatureStore:
         self,
         feature_service_name: Optional[str] = None,
         batch_size: int = 1000,
+        entity_keys: Optional[List[EntityKey]] = None,
     ) -> int:
         """Pre-compute feature vectors for one or all FeatureServices.
 
@@ -2967,6 +3211,9 @@ class FeatureStore:
         blob per entity via :meth:`OnlineStore.write_precomputed_vector`.
 
         Works with **all** online store backends (Redis, DynamoDB, PostgreSQL, etc.).
+
+        When ``entity_keys`` is given, only those entities are rebuilt and the store
+        is not scanned, so a push can refresh exactly the rows it wrote.
 
         Returns the total number of entity vectors written.
         """
@@ -3015,53 +3262,56 @@ class FeatureStore:
             # For stores that support native scanning (like Redis), we try the
             # native scan; for others, we use the materialized entity list.
             entity_key_protos: List[EntityKey] = []
-            try:
-                from feast.infra.online_stores.redis import RedisOnlineStore
+            if entity_keys is not None:
+                entity_key_protos = list(entity_keys)
+            else:
+                try:
+                    from feast.infra.online_stores.redis import RedisOnlineStore
 
-                if isinstance(online_store, RedisOnlineStore):
-                    from feast.infra.key_encoding_utils import (
-                        deserialize_entity_key,
-                    )
-                    from feast.infra.online_stores.helpers import _redis_key_prefix
+                    if isinstance(online_store, RedisOnlineStore):
+                        from feast.infra.key_encoding_utils import (
+                            deserialize_entity_key,
+                        )
+                        from feast.infra.online_stores.helpers import _redis_key_prefix
 
-                    join_keys = (
-                        list(primary_fv.join_keys)
-                        if hasattr(primary_fv, "join_keys")
-                        else []
-                    )  # type: ignore[union-attr]
-                    client = online_store._get_client(  # type: ignore[attr-defined]
-                        self.config.online_store
+                        join_keys = (
+                            list(primary_fv.join_keys)
+                            if hasattr(primary_fv, "join_keys")
+                            else []
+                        )  # type: ignore[union-attr]
+                        client = online_store._get_client(  # type: ignore[attr-defined]
+                            self.config.online_store
+                        )
+                        scan_prefix = _redis_key_prefix(join_keys)
+                        project_bytes = self.config.project.encode("utf-8")
+                        seen_keys: set = set()
+                        raw_keys: List[bytes] = []
+                        for key in client.scan_iter(
+                            b"".join([scan_prefix, b"*", project_bytes])
+                        ):
+                            if key not in seen_keys:
+                                seen_keys.add(key)
+                                raw_keys.append(key)
+                        proj_len = len(project_bytes)
+                        for rk in raw_keys:
+                            try:
+                                ek = deserialize_entity_key(
+                                    rk[:-proj_len],
+                                    self.config.entity_key_serialization_version,
+                                )
+                                if set(ek.join_keys) == set(join_keys):
+                                    entity_key_protos.append(ek)
+                            except (ValueError, Exception):
+                                continue
+                    else:
+                        raise NotImplementedError
+                except (ImportError, NotImplementedError):
+                    _logger.warning(
+                        "Entity scanning not supported for '%s' — "
+                        "precompute requires a store that supports entity scanning",
+                        type(online_store).__name__,
                     )
-                    scan_prefix = _redis_key_prefix(join_keys)
-                    project_bytes = self.config.project.encode("utf-8")
-                    seen_keys: set = set()
-                    raw_keys: List[bytes] = []
-                    for key in client.scan_iter(
-                        b"".join([scan_prefix, b"*", project_bytes])
-                    ):
-                        if key not in seen_keys:
-                            seen_keys.add(key)
-                            raw_keys.append(key)
-                    proj_len = len(project_bytes)
-                    for rk in raw_keys:
-                        try:
-                            ek = deserialize_entity_key(
-                                rk[:-proj_len],
-                                self.config.entity_key_serialization_version,
-                            )
-                            if set(ek.join_keys) == set(join_keys):
-                                entity_key_protos.append(ek)
-                        except (ValueError, Exception):
-                            continue
-                else:
-                    raise NotImplementedError
-            except (ImportError, NotImplementedError):
-                _logger.warning(
-                    "Entity scanning not supported for '%s' — "
-                    "precompute requires a store that supports entity scanning",
-                    type(online_store).__name__,
-                )
-                continue
+                    continue
 
             if not entity_key_protos:
                 continue
@@ -3113,10 +3363,13 @@ class FeatureStore:
                     now_ts.FromDatetime(datetime.now(tz=_timezone.utc))
 
                     vector = PrecomputedFeatureVector(
-                        feature_names=feature_names,
+                        feature_names=[]
+                        if svc.precompute_omit_names
+                        else feature_names,
                         values=values,
                         fv_timestamps=fv_timestamps,
                         precomputed_at=now_ts,
+                        schema_fingerprint=svc.precompute_schema_fingerprint(),
                     )
 
                     online_store.write_precomputed_vector(
@@ -3174,9 +3427,16 @@ class FeatureStore:
         if not affected:
             return
 
+        fv = self.registry.get_any_feature_view(
+            feature_view_name, self.project, allow_cache=True
+        )
+        entity_keys = _entity_keys_from_dataframe(fv, df)
+        if not entity_keys:
+            return
+
         for svc in affected:
             try:
-                self.precompute_feature_service(svc.name)
+                self.precompute_feature_service(svc.name, entity_keys=entity_keys)
             except Exception:
                 _logger.warning(
                     "Failed to precompute vectors for service '%s' after push",
@@ -3413,6 +3673,9 @@ class FeatureStore:
         """
         Validates vector features in the DataFrame against the feature view specifications.
 
+        Resolves the vector field from the feature view schema rather than assuming it is
+        the first feature, and checks lengths in a single pass over the column.
+
         Args:
             feature_view: The feature view containing vector feature specifications
             df: The DataFrame to validate
@@ -3420,20 +3683,70 @@ class FeatureStore:
         Raises:
             ValueError: If vector dimension constraints are violated
         """
-        if feature_view.features and feature_view.features[0].vector_index:
-            fv_vector_feature_name = feature_view.features[0].name
-            if feature_view.features[0].vector_length != 0:
-                for i, row in df.iterrows():
-                    vector = row[fv_vector_feature_name]
-                    if not hasattr(vector, "__len__"):
-                        raise ValueError(
-                            f"Row {i}: Vector feature '{fv_vector_feature_name}' is not a sequence. Got: {type(vector)}"
-                        )
-                    if len(vector) != feature_view.features[0].vector_length:
-                        raise ValueError(
-                            f"Row {i}: Vector length {len(vector)} does not match expected {feature_view.features[0].vector_length} "
-                            f"for feature '{fv_vector_feature_name}' in feature view '{feature_view.name}'."
-                        )
+        vector_field = _get_feature_view_vector_field_metadata(feature_view)
+        if vector_field is None or not vector_field.vector_index:
+            return
+
+        name = vector_field.name
+        if name not in df.columns:
+            return
+
+        column = df[name]
+        declared = vector_field.vector_length or None
+
+        # Null vectors carry no length to compare. Skipping them keeps this
+        # consistent with the Arrow path, which also tolerates null rows, and
+        # stops a genuine null being reported as "not a sequence".
+        is_null = column.isna()
+
+        # Single pass over the column. na_action leaves nulls as NaN, so a NaN
+        # length that is not null means the value was not a sequence at all.
+        lengths = column.map(
+            lambda v: len(v) if hasattr(v, "__len__") else None, na_action="ignore"
+        )
+
+        not_a_sequence = lengths.isna() & ~is_null
+
+        expected = declared
+        if expected is None:
+            # No declared width, so take the contract from the first usable row.
+            # An ANN index needs a fixed width, so a ragged column is a defect
+            # regardless of whether anyone declared vector_length.
+            usable = lengths.notna()
+            if not usable.any():
+                # Nothing to infer from, so only the type check below applies.
+                if not not_a_sequence.any():
+                    return
+                expected = -1
+            else:
+                expected = int(lengths[usable].iloc[0])
+
+        mismatched = lengths.notna() & (lengths != expected)
+        offending = not_a_sequence | mismatched
+        if not offending.any():
+            return
+
+        # Report the first offending row across both failure modes, by position,
+        # so the message is right regardless of which failure comes first and
+        # correct even when the index has duplicates.
+        position = int(offending.to_numpy().argmax())
+        label = column.index[position]
+
+        if bool(not_a_sequence.to_numpy()[position]):
+            raise ValueError(
+                f"Row {label}: Vector feature '{name}' is not a sequence. "
+                f"Got: {type(column.iloc[position])}"
+            )
+
+        source = (
+            f"expected {expected}"
+            if declared
+            else f"expected {expected}, inferred from the first row"
+        )
+        raise ValueError(
+            f"Row {label}: Vector length {int(lengths.iloc[position])} does not match "
+            f"{source} for feature '{name}' in feature view '{feature_view.name}'."
+        )
 
     def _get_feature_view_and_df_for_online_write(
         self,
@@ -3655,20 +3968,19 @@ class FeatureStore:
         Fails if the dataframe columns do not match the columns of the batch data source. Optionally
         reorders the columns of the dataframe to match.
         """
-        # TODO: restrict this to work with online StreamFeatureViews and validate the FeatureView type
-        try:
-            feature_view: FeatureView = self.get_stream_feature_view(
-                feature_view_name, allow_registry_cache=allow_registry_cache
-            )
-        except FeatureViewNotFoundException:
-            try:
-                feature_view = self.get_feature_view(
-                    feature_view_name, allow_registry_cache=allow_registry_cache
-                )
-            except FeatureViewNotFoundException:
-                feature_view = self.get_label_view(  # type: ignore[assignment]
-                    feature_view_name, allow_registry_cache=allow_registry_cache
-                )
+        # Resolve the feature view with a single registry lookup regardless of its
+        # type. The previous try/except chain tried get_stream_feature_view, then
+        # get_feature_view, then get_label_view in turn, so the common plain
+        # FeatureView always paid one guaranteed-miss lookup first. On a
+        # RemoteRegistry each miss is a wasted gRPC round-trip on this per-batch
+        # write path (see #6671).
+        # TODO: validate that the resolved feature view type supports offline writes.
+        feature_view = cast(
+            FeatureView,
+            self.registry.get_any_feature_view(
+                feature_view_name, self.project, allow_cache=allow_registry_cache
+            ),
+        )
 
         provider = self._get_provider()
         # Get columns of the batch source and the input dataframe.
@@ -3698,7 +4010,7 @@ class FeatureStore:
         if reorder_columns:
             df = df.reindex(columns=source_columns)
 
-        table = pa.Table.from_pandas(df)
+        table = pa.Table.from_pandas(df, preserve_index=False)
         provider.ingest_df_to_offline_store(feature_view, table)
 
     def get_online_features(
@@ -4501,6 +4813,7 @@ class FeatureStore:
         tls_key_path: str = "",
         tls_cert_path: str = "",
         registry_ttl_sec: int = 60,
+        gc_freeze: bool = False,
     ) -> None:
         """Start the feature consumption server locally on a given port."""
         type_ = type_.lower()
@@ -4523,6 +4836,7 @@ class FeatureStore:
             tls_key_path=tls_key_path,
             tls_cert_path=tls_cert_path,
             registry_ttl_sec=registry_ttl_sec,
+            gc_freeze=gc_freeze,
         )
 
     def get_feature_server_endpoint(self) -> Optional[str]:
@@ -4536,6 +4850,7 @@ class FeatureStore:
         root_path: str = "",
         tls_key_path: str = "",
         tls_cert_path: str = "",
+        cors_origins: Optional[List[str]] = None,
     ) -> None:
         """Start the UI server locally"""
         if flags_helper.is_test():
@@ -4552,6 +4867,7 @@ class FeatureStore:
             root_path=root_path,
             tls_key_path=tls_key_path,
             tls_cert_path=tls_cert_path,
+            cors_origins=cors_origins,
         )
 
     def serve_registry(
@@ -4560,15 +4876,20 @@ class FeatureStore:
         tls_key_path: str = "",
         tls_cert_path: str = "",
         rest_api: bool = False,
+        host: str = "::",
     ) -> None:
-        """Start registry server locally on a given port."""
+        """Start registry server locally on a given port. `host` only applies
+        to the REST server (rest_api=True); defaults to dual-stack "::"."""
         if rest_api:
             from feast.api.registry.rest import rest_registry_server
 
             server = rest_registry_server.RestRegistryServer(self)
 
             server.start_server(
-                port=port, tls_key_path=tls_key_path, tls_cert_path=tls_cert_path
+                port=port,
+                host=host,
+                tls_key_path=tls_key_path,
+                tls_cert_path=tls_cert_path,
             )
         else:
             from feast import registry_server
@@ -4891,8 +5212,21 @@ def _validate_feature_views(feature_views: List[BaseFeatureView]):
             fv_by_name[case_insensitive_fv_name] = fv
 
 
-def _validate_data_sources(data_sources: List[DataSource]):
-    """Verify data sources have case-insensitively unique names."""
+def _validate_data_sources(
+    data_sources: List[DataSource],
+    all_feature_views: Optional[
+        Sequence[
+            Union[
+                BaseFeatureView,
+                FeatureView,
+                StreamFeatureView,
+                OnDemandFeatureView,
+                LabelView,
+            ]
+        ]
+    ] = None,
+):
+    """Verify data sources have case-insensitively unique names and validate PushSource upstream references."""
     ds_names = set()
     for ds in data_sources:
         case_insensitive_ds_name = ds.name.lower()
@@ -4900,3 +5234,52 @@ def _validate_data_sources(data_sources: List[DataSource]):
             raise DataSourceRepeatNamesException(case_insensitive_ds_name)
         else:
             ds_names.add(case_insensitive_ds_name)
+
+    if all_feature_views is not None:
+        known_fv_names = {fv.name for fv in all_feature_views if hasattr(fv, "name")}
+        for ds in data_sources:
+            if isinstance(ds, PushSource) and ds.upstream_feature_view_names:
+                for upstream_name in ds.upstream_feature_view_names:
+                    if upstream_name not in known_fv_names:
+                        warnings.warn(
+                            f"PushSource '{ds.name}' references upstream feature view '{upstream_name}' "
+                            "which was not found in the current feature repository.",
+                            UserWarning,
+                            stacklevel=2,
+                        )
+
+
+def _entity_keys_from_dataframe(feature_view: Any, df: pd.DataFrame) -> List[EntityKey]:
+    """Distinct entity keys present in ``df`` for ``feature_view``'s join keys."""
+    from feast.type_map import python_values_to_proto_values
+
+    join_keys = list(getattr(feature_view, "join_keys", []) or [])
+    if not join_keys:
+        return []
+
+    # Ingestion renames the pushed columns with batch_source.field_mapping
+    # before it builds entity keys, so a pushed frame may name a join key by
+    # its source column. Map the frame the same way before looking for them.
+    field_mapping = getattr(
+        getattr(feature_view, "batch_source", None), "field_mapping", None
+    )
+    if isinstance(field_mapping, dict) and field_mapping:
+        df = df.rename(columns=field_mapping)
+
+    if any(k not in df.columns for k in join_keys):
+        return []
+    value_types = {
+        field.name: field.dtype.to_value_type()
+        for field in getattr(feature_view, "entity_columns", [])
+    }
+    unique = df[join_keys].drop_duplicates()
+    columns = {
+        k: python_values_to_proto_values(
+            unique[k].tolist(), value_types.get(k, ValueType.UNKNOWN)
+        )
+        for k in join_keys
+    }
+    return [
+        EntityKey(join_keys=join_keys, entity_values=[columns[k][i] for k in join_keys])
+        for i in range(len(unique))
+    ]

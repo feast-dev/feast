@@ -21,17 +21,17 @@ class DecisionStrategy(enum.Enum):
 
 class DecisionEvaluator:
     """
-    A class to implement the decision logic, according to the selected strategy.
+    A class to implement the decision logic.
+    Only the `AFFIRMATIVE` strategy is currently supported.
 
     Args:
-        decision_strategy: The associated `DecisionStrategy`.
         num_of_voters: The expected number of votes to complete the decision.
 
     Examples:
-        Create the instance and specify the strategy and number of decisions:
-        `evaluator = DecisionEvaluator(DecisionStrategy.UNANIMOUS, 3)
+        Create the instance and specify the number of voters:
+        `evaluator = DecisionEvaluator(3)`
 
-        For each vote that you receivem, add a decision grant: `evaluator.add_grant(vote, message)`
+        For each vote that you receive, add a decision grant: `evaluator.add_grant(vote, message)`
         and check if the decision process ended: `if evaluator.is_decided():`
         Once decided, get the result and the failure explanations using:
         `grant, explanations = evaluator.grant()`
@@ -92,8 +92,8 @@ class DecisionEvaluator:
         If the evaluation process already ended, additional votes are discarded.
 
         Args:
-            grant: `True` is the decision is accepted, `False` otherwise.
-            explanation: Denial reason (not considered when `vote` is `True`).
+            grant: `True` if the decision is accepted, `False` otherwise.
+            explanation: Denial reason (not considered when `grant` is `True`).
         """
 
         if self.is_decided():

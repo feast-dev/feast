@@ -2,7 +2,7 @@ import json
 import logging
 import re
 
-from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
@@ -15,7 +15,7 @@ from feast.errors import (
     PushSourceNotFoundException,
 )
 from feast.permissions.auth.auth_manager import get_auth_manager
-from feast.permissions.server.rest import inject_user_details
+from feast.permissions.server.rest import build_auth_dependency
 from feast.permissions.server.utils import (
     ServerType,
     init_auth_manager,
@@ -23,7 +23,7 @@ from feast.permissions.server.utils import (
     str_to_auth_manager_type,
 )
 from feast.registry_server import RegistryServer
-from feast.utils import _utc_now
+from feast.utils import _make_dual_stack_socket, _utc_now
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -57,18 +57,12 @@ class RestRegistryServer:
         self.app = FastAPI(
             title="Feast REST Registry Server",
             description="Feast REST Registry Server",
-            dependencies=[Depends(inject_user_details)],
+            dependencies=[Depends(build_auth_dependency(scope_to_query_project=True))],
             version="1.0.0",
             openapi_url="/openapi.json",
             root_path="/api/v1",
             docs_url="/",
             redoc_url="/docs",
-            default_status_code=status.HTTP_200_OK,
-            default_headers={
-                "X-Content-Type-Options": "nosniff",
-                "X-XSS-Protection": "1; mode=block",
-                "X-Frame-Options": "DENY",
-            },
         )
         self._add_exception_handlers()
         self._add_logging_middleware()
@@ -322,30 +316,40 @@ class RestRegistryServer:
     def start_server(
         self,
         port: int,
+        host: str = "::",
         tls_key_path: str = "",
         tls_cert_path: str = "",
     ):
+        """Start the REST registry server. host="::" (default) binds dual-stack
+        via a pre-built socket; any other host falls back to plain uvicorn.run."""
         import uvicorn
 
         from feast.registry_server import _sync_protected_project_tag
 
         _sync_protected_project_tag(self.store)
 
+        ssl_kwargs: dict = {}
         if tls_key_path and tls_cert_path:
-            logger.info("Starting REST registry server in TLS(SSL) mode")
-            logger.info(f"REST registry server listening on https://localhost:{port}")
-            uvicorn.run(
-                self.app,
-                host="0.0.0.0",
-                port=port,
-                ssl_keyfile=tls_key_path,
-                ssl_certfile=tls_cert_path,
-            )
+            ssl_kwargs = {"ssl_keyfile": tls_key_path, "ssl_certfile": tls_cert_path}
+            scheme = "https"
         else:
-            logger.info("Starting REST registry server in non-TLS(SSL) mode")
-            logger.info(f"REST registry server listening on http://localhost:{port}")
-            uvicorn.run(
-                self.app,
-                host="0.0.0.0",
-                port=port,
+            scheme = "http"
+
+        if host == "::":
+            logger.info(
+                f"Starting REST registry server in "
+                f"{'TLS(SSL)' if ssl_kwargs else 'non-TLS(SSL)'} mode"
             )
+            logger.info(
+                f"REST registry server listening on {scheme}://localhost:{port}"
+            )
+            sock = _make_dual_stack_socket(port)
+            config = uvicorn.Config(self.app, **ssl_kwargs)
+            uvicorn.Server(config).run(sockets=[sock])
+        else:
+            logger.info(
+                f"Starting REST registry server in "
+                f"{'TLS(SSL)' if ssl_kwargs else 'non-TLS(SSL)'} mode"
+            )
+            logger.info(f"REST registry server listening on {scheme}://{host}:{port}")
+            uvicorn.run(self.app, host=host, port=port, **ssl_kwargs)

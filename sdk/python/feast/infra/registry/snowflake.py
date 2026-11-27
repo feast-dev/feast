@@ -149,6 +149,9 @@ class SnowflakeRegistry(BaseRegistry):
                     execute_snowflake_statement(conn, query)
 
         self.purge_feast_metadata = registry_config.purge_feast_metadata
+        self.serve_features_while_materializing = (
+            registry_config.serve_features_while_materializing
+        )
         self.project = project
 
         # Initialize cache state before any method that may trigger
@@ -1147,6 +1150,10 @@ class SnowflakeRegistry(BaseRegistry):
             FeatureViewNotFoundException,
         )
         fv.materialization_intervals.append((start_date, end_date))
+        if hasattr(fv, "state"):
+            from feast.feature_view import FeatureViewState
+
+            fv.state = FeatureViewState.AVAILABLE_ONLINE
         self._apply_object(
             fv_table_str,
             project,

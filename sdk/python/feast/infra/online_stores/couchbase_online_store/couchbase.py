@@ -143,6 +143,7 @@ class CouchbaseOnlineStore(OnlineStore):
                     )  # Upsert the document
                 except Exception as e:
                     logger.exception(f"Error upserting document {document_id}: {e}")
+                    raise
 
                 if progress:
                     progress(1)
@@ -255,6 +256,7 @@ class CouchbaseOnlineStore(OnlineStore):
                 logger.error(f"Scope {scope_name} already exists")
             except Exception as e:
                 logger.error(f"Error creating scope {scope_name}: {e}")
+                raise
 
             # Check and create collection
             try:
@@ -268,6 +270,7 @@ class CouchbaseOnlineStore(OnlineStore):
                 )
             except Exception as e:
                 logger.error(f"Error creating collection {collection_name}: {e}")
+                raise
 
     def teardown(
         self,

@@ -121,6 +121,25 @@ def test_prepare_for_apply_keeps_complete_projection():
     assert feature_service.feature_view_projections[0] == original_projection
 
 
+def test_feature_view_projections_have_independent_join_key_maps():
+    first_projection = FeatureViewProjection(
+        name="first",
+        name_alias=None,
+        desired_features=[],
+        features=[],
+    )
+    second_projection = FeatureViewProjection(
+        name="second",
+        name_alias=None,
+        desired_features=[],
+        features=[],
+    )
+
+    first_projection.join_key_map["entity_id"] = "aliased_entity_id"
+
+    assert second_projection.join_key_map == {}
+
+
 def test_build_apply_request():
     request = FeatureService.build_apply_request(
         name="my-feature-service",

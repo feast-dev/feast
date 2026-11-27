@@ -396,6 +396,17 @@ const DataSourceInstance = () => {
         restrictWidth
         iconType={DataSourceIcon}
         pageTitle={`Data Source: ${dataSourceName}`}
+        breadcrumbs={[
+          {
+            text: "Data Sources",
+            onClick: (e: React.MouseEvent) => {
+              e.preventDefault();
+              navigate(`/p/${projectName}/data-source`);
+            },
+            href: `/p/${projectName}/data-source`,
+          },
+          { text: dataSourceName || "" },
+        ]}
         rightSideItems={[
           <EuiButton
             key="edit"

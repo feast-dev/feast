@@ -34,12 +34,28 @@ class SecurityManager:
         self._current_project: ContextVar[Optional[str]] = ContextVar(
             "current_project", default=None
         )
+        self._current_request_token: ContextVar[Optional[str]] = ContextVar(
+            "current_request_token", default=None
+        )
 
     def set_current_user(self, current_user: User):
         """
         Init the user for the current context.
         """
         self._current_user.set(current_user)
+
+    def set_current_request_token(self, token: Optional[str]):
+        """Store the raw Bearer token for the current request context.
+
+        DataSources (e.g. MlflowDatasetSource) can retrieve this token to
+        authenticate against external services using the end-user's identity.
+        """
+        self._current_request_token.set(token)
+
+    @property
+    def current_request_token(self) -> Optional[str]:
+        """Return the raw Bearer token for the current request, if set."""
+        return self._current_request_token.get()
 
     def set_current_project(self, project: Optional[str]):
         return self._current_project.set(project)

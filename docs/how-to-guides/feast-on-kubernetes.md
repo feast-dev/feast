@@ -74,6 +74,48 @@ batch jobs, and more via the operator, see the
 [Operator Configuration Guides](feast-operator/README.md).
 {% endhint %}
 
+## Schedule FeatureStore pods on specific nodes
+
+Use `spec.services.nodeSelector` to require labels on the nodes that run a
+FeatureStore. Use `spec.services.tolerations` to allow those pods onto nodes with
+matching taints (node conditions that repel pods). A toleration permits a matching
+taint; it does not select nodes by itself.
+
+For example, the following places the FeatureStore on Linux nodes dedicated to Feast
+and permits the matching `dedicated=feast:NoSchedule` taint:
+
+```yaml
+apiVersion: feast.dev/v1
+kind: FeatureStore
+metadata:
+  name: sample
+spec:
+  feastProject: my_project
+  services:
+    nodeSelector:
+      kubernetes.io/os: linux
+      workload: feast
+    tolerations:
+      - key: dedicated
+        operator: Equal
+        value: feast
+        effect: NoSchedule
+```
+
+These settings apply to the FeatureStore Deployment's pod, including its init
+containers and every enabled Feast service container. A `nodeSelector` configured
+under an individual service's `server` block is merged with the shared selector and
+overrides `services.nodeSelector` for duplicate keys. Because enabled services share
+one pod, use `services.nodeSelector` for the common placement policy; avoid conflicting
+per-service selector values.
+
+To confirm the resolved placement after reconciliation:
+
+```sh
+kubectl get deployment feast-sample -o jsonpath='{.spec.template.spec.nodeSelector}'
+kubectl get deployment feast-sample -o jsonpath='{.spec.template.spec.tolerations}'
+```
+
 ## Upgrading the Operator
 
 ### OLM-managed installations

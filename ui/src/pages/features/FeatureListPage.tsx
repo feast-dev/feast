@@ -45,8 +45,7 @@ interface Feature {
 }
 
 type FeatureColumn =
-  | EuiTableFieldDataColumnType<Feature>
-  | EuiTableComputedColumnType<Feature>;
+  EuiTableFieldDataColumnType<Feature> | EuiTableComputedColumnType<Feature>;
 
 const FeatureListPage = () => {
   const { projectName } = useParams();
@@ -301,6 +300,7 @@ const FeatureListPage = () => {
             </EuiFlexGroup>
             <EuiSpacer size="m" />
             <EuiBasicTable
+              tableLayout="auto"
               columns={columns}
               items={paginatedFeatures}
               rowProps={getRowProps}

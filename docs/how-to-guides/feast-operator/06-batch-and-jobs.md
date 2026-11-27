@@ -50,18 +50,59 @@ spec:
     configMapKey: config           # key inside the ConfigMap (default: "config")
 ```
 
+### SparkApplication batch engine (optional)
+
+For Bring Your Own Spark on Kubernetes, use `spark_application` instead of in-process Spark.
+The Feast Operator auto-creates RBAC for this type. See
+[SparkApplication](../../reference/compute-engine/spark_application.md) for the full config reference.
+Build an image from the reference
+[Dockerfile](https://github.com/feast-dev/feast/blob/master/sdk/python/feast/infra/compute_engines/spark_application/Dockerfile)
+(or equivalent):
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: feast-spark-application-engine
+data:
+  config: |
+    type: spark_application
+    image: my-registry.example.com/feast-spark-driver:latest
+    namespace: feast
+    executor_instances: 2
+    driver_memory: "2g"
+    executor_memory: "2g"
+```
+
+```yaml
+apiVersion: feast.dev/v1
+kind: FeatureStore
+metadata:
+  name: sample-spark-application
+spec:
+  feastProject: my_project
+  batchEngine:
+    configMapRef:
+      name: feast-spark-application-engine
+    configMapKey: config
+  # Optional: use the Spark driver image for feast-apply / init containers
+  # services:
+  #   initImage: my-registry.example.com/feast-spark-driver:latest
+```
+
 ### Engine types
 
 | `type` | Notes |
 |--------|-------|
 | `local` | Default; in-process Python, no extra infra |
 | `spark` | Apache Spark; requires a Spark operator or standalone cluster |
+| `spark_application` | Kubeflow Spark Operator `SparkApplication` CRs; requires Spark Operator + custom image; operator auto-creates RBAC |
 | `ray` | Ray cluster; requires a Ray operator |
 | `bytewax` | Bytewax streaming engine |
 | `snowflake.engine` | Snowflake Snowpark compute |
 
 > For engine-specific YAML options (Spark conf, Ray address, etc.) see the
-> [Feast SDK — Compute Engine](../reference/compute-engine/) docs.
+> [Feast SDK — Compute Engine](../../reference/compute-engine/) docs.
 
 ---
 
@@ -263,4 +304,4 @@ spec:
 
 - [API reference — `BatchEngineConfig`](https://github.com/feast-dev/feast/blob/stable/infra/feast-operator/docs/api/markdown/ref.md#batchengineconfig)
 - [API reference — `FeastCronJob`](https://github.com/feast-dev/feast/blob/stable/infra/feast-operator/docs/api/markdown/ref.md#feastcronjob)
-- [Feast SDK — Compute Engine](../reference/compute-engine/)
+- [Feast SDK — Compute Engine](../../reference/compute-engine/)

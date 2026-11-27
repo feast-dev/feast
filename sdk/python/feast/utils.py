@@ -1,7 +1,9 @@
 import copy
+import functools
 import itertools
 import logging
 import os
+import socket
 import threading
 import typing
 import warnings
@@ -63,26 +65,75 @@ APPLICATION_NAME = "feast-dev/feast"
 USER_AGENT = "{}/{}".format(APPLICATION_NAME, get_version())
 
 
-def _parse_feature_ref(ref: str) -> Tuple[str, Optional[int], str]:
-    """Parse 'fv_name@version:feature' into (fv_name, version_number, feature_name).
+@functools.lru_cache()
+def _ipv6_available() -> bool:
+    """Whether this process can bind AF_INET6 (cached: can't change at runtime)."""
+    try:
+        with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as sock:
+            sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+            sock.bind(("::", 0))
+        return True
+    except OSError:
+        return False
 
-    If no @version is present, version_number is None (meaning 'latest').
+
+def _make_dual_stack_socket(port: int, blocking: bool = False) -> socket.socket:
+    """Pre-bind a dual-stack socket for a server to adopt.
+
+    A framework handed host="::" directly (uvicorn.run, loop.create_server)
+    sets IPV6_V6ONLY=1 on its own socket, silently dropping IPv4 clients.
+    Binding here with V6ONLY cleared avoids that; falls back to IPv4-only
+    when the host can't bind AF_INET6.
+
+    Non-blocking by default since every current caller hands the socket to
+    an asyncio-based server (uvicorn.Server(...).run(sockets=[sock])), which
+    requires that; pass blocking=True for a synchronous server instead.
+    """
+    dual_stack = _ipv6_available()
+    if dual_stack:
+        sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+        address: tuple = ("::", port)
+    else:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        address = ("0.0.0.0", port)
+    try:
+        if dual_stack:
+            sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind(address)
+        sock.listen(socket.SOMAXCONN)
+        sock.setblocking(blocking)
+    except Exception:
+        sock.close()
+        raise
+    return sock
+
+
+def _parse_feature_or_view_ref(ref: str) -> Tuple[str, Optional[int], Optional[str]]:
+    """Parse 'fv_name[@version][:feature]' into (fv_name, version_number, feature_name).
+
+    Unlike ``_parse_feature_ref``, the ':<feature>' suffix is optional, so this
+    also parses whole-view references (e.g. a FeatureService entry that pins a
+    version but selects all of the view's features). When no ':<feature>' is
+    present, feature_name is None. When no @version is present, version_number
+    is None (meaning 'latest').
+
     Examples:
-        'driver_stats:trips' -> ('driver_stats', None, 'trips')
-        'driver_stats@v2:trips' -> ('driver_stats', 2, 'trips')
+        'driver_stats:trips'        -> ('driver_stats', None, 'trips')
+        'driver_stats@v2:trips'     -> ('driver_stats', 2, 'trips')
         'driver_stats@latest:trips' -> ('driver_stats', None, 'trips')
+        'driver_stats'              -> ('driver_stats', None, None)
+        'driver_stats@v2'           -> ('driver_stats', 2, None)
     """
     import re
 
     colon_idx = ref.find(":")
     if colon_idx < 0:
-        raise ValueError(
-            f"Invalid feature reference '{ref}'. Expected format: '<feature_view>:<feature>' "
-            f"or '<feature_view>@<version>:<feature>'"
-        )
-
-    fv_part = ref[:colon_idx]
-    feature_name = ref[colon_idx + 1 :]
+        fv_part = ref
+        feature_name: Optional[str] = None
+    else:
+        fv_part = ref[:colon_idx]
+        feature_name = ref[colon_idx + 1 :]
 
     at_idx = fv_part.find("@")
     if at_idx < 0:
@@ -103,6 +154,27 @@ def _parse_feature_ref(ref: str) -> Tuple[str, Optional[int], str]:
     return (fv_name, int(match.group(1)), feature_name)
 
 
+def _parse_feature_ref(ref: str) -> Tuple[str, Optional[int], str]:
+    """Parse 'fv_name@version:feature' into (fv_name, version_number, feature_name).
+
+    The ':<feature>' suffix is required; use ``_parse_feature_or_view_ref`` when
+    a whole-view reference (no feature) should be accepted.
+
+    If no @version is present, version_number is None (meaning 'latest').
+    Examples:
+        'driver_stats:trips' -> ('driver_stats', None, 'trips')
+        'driver_stats@v2:trips' -> ('driver_stats', 2, 'trips')
+        'driver_stats@latest:trips' -> ('driver_stats', None, 'trips')
+    """
+    fv_name, version_num, feature_name = _parse_feature_or_view_ref(ref)
+    if feature_name is None:
+        raise ValueError(
+            f"Invalid feature reference '{ref}'. Expected format: '<feature_view>:<feature>' "
+            f"or '<feature_view>@<version>:<feature>'"
+        )
+    return (fv_name, version_num, feature_name)
+
+
 def _strip_version_from_ref(ref: str) -> str:
     """Strip @version from a feature reference, returning 'fv_name:feature'.
 
@@ -110,6 +182,67 @@ def _strip_version_from_ref(ref: str) -> str:
     """
     fv_name, _, feature_name = _parse_feature_ref(ref)
     return f"{fv_name}:{feature_name}"
+
+
+def _get_requested_on_demand_feature_views(
+    feature_refs: List[str],
+    project: str,
+    registry: "BaseRegistry",
+    allow_cache: bool = True,
+) -> List["OnDemandFeatureView"]:
+    """Resolve the ODFVs referenced by ``feature_refs``, honouring ``fv@vN`` pins.
+
+    Offline stores re-fetch ODFVs from the registry independently of the
+    already-resolved online path (``_get_feature_views_to_use``). This mirrors
+    that version-aware resolution so a pinned ODFV ref resolves to the pinned
+    snapshot; unversioned refs resolve to the promoted view (unchanged behavior).
+    """
+    from feast.on_demand_feature_view import OnDemandFeatureView
+
+    promoted_by_name = {
+        odfv.name: odfv
+        for odfv in registry.list_on_demand_feature_views(
+            project, allow_cache=allow_cache
+        )
+    }
+
+    # Dedupe refs by (name, version), preserving first-seen order.
+    requested: Dict[Tuple[str, Optional[int]], None] = {}
+    for ref in feature_refs:
+        fv_name, version_num, _ = _parse_feature_ref(ref)
+        requested[(fv_name, version_num)] = None
+
+    resolved: List["OnDemandFeatureView"] = []
+    seen: Set[Tuple[str, Optional[int]]] = set()
+    for fv_name, version_num in requested:
+        if version_num is not None:
+            try:
+                odfv = registry.get_feature_view_by_version(
+                    fv_name, project, version_num, allow_cache
+                )
+            except NotImplementedError:
+                # v0 fallback for registries without versioned lookup.
+                if version_num == 0:
+                    odfv = registry.get_any_feature_view(fv_name, project, allow_cache)
+                else:
+                    raise
+            if not isinstance(odfv, OnDemandFeatureView):
+                continue  # ref belongs to a regular FeatureView, not an ODFV
+            if odfv.projection is not None:
+                odfv.projection.version_tag = version_num
+        else:
+            promoted = promoted_by_name.get(fv_name)
+            if promoted is None:
+                continue
+            odfv = promoted
+
+        key = (odfv.name, version_num)
+        if key in seen:
+            continue
+        seen.add(key)
+        resolved.append(odfv)
+
+    return resolved
 
 
 def get_user_agent():
@@ -374,9 +507,20 @@ def _columns_to_proto_values(
     result: Dict[str, List[ValueProto]] = {}
     for column, value_type in columns:
         if column in table.column_names:
-            result[column] = python_values_to_proto_values(
-                table.column(column).to_numpy(zero_copy_only=False), value_type
+            array = table.column(column)
+            # to_numpy() turns a timestamp column into numpy.datetime64 and drops the
+            # column's time zone, which ZONED_TIMESTAMP stores; to_pylist() keeps
+            # tz-aware datetime values. It also turns an integer column that has nulls
+            # into float64, which rounds values above 2**53; to_pylist() keeps them exact.
+            keep_python_values = value_type == ValueType.ZONED_TIMESTAMP or (
+                array.null_count > 0 and pyarrow.types.is_integer(array.type)
             )
+            values = (
+                array.to_pylist()
+                if keep_python_values
+                else array.to_numpy(zero_copy_only=False)
+            )
+            result[column] = python_values_to_proto_values(values, value_type)
         elif not allow_missing:
             raise ValueError(f"Column {column} not found in table")
     return result
@@ -415,6 +559,9 @@ def _convert_arrow_to_proto(
 ) -> List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]]:
     # This is a workaround for isinstance(feature_view, OnDemandFeatureView), which triggers a circular import
     # Check for source_request_sources or source_feature_view_projections attributes to identify ODFVs
+    # Validate before branching so both regular and on-demand feature views are covered.
+    _validate_vector_field_lengths(table, feature_view)
+
     if (
         getattr(feature_view, "source_request_sources", None) is not None
         or getattr(feature_view, "source_feature_view_projections", None) is not None
@@ -429,9 +576,15 @@ def _convert_arrow_fv_to_proto(
     feature_view: "FeatureView",
     join_keys: Dict[str, ValueType],
 ) -> List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]]:
-    # Avoid ChunkedArrays which guarantees `zero_copy_only` available.
+    # A Table can hold several record batches (for example a query result fetched in
+    # batches); convert each of them. A RecordBatch avoids ChunkedArrays, which
+    # guarantees `zero_copy_only` is available.
     if isinstance(table, pyarrow.Table):
-        table = table.to_batches()[0]
+        return [
+            row
+            for batch in table.to_batches()
+            for row in _convert_arrow_fv_to_proto(batch, feature_view, join_keys)
+        ]
 
     if feature_view.batch_source is None:
         raise ValueError(
@@ -487,9 +640,15 @@ def _convert_arrow_odfv_to_proto(
     feature_view: "OnDemandFeatureView",
     join_keys: Dict[str, ValueType],
 ) -> List[Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]]:
-    # Avoid ChunkedArrays which guarantees `zero_copy_only` available.
+    # A Table can hold several record batches (for example a query result fetched in
+    # batches); convert each of them. A RecordBatch avoids ChunkedArrays, which
+    # guarantees `zero_copy_only` is available.
     if isinstance(table, pyarrow.Table):
-        table = table.to_batches()[0]
+        return [
+            row
+            for batch in table.to_batches()
+            for row in _convert_arrow_odfv_to_proto(batch, feature_view, join_keys)
+        ]
 
     columns = [
         (field.name, field.dtype.to_value_type()) for field in feature_view.features
@@ -747,7 +906,12 @@ def _augment_response_with_on_demand_transforms(
     """
     from feast.online_response import OnlineResponse
 
-    requested_odfv_map = {odfv.name: odfv for odfv in requested_on_demand_feature_views}
+    # Feature refs name an ODFV by its alias when it was added to a
+    # FeatureService with ``with_name``, so key the lookup the same way.
+    requested_odfv_map = {
+        (odfv.projection.name_alias if odfv.projection else None) or odfv.name: odfv
+        for odfv in requested_on_demand_feature_views
+    }
     requested_odfv_feature_names = requested_odfv_map.keys()
 
     odfv_feature_refs = defaultdict(list)
@@ -1195,7 +1359,10 @@ def _get_features(
         feature_service_from_registry = registry.get_feature_service(
             _features.name, project, allow_cache
         )
-        if feature_service_from_registry != _features:
+        # Unresolved string-ref services have no projections yet, so skip the
+        # inconsistency check; we resolve from the registry regardless.
+        is_unresolved = bool(getattr(_features, "_pending_feature_refs", None))
+        if not is_unresolved and feature_service_from_registry != _features:
             warnings.warn(
                 "The FeatureService object that has been passed in as an argument is "
                 "inconsistent with the version from the registry. Potentially a newer version "
@@ -1260,8 +1427,15 @@ def _get_feature_views_to_use(
     from feast.on_demand_feature_view import OnDemandFeatureView
 
     if isinstance(features, FeatureService):
+        # An unresolved string-ref service has no projections until applied, so
+        # resolve it from the registry (matching _get_features). Never applied ->
+        # get_feature_service raises FeatureServiceNotFoundException.
+        if getattr(features, "_pending_feature_refs", None):
+            features = registry.get_feature_service(
+                features.name, project, allow_cache=allow_cache
+            )
         feature_views = [
-            (projection.name, None, projection)
+            (projection.name, projection.version_tag, projection)
             for projection in features.feature_view_projections
         ]
     else:
@@ -1333,9 +1507,20 @@ def _get_feature_views_to_use(
         if hasattr(fv, "state"):
             from feast.feature_view import FeatureViewState
 
-            if isinstance(fv.state, FeatureViewState) and fv.state not in (
+            servable_states = {
                 FeatureViewState.STATE_UNSPECIFIED,
                 FeatureViewState.AVAILABLE_ONLINE,
+            }
+            # When 'serve_features_while_materializing' is enabled, keep serving
+            # the last-materialized values while a feature view is MATERIALIZING,
+            # so routine incremental materialization against a shared registry does
+            # not interrupt concurrent feature servers (see issue #6780).
+            if getattr(registry, "serve_features_while_materializing", False):
+                servable_states.add(FeatureViewState.MATERIALIZING)
+
+            if (
+                isinstance(fv.state, FeatureViewState)
+                and fv.state not in servable_states
             ):
                 raise ValueError(
                     f"Feature view '{name}' is in state '{fv.state.name}' "
@@ -1568,6 +1753,13 @@ def _prepare_entities_to_read_from_online_store(
         entityless_case,
     ) = _get_cached_request_context(registry, project, features, full_feature_names)
 
+    # Online stores may append internal fields to the requested feature lists.
+    # Keep those request-local so the cached resolution result remains unchanged.
+    grouped_refs = [
+        (feature_view, list(requested_features))
+        for feature_view, requested_features in grouped_refs
+    ]
+
     # Mutable copy — downstream code adds join keys to this set.
     requested_result_row_names = set(requested_result_row_names_frozen)
 
@@ -1706,6 +1898,13 @@ def _populate_response_from_feature_data(
     null_ts = Timestamp()
     PRESENT = FieldStatus.PRESENT
     NOT_FOUND = FieldStatus.NOT_FOUND
+    OUTSIDE_MAX_AGE = FieldStatus.OUTSIDE_MAX_AGE
+
+    # A ttl of None or zero means values never expire, matching the Go server.
+    # Stored on-demand feature views have no ttl attribute.
+    ttl = getattr(table, "ttl", None)
+    ttl_secs = int(ttl.total_seconds()) if ttl else 0
+    now_secs = int(datetime.now(timezone.utc).timestamp()) if ttl_secs else 0
 
     row_ts_protos = []
     for row_ts, _ in read_rows:
@@ -1725,23 +1924,39 @@ def _populate_response_from_feature_data(
     feat_statuses = [[NOT_FOUND] * output_len for _ in range(n_features)]
 
     feat_idx_map = {name: i for i, name in enumerate(requested_features)}
+    _present_count = 0
+    _outside_max_age_count = 0
     for row_idx, destinations in enumerate(indexes_tuple):
-        _, feature_data = read_rows[row_idx]
+        row_ts, feature_data = read_rows[row_idx]
         if feature_data is None:
             continue
+        # Expired values are still returned; only the status changes.
+        expired = (
+            ttl_secs > 0
+            and row_ts is not None
+            and now_secs - row_ts_protos[row_idx].seconds > ttl_secs
+        )
+        status = OUTSIDE_MAX_AGE if expired else PRESENT
+        _row_count = 0
         for feat_name, feat_val in feature_data.items():
             f_idx = feat_idx_map.get(feat_name)
             if f_idx is not None:
                 for out_idx in destinations:
                     feat_values[f_idx][out_idx] = feat_val
-                    feat_statuses[f_idx][out_idx] = PRESENT
+                    feat_statuses[f_idx][out_idx] = status
+                    _row_count += 1
+        if expired:
+            _outside_max_age_count += _row_count
+        else:
+            _present_count += _row_count
 
     try:
         from feast.metrics import track_feature_statuses
 
-        _present = sum(s == PRESENT for row in feat_statuses for s in row)
-        _not_found = (n_features * output_len) - _present
-        track_feature_statuses(table.name, _present, _not_found)
+        _not_found = (n_features * output_len) - _present_count - _outside_max_age_count
+        track_feature_statuses(
+            table.name, _present_count, _not_found, _outside_max_age_count
+        )
     except Exception:
         pass
 
@@ -1851,6 +2066,93 @@ def _get_feature_view_vector_field_metadata(
     if not vector_fields:
         return None
     return vector_fields[0]
+
+
+def _validate_vector_field_lengths(
+    table: Union[pyarrow.Table, pyarrow.RecordBatch],
+    feature_view,
+) -> None:
+    """Check an Arrow table's vector column for a consistent width.
+
+    Called on the materialization path, where every compute engine funnels through
+    ``_convert_arrow_to_proto``. The check is O(1) for fixed-size lists and a single
+    vectorized pass for variable-size lists, so it is safe to leave on.
+
+    When the field declares a ``vector_length``, that is the contract and a mismatch
+    is an error, never a silent truncation or a silently different response shape.
+
+    When it does not, the width of the first non-null row is used as the contract for
+    the rest of the table. An approximate nearest neighbour index requires a fixed
+    width, so a ragged vector column is a defect either way, and inferring is strictly
+    better than skipping. ``vector_length`` is unset by default, including in the
+    bundled RAG templates, so skipping would leave the common case unchecked.
+
+    Args:
+        table: The Arrow table or record batch about to be converted.
+        feature_view: The feature view whose schema declares the vector field.
+
+    Raises:
+        ValueError: If the vector column's width is inconsistent, or disagrees with
+            a declared ``vector_length``.
+    """
+    vector_field = _get_feature_view_vector_field_metadata(feature_view)
+    if vector_field is None or not vector_field.vector_index:
+        return
+
+    name = vector_field.name
+    if name not in table.schema.names:
+        return
+
+    column = table.column(name)
+    column_type = column.type
+    declared = vector_field.vector_length or None
+
+    def _fail(actual, expected: int, row: Optional[int] = None) -> None:
+        where = f"Row {row}: " if row is not None else ""
+        source = (
+            f"expected {expected}"
+            if declared
+            else f"expected {expected}, inferred from the first row"
+        )
+        raise ValueError(
+            f"{where}Vector length {actual} does not match {source} "
+            f"for feature '{name}' in feature view '{feature_view.name}'."
+        )
+
+    if pyarrow.types.is_fixed_size_list(column_type):
+        # The width is a property of the type, so an undeclared column is uniform
+        # by construction and there is nothing left to check.
+        if declared and column_type.list_size != declared:
+            _fail(column_type.list_size, declared)
+        return
+
+    if pyarrow.types.is_list(column_type) or pyarrow.types.is_large_list(column_type):
+        lengths = pyarrow.compute.list_value_length(column)
+        valid = pyarrow.compute.is_valid(lengths)
+
+        expected = declared
+        if expected is None:
+            # Nulls carry no width, so take the contract from the first row that does.
+            first = pyarrow.compute.index(valid, True).as_py()
+            if first == -1:
+                return
+            expected = lengths[first].as_py()
+
+        # Nulls have no length to compare; only non-null rows carry the contract.
+        mismatched = pyarrow.compute.and_kleene(
+            valid, pyarrow.compute.not_equal(lengths, expected)
+        )
+        if pyarrow.compute.any(mismatched).as_py():
+            row = pyarrow.compute.index(mismatched, True).as_py()
+            _fail(lengths[row].as_py(), expected, row=row)
+        return
+
+    # Any other type cannot hold a vector.
+    declared_note = f" declares vector_length={declared} but" if declared else ""
+    raise ValueError(
+        f"Vector feature '{name}' in feature view '{feature_view.name}'{declared_note} "
+        f"has non-list Arrow type {column_type}."
+    )
 
 
 def _distance_to_score(distance: float, metric: Optional[str] = None) -> float:

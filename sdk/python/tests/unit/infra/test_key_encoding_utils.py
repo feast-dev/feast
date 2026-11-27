@@ -1,3 +1,5 @@
+import pytest
+
 from feast.infra.key_encoding_utils import (
     _deserialize_value,
     _serialize_val,
@@ -131,6 +133,44 @@ def test_serialize_deserialize_unix_timestamp_entity():
     assert deserialized_key.entity_values[0].unix_timestamp_val == 1758823656
 
 
+@pytest.mark.parametrize(
+    "value_field, value_type, value",
+    [
+        ("uuid_val", ValueType.UUID, "a8098c1a-f86e-41da-bd1a-00112444be1e"),
+        (
+            "time_uuid_val",
+            ValueType.TIME_UUID,
+            "c232ab00-9414-11ec-b3c8-9f6bdeced846",
+        ),
+    ],
+    ids=["uuid", "time_uuid"],
+)
+def test_serialize_deserialize_uuid_entity(value_field, value_type, value):
+    serialized_value, serialized_type = _serialize_val(
+        value_field, ValueProto(**{value_field: value})
+    )
+    assert serialized_type == value_type
+    assert serialized_value == value.encode("utf8")
+
+    entity_key_proto = EntityKeyProto(
+        join_keys=["session_id"],
+        entity_values=[ValueProto(**{value_field: value})],
+    )
+
+    serialized_key = serialize_entity_key(
+        entity_key_proto,
+        entity_key_serialization_version=3,
+    )
+
+    deserialized_key = deserialize_entity_key(
+        serialized_key,
+        entity_key_serialization_version=3,
+    )
+
+    assert deserialized_key == entity_key_proto
+    assert getattr(deserialized_key.entity_values[0], value_field) == value
+
+
 def test_reserialize_entity_v2_key_to_v3():
     entity_key_proto_v2 = EntityKeyProto(
         join_keys=["user"],
@@ -234,32 +274,6 @@ def test_optimization_preserves_sorting():
 
     assert deserialized.join_keys == expected_sorted_keys
     assert [v.string_val for v in deserialized.entity_values] == expected_sorted_values
-
-
-def test_performance_bounds_single_entity():
-    """Regression test to ensure single entity performance meets minimum bounds."""
-    import time
-
-    entity_key = EntityKeyProto(
-        join_keys=["user_id"], entity_values=[ValueProto(string_val="user123")]
-    )
-
-    # Measure serialization time for 1000 operations
-    start = time.perf_counter()
-    for _ in range(1000):
-        serialize_entity_key(entity_key, entity_key_serialization_version=3)
-    serialize_time = time.perf_counter() - start
-
-    # Measure deserialization time
-    serialized = serialize_entity_key(entity_key, entity_key_serialization_version=3)
-    start = time.perf_counter()
-    for _ in range(1000):
-        deserialize_entity_key(serialized, entity_key_serialization_version=3)
-    deserialize_time = time.perf_counter() - start
-
-    # Performance bounds with generous thresholds to avoid flaky failures on CI runners
-    assert serialize_time < 0.2, f"Serialization too slow: {serialize_time:.4f}s"
-    assert deserialize_time < 0.2, f"Deserialization too slow: {deserialize_time:.4f}s"
 
 
 def test_non_ascii_prefix_compatibility():

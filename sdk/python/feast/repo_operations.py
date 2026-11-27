@@ -26,7 +26,7 @@ from feast.feature_store import FeatureStore
 from feast.feature_view import DUMMY_ENTITY, FeatureView
 from feast.file_utils import replace_str_in_file
 from feast.infra.registry.base_registry import BaseRegistry
-from feast.infra.registry.registry import FEAST_OBJECT_TYPES, FeastObjectType, Registry
+from feast.infra.registry.registry import FEAST_OBJECT_TYPES, FeastObjectType
 from feast.labeling.label_view import LabelView
 from feast.names import adjectives, animals
 from feast.on_demand_feature_view import OnDemandFeatureView
@@ -544,15 +544,9 @@ def teardown(repo_config: RepoConfig, repo_path: Optional[str]):
 
 def registry_dump(repo_config: RepoConfig, repo_path: Path) -> str:
     """For debugging only: output contents of the metadata registry"""
-    registry_config = repo_config.registry
     project = repo_config.project
-    registry = Registry(
-        project,
-        registry_config=registry_config,
-        repo_path=repo_path,
-        auth_config=repo_config.auth_config,
-    )
-    registry_dict = registry.to_dict(project=project)
+    feature_store = FeatureStore(repo_path=str(repo_path), config=repo_config)
+    registry_dict = feature_store.registry.to_dict(project=project)
     return json.dumps(registry_dict, indent=2, sort_keys=True)
 
 

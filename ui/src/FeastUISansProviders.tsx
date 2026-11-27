@@ -79,10 +79,12 @@ const FeastUISansProviders = ({
       ? {
           projectsListPromise: feastUIConfigs?.projectListPromise,
           isCustom: true,
+          basename,
         }
       : {
           projectsListPromise: defaultProjectListPromise(basename),
           isCustom: false,
+          basename,
         };
 
   return (

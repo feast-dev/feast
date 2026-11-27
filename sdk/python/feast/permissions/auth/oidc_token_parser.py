@@ -1,8 +1,11 @@
 import logging
 import os
 import ssl
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 from unittest.mock import Mock
+
+if TYPE_CHECKING:
+    from kubernetes.client import AuthenticationV1Api
 
 import jwt
 from fastapi import Request
@@ -12,6 +15,10 @@ from starlette.authentication import (
     AuthenticationError,
 )
 
+from feast.permissions.auth.intra_comm import (
+    decode_intra_comm_token,
+    get_intra_comm_secret,
+)
 from feast.permissions.auth.token_parser import TokenParser
 from feast.permissions.auth_model import OidcAuthConfig
 from feast.permissions.oidc_service import OIDCDiscoveryService
@@ -40,11 +47,55 @@ class OidcTokenParser(TokenParser):
             verify_ssl=self._auth_config.verify_ssl,
             ca_cert_path=self._auth_config.ca_cert_path,
         )
-        self._k8s_auth_api = None
+        self._k8s_auth_api: Optional["AuthenticationV1Api"] = None
+        self._jwks_client: Optional[PyJWKClient] = None  # Initialize it lazily.
 
-    async def _validate_token(self, access_token: str):
+    def _get_jwks_client(self) -> PyJWKClient:
+        """Lazily build and cache a parser-lifetime ``PyJWKClient``.
+
+        A per-request client starts with a cold JWK-set cache, forcing a
+        full HTTPS fetch of the JWKS document on every authenticated
+        request. Reusing one client lets PyJWT cache the JWK set for
+        ``jwks_cache_lifespan_seconds``, which also bounds two staleness
+        windows: a key the IdP has removed keeps validating, and a
+        rotation that reuses an existing ``kid`` keeps failing, for at
+        most that long. Rotations that introduce a new ``kid`` recover
+        immediately (``PyJWKClient.get_signing_key`` refreshes and
+        retries once on a cache miss).
         """
-        Validate the token extracted from the header of the user request against the OAuth2 server.
+        if self._jwks_client is None:
+            ssl_ctx = ssl.create_default_context()
+            if not self._auth_config.verify_ssl:
+                ssl_ctx.check_hostname = False
+                ssl_ctx.verify_mode = ssl.CERT_NONE
+            elif self._auth_config.ca_cert_path and os.path.exists(
+                self._auth_config.ca_cert_path
+            ):
+                ssl_ctx.load_verify_locations(self._auth_config.ca_cert_path)
+            self._jwks_client = PyJWKClient(
+                self.oidc_discovery_service.get_jwks_url(),
+                headers={"User-agent": "custom-user-agent"},
+                ssl_context=ssl_ctx,
+                # Explicit so upgrades cannot silently change the staleness
+                # window documented above, and so a hung IdP bounds how long
+                # a fetch can block the serving path.
+                lifespan=self._auth_config.jwks_cache_lifespan_seconds,
+                timeout=self._auth_config.jwks_request_timeout_seconds,
+            )
+        return self._jwks_client
+
+    async def _check_discovery_endpoints(self, access_token: str):
+        """Check that the provider's discovery document exposes the OAuth2 endpoints.
+
+        This does **not** verify *access_token*, despite taking it: the bearer
+        scheme below only parses an ``Authorization`` header, and this method
+        supplies that header itself, so any token value passes. The token is
+        genuinely verified in ``_decode_token``, which checks the signature
+        against the provider's JWKS and validates the claims.
+
+        What can fail here is constructing the scheme, which reads the token
+        and authorization endpoints from the discovery document. A document
+        missing either one raises before any token is inspected.
         """
         # FastAPI's OAuth2AuthorizationCodeBearer requires a Request type but actually uses only the headers field
         # https://github.com/tiangolo/fastapi/blob/eca465f4c96acc5f6a22e92fd2211675ca8a20c8/fastapi/security/oauth2.py#L380
@@ -125,21 +176,7 @@ class OidcTokenParser(TokenParser):
         metadata (e.g. Entra ID v1.0 tokens validated against a v2.0
         discovery document).
         """
-        optional_custom_headers = {"User-agent": "custom-user-agent"}
-        ssl_ctx = ssl.create_default_context()
-        if not self._auth_config.verify_ssl:
-            ssl_ctx.check_hostname = False
-            ssl_ctx.verify_mode = ssl.CERT_NONE
-        elif self._auth_config.ca_cert_path and os.path.exists(
-            self._auth_config.ca_cert_path
-        ):
-            ssl_ctx.load_verify_locations(self._auth_config.ca_cert_path)
-        jwks_client = PyJWKClient(
-            self.oidc_discovery_service.get_jwks_url(),
-            headers=optional_custom_headers,
-            ssl_context=ssl_ctx,
-        )
-        signing_key = jwks_client.get_signing_key_from_jwt(access_token)
+        signing_key = self._get_jwks_client().get_signing_key_from_jwt(access_token)
         expected_audience = self._auth_config.audience
         expected_issuer = self._auth_config.issuer
         return jwt.decode(
@@ -164,9 +201,11 @@ class OidcTokenParser(TokenParser):
         Validate the access token then decode it to extract the user credentials,
         roles, and groups.
 
-        A single unverified decode is performed upfront for lightweight routing:
-        intra-server communication, Kubernetes SA tokens (identified by the
-        ``kubernetes.io`` claim), or standard OIDC/Keycloak JWKS validation.
+        Intra-server tokens are trusted only when signed with the shared
+        ``INTRA_COMMUNICATION_BASE64`` secret. For all other tokens, a single
+        unverified decode routes the request: Kubernetes SA tokens (identified
+        by the ``kubernetes.io`` claim) or standard OIDC/Keycloak JWKS
+        validation.
 
         Returns:
             User: Current user, with associated roles, groups, or namespaces.
@@ -179,7 +218,7 @@ class OidcTokenParser(TokenParser):
         except jwt.exceptions.DecodeError as e:
             raise AuthenticationError(f"Failed to decode token: {e}")
 
-        user = self._get_intra_comm_user(unverified)
+        user = self._get_intra_comm_user(access_token)
         if user:
             return user
 
@@ -197,8 +236,8 @@ class OidcTokenParser(TokenParser):
 
         # Standard OIDC / Keycloak flow
         try:
-            await self._validate_token(access_token)
-            logger.debug("Token successfully validated.")
+            await self._check_discovery_endpoints(access_token)
+            logger.debug("OIDC discovery document exposes the expected endpoints.")
         except Exception as e:
             if self._is_ssl_error(e):
                 logger.error(
@@ -263,15 +302,13 @@ class OidcTokenParser(TokenParser):
         token_review = client.V1TokenReview(
             spec=client.V1TokenReviewSpec(token=access_token)
         )
-        auth_api: client.AuthenticationV1Api = self._k8s_auth_api
-        response = auth_api.create_token_review(token_review)
+        response = self._k8s_auth_api.create_token_review(token_review)
+        status = response.status
+        if status is None or not status.authenticated:
+            error = getattr(status, "error", None) if status is not None else None
+            raise AuthenticationError(f"Kubernetes token validation failed: {error}")
 
-        if not response.status.authenticated:
-            raise AuthenticationError(
-                f"Kubernetes token validation failed: {response.status.error}"
-            )
-
-        username = getattr(response.status.user, "username", "") or ""
+        username = getattr(status.user, "username", "") or ""
         namespaces = []
         if username.startswith("system:serviceaccount:") and username.count(":") >= 3:
             namespaces.append(username.split(":")[2])
@@ -280,16 +317,9 @@ class OidcTokenParser(TokenParser):
         return User(username=username, roles=[], groups=[], namespaces=namespaces)
 
     @staticmethod
-    def _get_intra_comm_user(decoded_token: dict) -> Optional[User]:
-        intra_communication_base64 = os.getenv("INTRA_COMMUNICATION_BASE64")
-
-        if intra_communication_base64:
-            if "preferred_username" in decoded_token:
-                preferred_username: str = decoded_token["preferred_username"]
-                if (
-                    preferred_username is not None
-                    and preferred_username == intra_communication_base64
-                ):
-                    return User(username=preferred_username, roles=[])
-
+    def _get_intra_comm_user(access_token: str) -> Optional[User]:
+        secret = get_intra_comm_secret()
+        claims = decode_intra_comm_token(access_token)
+        if secret and claims and claims.get("preferred_username") == secret:
+            return User(username=secret, roles=[])
         return None

@@ -18,7 +18,7 @@ project: my_feature_repo
 registry: data/registry.db
 provider: local
 offline_store:
-  type: hybrid_offline_store.HybridOfflineStore
+  type: hybrid
   offline_stores:
     - type: spark
       conf:
@@ -81,6 +81,84 @@ store.materialize(
     feature_views=[feature_view1, feature_view2],
 )
 ```
+
+## Using ConnectionRef with Hybrid Offline Store
+
+When using the HybridOfflineStore, each data source can carry its own credentials via `ConnectionRef`. This is particularly useful when different feature views connect to different accounts or clusters — you no longer need to embed all credentials in `feature_store.yaml`.
+
+### Example: Per-DataSource Credentials
+
+{% code title="feature_store.yaml" %}
+```yaml
+project: my_feature_repo
+registry: data/registry.db
+provider: local
+offline_store:
+  type: hybrid_offline_store.HybridOfflineStore
+  offline_stores:
+    - type: snowflake.offline
+    - type: bigquery
+```
+{% endcode %}
+
+```python
+from feast import FeatureView, Entity, ValueType
+from feast.credentials import ConnectionRef
+from feast.infra.offline_stores.snowflake_source import SnowflakeSource
+from feast.infra.offline_stores.bigquery_source import BigQuerySource
+
+entity = Entity(name="user_id", value_type=ValueType.INT64, join_keys=["user_id"])
+
+# Snowflake source with credentials from a Kubernetes Secret
+feature_view1 = FeatureView(
+    name="user_features",
+    entities=["user_id"],
+    ttl=None,
+    source=SnowflakeSource(
+        table="USER_FEATURES",
+        connection_ref=ConnectionRef(
+            provider="kubernetes",
+            name="snowflake-team-a-creds",
+            namespace="ml-team",
+            connection_type="snowflake.offline",
+            params={"account": "xy12345", "warehouse": "COMPUTE_WH"},
+        ),
+    ),
+)
+
+# BigQuery source with credentials from a Kubernetes Secret
+feature_view2 = FeatureView(
+    name="user_activity",
+    entities=["user_id"],
+    ttl=None,
+    source=BigQuerySource(
+        table="my_project.dataset.user_activity",
+        connection_ref=ConnectionRef(
+            provider="kubernetes",
+            name="bigquery-team-b-creds",
+            namespace="ml-team",
+            connection_type="bigquery",
+        ),
+    ),
+)
+```
+
+In this setup:
+- No sensitive credentials are stored in `feature_store.yaml`.
+- Each data source resolves its credentials independently at runtime from the referenced Kubernetes Secret.
+- The HybridOfflineStore routes operations to the correct backend based on the source type.
+
+### How credential resolution works
+
+1. The HybridOfflineStore determines which backend to use based on the data source class (e.g., `SnowflakeSource` → Snowflake offline store).
+2. Before connecting, the offline store checks if the data source has a `connection_ref`.
+3. If present, credentials are fetched from the external provider (e.g., reading a Kubernetes Secret).
+4. Resolved credentials override the global offline store config for that operation.
+5. If no `connection_ref` is set, the global `feature_store.yaml` configuration is used as a fallback.
+
+This pattern is especially valuable in multi-tenant environments where a shared Feast deployment serves multiple teams, each with isolated credentials and backend accounts.
+
+For details on the `ConnectionRef` structure and supported providers, see [Data Sources Overview](../data-sources/overview.md#per-datasource-credentials-connectionref).
 
 ## Functionality Matrix
 | Feature/Functionality                             | Supported                  |

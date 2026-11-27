@@ -21,6 +21,70 @@ the authorization tokens that the server can properly identify and use to enforc
 The server-side implementation of the authorization functionality is defined [here](./../../../sdk/python/feast/permissions/server).
 Few of the key models, classes to understand the authorization implementation on the client side can be found [here](./../../../sdk/python/feast/permissions/client).
 
+## Default Authorization Behavior
+
+### Feast Operator (Kubernetes Deployments)
+
+When deploying Feast using the [Feast operator](../../../infra/feast-operator/docs/api/markdown/ref.md), **Kubernetes authentication is enabled by default**. If no `authz` section is specified in the `FeatureStore` CR, the operator automatically configures `kubernetes` auth for all deployed services.
+
+This follows an **"Authenticated by Default, Authorized Gradually"** security model:
+- All Feast endpoints require a valid Kubernetes bearer token by default.
+- If no explicit `Permission` objects are defined (via `permissions.py` + `feast apply`), **all authenticated users are granted full access**. A warning is logged to remind administrators to define fine-grained permissions.
+- Unauthenticated requests are rejected.
+
+This ensures that Feast deployments are never accidentally exposed without authentication, while allowing teams to incrementally adopt fine-grained RBAC.
+
+#### Disabling Authentication with `noAuth`
+
+For development, testing, or environments where authentication is handled externally, you can explicitly disable authentication using the `noAuth` option in the `FeatureStore` CR:
+
+```yaml
+apiVersion: feast.dev/v1
+kind: FeatureStore
+metadata:
+  name: my-feature-store
+spec:
+  feastProject: my_project
+  authz:
+    noAuth: true
+```
+
+{% hint style="warning" %}
+Setting `noAuth: true` disables all authentication and authorization. All endpoints become publicly accessible without any identity checks. Only use this for local development or testing environments. For production, use `kubernetes` or `oidc` authentication.
+{% endhint %}
+
+#### Explicit Kubernetes Auth (Default)
+
+This is equivalent to the default behavior when no `authz` section is provided:
+
+```yaml
+apiVersion: feast.dev/v1
+kind: FeatureStore
+metadata:
+  name: my-feature-store
+spec:
+  feastProject: my_project
+  authz:
+    kubernetes: {}
+```
+
+#### OIDC Auth via Operator
+
+```yaml
+apiVersion: feast.dev/v1
+kind: FeatureStore
+metadata:
+  name: my-feature-store
+spec:
+  feastProject: my_project
+  authz:
+    oidc:
+      secretRef:
+        name: feast-oidc-secret
+```
+
+### Standalone Deployments (feature_store.yaml)
+
 ## Configuring Authorization
 The authorization is configured using a dedicated `auth` section in the `feature_store.yaml` configuration.
 
@@ -28,13 +92,17 @@ The authorization is configured using a dedicated `auth` section in the `feature
 the `feature_store_yaml_base64` value must include the `auth` section to specify the authorization configuration.
 
 ### No Authorization
-This configuration applies the default `no_auth` authorization:
+This configuration applies the `no_auth` authorization:
 ```yaml
 project: my-project
 auth:
   type: no_auth
 ...
 ```
+
+{% hint style="warning" %}
+Running with `auth.type: no_auth` leaves all endpoints unauthenticated. This is suitable for local development only. For production deployments, configure `kubernetes` or `oidc` authentication.
+{% endhint %}
 
 ### OIDC Authorization
 With OIDC authorization, the Feast client proxies retrieve the JWT token from an OIDC server (or [Identity Provider](https://openid.net/developers/how-connect-works/))
@@ -122,6 +190,19 @@ A token whose `aud` (or `iss`) claim does not match is rejected at authenticatio
 Set these to the values your IdP puts **in the token itself**, which are not always the ones in the discovery document. For example, Microsoft Entra ID commonly issues v1.0 tokens (`iss: https://sts.windows.net/<tenant-id>/`, `aud: api://<app-id-uri>`) even when `auth_discovery_url` points at the v2.0 endpoint. That setup keeps working with these options unset, or set to the v1.0 values — but copying the v2.0 issuer from the discovery document would reject every v1.0 token.
 {% endhint %}
 
+To validate token signatures the server fetches the provider's JWKS document and caches it, refetching when the cache expires or when a token presents an unknown key id. Two options tune that behavior:
+
+```yaml
+auth:
+  type: oidc
+  client_id: _CLIENT_ID_
+  auth_discovery_url: https://login.example.com/.well-known/openid-configuration
+  jwks_cache_lifespan_seconds: 300   # default; how long the fetched key set is reused
+  jwks_request_timeout_seconds: 10   # default; network timeout for the JWKS fetch
+```
+
+`jwks_cache_lifespan_seconds` also bounds how long a key the provider has **revoked** continues to validate tokens, so lower it if your provider rotates or revokes aggressively; each reduction costs proportionally more JWKS fetches. Key rotations that introduce a new key id are picked up immediately regardless of this setting, because an unknown key id triggers a refetch. `jwks_request_timeout_seconds` bounds how long an unresponsive provider can block request serving. Both must be greater than zero.
+
 #### Client-Side Configuration
 
 The client supports multiple token source modes. The SDK resolves tokens in the following priority order:
@@ -132,6 +213,10 @@ The client supports multiple token source modes. The SDK resolves tokens in the 
 4. **`client_secret`** — fetches a token from the OIDC provider using client credentials or ROPC flow (requires `auth_discovery_url` and `client_id`)
 5. **`FEAST_OIDC_TOKEN`** — default fallback environment variable
 6. **Kubernetes service account token** — read from `/var/run/secrets/kubernetes.io/serviceaccount/token` when running inside a pod
+
+{% hint style="warning" %}
+The intra-communication token is signed with the value of `INTRA_COMMUNICATION_BASE64`, and a server trusts it only when the signature matches its own value. Every Feast server that calls another must use the same value, and it must be a private random string (32 bytes or more) kept in a Kubernetes Secret. Leave the variable unset to turn off server-to-server calls.
+{% endhint %}
 
 **Token passthrough** (for use with external token providers like [kube-authkit](https://github.com/opendatahub-io/kube-authkit)):
 ```yaml

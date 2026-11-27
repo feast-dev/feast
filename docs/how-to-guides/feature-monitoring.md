@@ -144,7 +144,8 @@ If your feature services have logging configured, you can compute metrics from t
 In your feature definitions:
 
 ```python
-from feast import FeatureService, LoggingConfig
+from feast import FeatureService
+from feast.feature_logging import LoggingConfig
 from feast.infra.offline_stores.contrib.postgres_offline_store.postgres_source import (
     PostgreSQLLoggingDestination,
 )
@@ -219,6 +220,7 @@ GET /monitoring/metrics/features?project=my_project&feature_view_name=driver_sta
     "feature_name": "conv_rate",
     "feature_type": "numeric",
     "metric_date": "2025-03-26",
+    "max_event_timestamp": "2025-03-27T14:30:00+00:00",
     "granularity": "daily",
     "data_source_type": "batch",
     "row_count": 15000,
@@ -241,6 +243,8 @@ GET /monitoring/metrics/features?project=my_project&feature_view_name=driver_sta
   }
 ]
 ```
+
+The UI **Freshness** column uses `max_event_timestamp` — `MAX(event_timestamp)` from the source — not `metric_date` (the DQM window start). Age is `now − max_event_timestamp`.
 
 ### Per-feature-view aggregates
 
@@ -356,6 +360,7 @@ Monitoring works natively with all offline stores that serve as compute engines 
 | BigQuery | SQL push-down | `MERGE` into BQ tables |
 | Redshift | SQL push-down | `MERGE` via Data API |
 | Spark | SparkSQL push-down | Parquet tables |
+| Trino | SQL push-down | Trino tables |
 | Oracle | SQL via Ibis | `MERGE` from `DUAL` |
 | DuckDB | In-memory SQL | Parquet files |
 | Dask | PyArrow compute | Parquet files |

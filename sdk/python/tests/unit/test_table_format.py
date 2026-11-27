@@ -6,10 +6,12 @@ from feast.table_format import (
     DeltaFormat,
     HudiFormat,
     IcebergFormat,
+    LanceFormat,
     TableFormatType,
     create_table_format,
     table_format_from_dict,
     table_format_from_json,
+    table_format_from_proto,
 )
 
 
@@ -321,3 +323,117 @@ class TestTableFormat:
             restored.properties["special.key"]
             == "value with spaces & symbols!@#$%^&*()"
         )
+
+
+class TestLanceFormat:
+    """Test LanceFormat, including version/tag pinning."""
+
+    def test_lance_table_format_creation(self):
+        """Test LanceFormat creation and properties."""
+        lance_format = LanceFormat(
+            catalog="my_catalog",
+            namespace="my_namespace",
+            properties={"storage.block_size": "8192"},
+        )
+
+        assert lance_format.format_type == TableFormatType.LANCE
+        assert lance_format.catalog == "my_catalog"
+        assert lance_format.namespace == "my_namespace"
+        assert lance_format.properties["lance.catalog"] == "my_catalog"
+        assert lance_format.properties["lance.namespace"] == "my_namespace"
+        assert lance_format.properties["storage.block_size"] == "8192"
+
+    def test_lance_table_format_minimal(self):
+        """Test LanceFormat with no arguments."""
+        lance_format = LanceFormat()
+
+        assert lance_format.format_type == TableFormatType.LANCE
+        assert lance_format.catalog is None
+        assert lance_format.namespace is None
+        assert lance_format.version is None
+        assert lance_format.tag is None
+        assert lance_format.is_pinned is False
+        assert lance_format.properties == {}
+
+    def test_lance_version_pin(self):
+        """A version pin is recorded on the field and mirrored into properties."""
+        lance_format = LanceFormat(catalog="c", version=3)
+
+        assert lance_format.version == 3
+        assert lance_format.tag is None
+        assert lance_format.is_pinned is True
+        assert lance_format.properties["lance.version"] == "3"
+
+    def test_lance_tag_pin(self):
+        """A tag pin is recorded on the field and mirrored into properties."""
+        lance_format = LanceFormat(catalog="c", tag="candidate")
+
+        assert lance_format.tag == "candidate"
+        assert lance_format.version is None
+        assert lance_format.is_pinned is True
+        assert lance_format.properties["lance.tag"] == "candidate"
+
+    def test_lance_rejects_version_below_one(self):
+        """Lance versions start at 1, and the proto treats 0 as unset."""
+        with pytest.raises(ValueError, match="version must be >= 1"):
+            LanceFormat(version=0)
+
+        with pytest.raises(ValueError, match="version must be >= 1"):
+            LanceFormat(version=-1)
+
+    def test_lance_rejects_version_and_tag_together(self):
+        """A tag already resolves to a version, so both together is ambiguous."""
+        with pytest.raises(ValueError, match="either version or tag"):
+            LanceFormat(version=1, tag="candidate")
+
+    def test_lance_dict_round_trip(self):
+        """to_dict/from_dict preserves addressing and pin."""
+        original = LanceFormat(catalog="c", namespace="n", version=7)
+        restored = table_format_from_dict(original.to_dict())
+
+        assert isinstance(restored, LanceFormat)
+        assert restored.catalog == "c"
+        assert restored.namespace == "n"
+        assert restored.version == 7
+        assert restored.tag is None
+
+    def test_lance_json_round_trip(self):
+        """table_format_from_json preserves a tag pin."""
+        original = LanceFormat(catalog="c", tag="candidate")
+        restored = table_format_from_json(json.dumps(original.to_dict()))
+
+        assert isinstance(restored, LanceFormat)
+        assert restored.tag == "candidate"
+        assert restored.version is None
+
+    def test_lance_proto_round_trip(self):
+        """to_proto/from_proto selects the lance_format oneof and keeps the pin."""
+        original = LanceFormat(catalog="c", namespace="n", version=3)
+        proto = original.to_proto()
+
+        assert proto.WhichOneof("format") == "lance_format"
+
+        restored = table_format_from_proto(proto)
+        assert isinstance(restored, LanceFormat)
+        assert restored.catalog == "c"
+        assert restored.namespace == "n"
+        assert restored.version == 3
+        assert restored.tag is None
+
+    def test_lance_proto_round_trip_unpinned(self):
+        """An unpinned format must not come back pinned to version 0."""
+        restored = table_format_from_proto(LanceFormat(catalog="c").to_proto())
+
+        assert isinstance(restored, LanceFormat)
+        assert restored.version is None
+        assert restored.tag is None
+        assert restored.is_pinned is False
+
+    def test_lance_factory_function(self):
+        """create_table_format dispatches to LanceFormat."""
+        lance_format = create_table_format(
+            TableFormatType.LANCE, catalog="c", version=2
+        )
+
+        assert isinstance(lance_format, LanceFormat)
+        assert lance_format.version == 2

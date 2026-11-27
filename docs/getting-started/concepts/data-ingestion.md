@@ -70,7 +70,7 @@ CURRENT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%S")
 feast materialize-incremental $CURRENT_TIME
 ```
 
-**Simple materialization (for data without event timestamps):**
+**Simple materialization (all available data, no start/end timestamps):**
 ```bash
 feast materialize --disable-event-timestamp
 ```

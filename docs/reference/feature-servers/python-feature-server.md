@@ -30,6 +30,7 @@ Key performance options:
 - `--max-requests-jitter`: Jitter to prevent thundering herd on worker restart (default: 50)
 - `--registry_ttl_sec, -r`: Registry refresh interval in seconds. Higher values reduce overhead but increase staleness (default: 60)
 - `--keep-alive-timeout`: Keep-alive connection timeout in seconds (default: 30)
+- `--gc-freeze`: Run `gc.freeze()` after startup to shorten full garbage collection pauses. See [Garbage collection pauses](../../how-to-guides/online-server-performance-tuning.md#garbage-collection-pauses) (default: off)
 
 ### Performance Best Practices
 
@@ -286,7 +287,7 @@ curl -X POST "http://localhost:6566/materialize" -d '{
 }' | jq
 ```
 
-When `disable_event_timestamp` is set to `true`, the `start_ts` and `end_ts` parameters are not required, and all available data is materialized using the current datetime as the event timestamp. This is useful when your source data lacks proper event timestamp columns.
+When `disable_event_timestamp` is set to `true`, the `start_ts` and `end_ts` parameters are not required, and all available data (from 1970-01-01 up to the current UTC time) is materialized. Rows keep the event timestamps from the source.
 
 Or from Python:
 ```python
@@ -367,8 +368,8 @@ thread from starting). All categories default to `true` except
 |--------|------|--------|----------|-------------|
 | `feast_feature_server_cpu_usage` | Gauge | — | `resource` | Process CPU usage % |
 | `feast_feature_server_memory_usage` | Gauge | — | `resource` | Process memory usage % |
-| `feast_feature_server_request_total` | Counter | `endpoint`, `status` | `request` | Total requests per endpoint |
-| `feast_feature_server_request_latency_seconds` | Histogram | `endpoint`, `feature_count`, `feature_view_count` | `request` | Request latency with p50/p95/p99 support |
+| `feast_feature_server_request_total` | Counter | `endpoint`, `status`, `status_class` | `request` | Total requests per endpoint and response status (see below) |
+| `feast_feature_server_request_latency_seconds` | Histogram | `endpoint`, `feature_count`, `feature_view_count` | `request` | Request latency with p50/p95/p99 support (`feature_count` is bucketed, see below) |
 | `feast_online_features_request_total` | Counter | — | `online_features` | Total online feature retrieval requests |
 | `feast_online_features_entity_count` | Histogram | — | `online_features` | Entity rows per online feature request |
 | `feast_feature_server_online_store_read_duration_seconds` | Histogram | — | `online_features` | Online store read phase duration (sync and async) |
@@ -381,6 +382,47 @@ thread from starting). All categories default to `true` except
 | `feast_offline_store_request_total` | Counter | `method`, `status` | `offline_features` | Total offline store retrieval requests |
 | `feast_offline_store_request_latency_seconds` | Histogram | `method` | `offline_features` | Latency of offline store retrieval operations |
 | `feast_offline_store_row_count` | Histogram | `method` | `offline_features` | Rows returned by offline store retrieval |
+
+### Feature count bucketing
+
+The `feature_count` label on `feast_feature_server_request_latency_seconds`
+is bucketed rather than exact, to keep cardinality bounded for feature
+services that vary widely in how many features they request. By default,
+counts are grouped into `0`, `1-10`, `11-50`, `51-200`, and `201+`.
+
+Customize the bucket boundaries with `feature_count_bins` in the `metrics`
+block:
+
+```yaml
+feature_server:
+  type: local
+  metrics:
+    enabled: true
+    feature_count_bins: [5, 20]
+```
+
+This produces the labels `0`, `1-5`, `6-20`, and `21+`. Note that this only
+affects the Prometheus label; the `feature_count` field in audit logs (see
+below) always reports the exact count.
+
+### Request status labels
+
+`feast_feature_server_request_total` carries two status labels derived from
+the HTTP status code the server responds with:
+
+- `status_class` is the status code class: `2xx`, `4xx` or `5xx`. Use it to
+  tell client errors (an unknown feature view or feature service, a denied
+  permission, a materialization that is already running) apart from server
+  errors.
+- `status` is `success` for status codes below 400 and `error` otherwise.
+
+For example, the server-side error rate per endpoint, excluding client
+errors:
+
+```
+sum by (endpoint) (rate(feast_feature_server_request_total{status_class="5xx"}[5m]))
+  / sum by (endpoint) (rate(feast_feature_server_request_total[5m]))
+```
 
 ### Per-ODFV transformation metrics
 

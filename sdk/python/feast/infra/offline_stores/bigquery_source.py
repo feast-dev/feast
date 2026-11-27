@@ -3,6 +3,7 @@ from typing import Callable, Dict, Iterable, List, Optional, Tuple
 from typeguard import typechecked
 
 from feast import type_map
+from feast.credentials import ConnectionRef
 from feast.data_source import DataSource
 from feast.errors import DataSourceNoNameException, DataSourceNotFoundException
 from feast.feature_logging import LoggingDestination
@@ -15,7 +16,6 @@ from feast.protos.feast.core.SavedDataset_pb2 import (
 )
 from feast.repo_config import RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
-from feast.utils import get_user_agent
 from feast.value_type import ValueType
 
 
@@ -40,6 +40,7 @@ class BigQuerySource(DataSource):
         description: Optional[str] = "",
         tags: Optional[Dict[str, str]] = None,
         owner: Optional[str] = "",
+        connection_ref: Optional[ConnectionRef] = None,
     ):
         """Create a BigQuerySource from an existing table or query.
 
@@ -64,6 +65,7 @@ class BigQuerySource(DataSource):
             tags (optional): A dictionary of key-value pairs to store arbitrary metadata.
             owner (optional): The owner of the bigquery source, typically the email of the primary
                 maintainer.
+            connection_ref (optional): Connection reference for credential resolution.
         Example:
             >>> from feast import BigQuerySource
             >>> my_bigquery_source = BigQuerySource(table="gcp_project:bq_dataset.bq_table")
@@ -89,6 +91,7 @@ class BigQuerySource(DataSource):
             description=description,
             tags=tags,
             owner=owner,
+            connection_ref=connection_ref,
         )
 
     # Note: Python requires redefining hash in child classes that override __eq__
@@ -117,6 +120,7 @@ class BigQuerySource(DataSource):
     def from_proto(data_source: DataSourceProto):
         assert data_source.HasField("bigquery_options")
 
+        tags = dict(data_source.tags)
         return BigQuerySource(
             name=data_source.name,
             field_mapping=dict(data_source.field_mapping),
@@ -127,8 +131,9 @@ class BigQuerySource(DataSource):
             timestamp_field_type=data_source.timestamp_field_type or None,
             query=data_source.bigquery_options.query,
             description=data_source.description,
-            tags=dict(data_source.tags),
+            tags=tags,
             owner=data_source.owner,
+            connection_ref=ConnectionRef.from_tags(tags),
         )
 
     def _to_proto_impl(self) -> DataSourceProto:
@@ -151,9 +156,10 @@ class BigQuerySource(DataSource):
     def validate(self, config: RepoConfig):
         if not self.query:
             from google.api_core.exceptions import NotFound
-            from google.cloud import bigquery
 
-            client = bigquery.Client()
+            from feast.infra.offline_stores.bigquery import _get_bigquery_client
+
+            client = _get_bigquery_client()
             try:
                 client.get_table(self.table)
             except NotFound:
@@ -173,22 +179,16 @@ class BigQuerySource(DataSource):
     def get_table_column_names_and_types(
         self, config: RepoConfig
     ) -> Iterable[Tuple[str, str]]:
-        try:
-            from google.api_core import client_info as http_client_info
-        except ImportError as e:
-            from feast.errors import FeastExtrasDependencyImportError
-
-            raise FeastExtrasDependencyImportError("gcp", str(e))
-
         from google.cloud import bigquery
+
+        from feast.infra.offline_stores.bigquery import _get_bigquery_client
 
         project_id = (
             config.offline_store.billing_project_id or config.offline_store.project_id
         )
-        client = bigquery.Client(
+        client = _get_bigquery_client(
             project=project_id,
             location=config.offline_store.location,
-            client_info=http_client_info.ClientInfo(user_agent=get_user_agent()),
         )
         if self.query:
             bq_columns_query = f"SELECT * FROM ({self.query}) LIMIT 0"

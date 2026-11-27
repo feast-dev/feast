@@ -2,16 +2,52 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel
 
 from feast.api.registry.rest.rest_utils import (
     get_pagination_params,
     get_sorting_params,
     grpc_call,
 )
+from feast.permissions.action import AuthzedAction
+from feast.permissions.security_manager import assert_permissions, get_security_manager
 from feast.protos.feast.registry import RegistryServer_pb2
 from feast.repo_config import BATCH_ENGINE_CLASS_FOR_TYPE
 
 logger = logging.getLogger(__name__)
+
+
+class ComputeEngineConfigResponse(BaseModel):
+    """High-level, non-secret compute engine settings returned by the REST API.
+
+    This is the explicit, fail-closed contract for the ``config`` block: only
+    these fields are ever exposed, so credentials, connection identity,
+    location/URL values and nested settings are never returned.
+    """
+
+    type: str
+    region: Optional[str] = None
+    namespace: Optional[str] = None
+    warehouse: Optional[str] = None
+    database: Optional[str] = None
+    catalog: Optional[str] = None
+    parallelism: Optional[int] = None
+    partitions: Optional[int] = None
+
+
+def _engine_config_response(
+    engine_type: str, engine_config: Dict[str, Any]
+) -> Dict[str, Any]:
+    """Project a raw engine config onto the public response fields."""
+    scalar_types = (str, int, float, bool)
+    known = {
+        name: engine_config[name]
+        for name in ComputeEngineConfigResponse.model_fields
+        if name != "type" and isinstance(engine_config.get(name), scalar_types)
+    }
+    return ComputeEngineConfigResponse.model_construct(
+        type=engine_type, **known
+    ).model_dump(exclude_none=True)
 
 
 def _extract_engine_info(store) -> Dict[str, Any]:
@@ -58,7 +94,7 @@ def _extract_engine_info(store) -> Dict[str, Any]:
     return {
         "engineType": engine_type,
         "engineClass": engine_class,
-        "config": engine_config,
+        "config": _engine_config_response(engine_type, engine_config),
     }
 
 
@@ -122,6 +158,9 @@ def get_compute_engine_router(grpc_handler, store=None) -> APIRouter:
             "hasOverride": batch_engine is not None,
             "overrides": batch_engine,
             "materializationIntervals": intervals,
+            # Lifecycle state name, e.g. "MATERIALIZING" while a run is in
+            # progress. None when unset (STATE_UNSPECIFIED is omitted).
+            "state": meta.get("state"),
         }
 
     @router.get("/compute_engines")
@@ -129,6 +168,17 @@ def get_compute_engine_router(grpc_handler, store=None) -> APIRouter:
         project: str = Query(...),
         allow_cache: bool = Query(default=True),
     ):
+        sm = get_security_manager()
+        if sm is not None and store is not None:
+            project_obj = store.registry.get_project(
+                name=project, allow_cache=allow_cache
+            )
+            project_token = sm.set_current_project(project)
+            try:
+                assert_permissions(project_obj, actions=[AuthzedAction.DESCRIBE])
+            finally:
+                sm.reset_current_project(project_token)
+
         engine_info = (
             _extract_engine_info(store)
             if store

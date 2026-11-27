@@ -104,6 +104,9 @@ class RemoteRegistry(BaseRegistry):
     ):
         self.auth_config = auth_config
         assert isinstance(registry_config, RemoteRegistryConfig)
+        self.serve_features_while_materializing = (
+            registry_config.serve_features_while_materializing
+        )
         self.channel = self._create_grpc_channel(registry_config)
         weakref.finalize(self, self.channel.close)
 
@@ -489,7 +492,7 @@ class RemoteRegistry(BaseRegistry):
         request = RegistryServer_pb2.ApplySavedDatasetRequest(
             saved_dataset=saved_dataset.to_proto(), project=project, commit=commit
         )
-        self.stub.ApplyFeatureService(request)
+        self.stub.ApplySavedDataset(request)
 
     def delete_saved_dataset(self, name: str, project: str, commit: bool = True):
         request = RegistryServer_pb2.DeleteSavedDatasetRequest(

@@ -115,7 +115,7 @@ Maintainers control overall project organization and resolving disputes. They al
 - (optional) Guide design decisions to reinforce key project values (e.g. simplicity)
 
 ### Optional maintainer responsibilities
-Other optional activites a maintainer (project or area maintainer) may participate in:
+Other optional activities a maintainer (project or area maintainer) may participate in:
   *   Perform code reviews for other maintainers and the community. The areas of specialization listed in [OWNERS.md](OWNERS.md) can be used to help with routing an issue/question to the right person.
   *   Triage GitHub issues, applying [labels]([https://github.com/feast-dev/feast/labels](https://github.com/feast-dev/feast/labels)) to each new item. Labels are extremely useful for future issue follow ups. Adding labels is somewhat subjective, so please use your best judgment. 
   *   Triage build issues, filing issues for known flaky builds or bugs, fixing or finding someone to fix any master build breakages.

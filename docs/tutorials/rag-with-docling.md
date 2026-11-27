@@ -20,7 +20,7 @@ The typical RAG process involves:
 
 ## Prerequisites
 
-- Python 3.10 or later
+- Python 3.11 or later
 - Feast installed with Milvus support: `pip install feast[milvus, nlp]`
 - A basic understanding of feature stores and vector embeddings
 

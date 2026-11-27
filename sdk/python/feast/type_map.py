@@ -69,7 +69,7 @@ if TYPE_CHECKING:
     import pyarrow
 
 # null timestamps get converted to -9223372036854775808
-NULL_TIMESTAMP_INT_VALUE: int = np.datetime64("NaT").astype(int)
+NULL_TIMESTAMP_INT_VALUE: int = np.datetime64("NaT", "ns").astype(int)
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +88,28 @@ def _zone_name(tzinfo: Optional[Any]) -> str:
         return key
     name = str(tzinfo)
     # zoneinfo prints as the key; pytz prints the name; offsets print as "UTC-07:00"
+    if not _is_readable_zone_name(name):
+        # pytz and dateutil fixed offsets print as "pytz.FixedOffset(330)" or
+        # "tzoffset(None, 19800)", which _zone_from_name can't read back. pyarrow
+        # returns pytz offsets for an offset-zoned timestamp column, so store the
+        # offset the way datetime.timezone prints it ("UTC+05:30").
+        offset = tzinfo.utcoffset(None)
+        if offset is not None:
+            return str(timezone(offset))
     return name
+
+
+def _is_readable_zone_name(zone: str) -> bool:
+    """Whether ``_zone_from_name`` resolves ``zone`` instead of falling back to UTC."""
+    if _fixed_offset_from_name(zone) is not None:
+        return True
+    try:
+        from zoneinfo import ZoneInfo
+
+        ZoneInfo(zone)
+        return True
+    except Exception:
+        return False
 
 
 def _zone_from_name(zone: str):
@@ -235,7 +256,11 @@ def feast_value_type_to_python_type(
     if val_attr in ("uuid_val", "time_uuid_val"):
         return uuid_module.UUID(val) if isinstance(val, str) else val
     if val_attr in ("uuid_list_val", "time_uuid_list_val"):
-        return [uuid_module.UUID(v) if isinstance(v, str) else v for v in val]
+        # None elements are stored as "" (see _LIST_NONE_DEFAULTS)
+        return [
+            None if v == "" else uuid_module.UUID(v) if isinstance(v, str) else v
+            for v in val
+        ]
     if val_attr in ("uuid_set_val", "time_uuid_set_val"):
         return {uuid_module.UUID(v) if isinstance(v, str) else v for v in val}
 
@@ -243,7 +268,10 @@ def feast_value_type_to_python_type(
     if val_attr == "decimal_val":
         return decimal.Decimal(val) if isinstance(val, str) else val
     if val_attr == "decimal_list_val":
-        return [decimal.Decimal(v) if isinstance(v, str) else v for v in val]
+        return [
+            None if v == "" else decimal.Decimal(v) if isinstance(v, str) else v
+            for v in val
+        ]
     if val_attr == "decimal_set_val":
         return {decimal.Decimal(v) if isinstance(v, str) else v for v in val}
 
@@ -394,7 +422,7 @@ def python_type_to_feast_value_type(
         "int64": ValueType.INT64,
         "uint64": ValueType.INT64,
         "int32": ValueType.INT32,
-        "uint32": ValueType.INT32,
+        "uint32": ValueType.INT64,
         "int16": ValueType.INT32,
         "uint16": ValueType.INT32,
         "uint8": ValueType.INT32,
@@ -416,6 +444,11 @@ def python_type_to_feast_value_type(
 
     if type_name in type_map:
         return type_map[type_name]
+
+    # datetimes in any other unit or timezone, e.g. "datetime64[us]" or
+    # "datetime64[ns, america/new_york]"
+    if type_name.startswith("datetime64"):
+        return ValueType.UNIX_TIMESTAMP
 
     # Handle pandas "object" dtype by inspecting the actual value
     if type_name == "object" and value is not None:
@@ -562,7 +595,7 @@ def _convert_value_type_str_to_value_type(type_str: str) -> ValueType:
         "UNIX_TIMESTAMP": ValueType.UNIX_TIMESTAMP,
         "BYTES_LIST": ValueType.BYTES_LIST,
         "STRING_LIST": ValueType.STRING_LIST,
-        "INT32_LIST ": ValueType.INT32_LIST,
+        "INT32_LIST": ValueType.INT32_LIST,
         "INT64_LIST": ValueType.INT64_LIST,
         "DOUBLE_LIST": ValueType.DOUBLE_LIST,
         "FLOAT_LIST": ValueType.FLOAT_LIST,
@@ -595,6 +628,8 @@ def _convert_value_type_str_to_value_type(type_str: str) -> ValueType:
         "DECIMAL_SET": ValueType.DECIMAL_SET,
         "SCALAR_MAP": ValueType.SCALAR_MAP,
         "ZONED_TIMESTAMP": ValueType.ZONED_TIMESTAMP,
+        "PDF_BYTES": ValueType.PDF_BYTES,
+        "IMAGE_BYTES": ValueType.IMAGE_BYTES,
     }
     return type_map.get(type_str, ValueType.STRING)
 
@@ -700,12 +735,29 @@ PYTHON_SCALAR_VALUE_TYPE_TO_PROTO_VALUE: Dict[
     ),
     ValueType.STRING: ("string_val", lambda x: str(x), None),
     ValueType.BYTES: ("bytes_val", lambda x: x, {bytes}),
+    ValueType.PDF_BYTES: ("bytes_val", lambda x: x, {bytes}),
     ValueType.IMAGE_BYTES: ("bytes_val", lambda x: x, {bytes}),
     ValueType.BOOL: ("bool_val", lambda x: x, {bool, np.bool_, int, np.int_}),
     ValueType.UUID: ("uuid_val", lambda x: str(x), {str, uuid_module.UUID}),
     ValueType.TIME_UUID: ("time_uuid_val", lambda x: str(x), {str, uuid_module.UUID}),
     ValueType.DECIMAL: ("decimal_val", lambda x: str(x), {decimal.Decimal, str}),
 }
+
+
+_UNIX_EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
+
+
+def _datetime_to_unix_seconds(value: datetime) -> int:
+    """Whole seconds since the epoch, floored like numpy's datetime64[s] cast.
+
+    A naive datetime is UTC, as everywhere else in Feast; datetime.timestamp()
+    would read it in the machine's local timezone. int(value.timestamp()) would
+    also truncate toward zero, moving a pre-1970 datetime with a fractional
+    second one second later (23:59:59.5 becomes 00:00:00).
+    """
+    if value.utcoffset() is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return (value - _UNIX_EPOCH) // timedelta(seconds=1)
 
 
 def _python_datetime_to_int_timestamp(
@@ -720,7 +772,7 @@ def _python_datetime_to_int_timestamp(
     int_timestamps = []
     for value in values:
         if isinstance(value, datetime):
-            int_timestamps.append(int(value.timestamp()))
+            int_timestamps.append(_datetime_to_unix_seconds(value))
         elif isinstance(value, Timestamp):
             int_timestamps.append(int(value.ToSeconds()))
         elif isinstance(value, np.datetime64):
@@ -1010,13 +1062,20 @@ def _convert_list_values_to_proto(
 
         json_sample = json.loads(sample)
         if isinstance(json_sample, list):
-            json_values = [json.loads(value) for value in values]
+            json_values = [
+                json.loads(value) if value is not None else None for value in values
+            ]
             if feast_value_type == ValueType.BOOL_LIST:
                 json_values = [
-                    [bool(item) for item in list_item] for list_item in json_values
+                    [bool(item) for item in list_item]
+                    if list_item is not None
+                    else None
+                    for list_item in json_values
                 ]
             return [
                 ProtoValue(**{field_name: proto_type(val=v)})  # type: ignore[arg-type]
+                if v is not None
+                else ProtoValue()
                 for v in json_values
             ]
         raise _type_err(sample, valid_types[0])
@@ -1077,6 +1136,15 @@ def _is_array_like(value: Any) -> bool:
     )
 
 
+def _is_key_value_pairs(value: Any) -> bool:
+    """Return True if *value* is a sequence of (key, value) pairs, the form an
+    Arrow map column takes after ``to_numpy()``, ``to_pylist()`` or a pandas
+    round trip."""
+    return isinstance(value, (list, np.ndarray)) and all(
+        isinstance(pair, (list, tuple, np.ndarray)) and len(pair) == 2 for pair in value
+    )
+
+
 def _convert_scalar_values_to_proto(
     feast_value_type: ValueType,
     values: List[Any],
@@ -1130,7 +1198,7 @@ def _convert_scalar_values_to_proto(
                 out.append(
                     ProtoValue(
                         zoned_timestamp_val=ZonedTimestamp(
-                            unix_timestamp=int(dt.timestamp()),
+                            unix_timestamp=_datetime_to_unix_seconds(dt),
                             zone=_zone_name(value.tzinfo),
                         )
                     )  # type: ignore
@@ -1229,6 +1297,9 @@ def _python_value_to_proto_value(
             else:
                 if isinstance(value, str):
                     value = json.loads(value)
+                if _is_key_value_pairs(value):
+                    # An Arrow map column arrives as key/value pairs, not a dict.
+                    value = {key: item for key, item in value}
                 if not isinstance(value, dict):
                     raise TypeError(
                         f"Expected dict for MAP type, got {type(value).__name__}: {value!r}"
@@ -1472,8 +1543,7 @@ def _python_value_to_map_key_proto(key: Any) -> MapKey:
     if isinstance(key, bytes):
         return MapKey(bytes_key=key)
     if isinstance(key, (datetime, pd.Timestamp)):
-        ts = int(pd.Timestamp(key).timestamp())
-        return MapKey(unix_timestamp_key=ts)
+        return MapKey(unix_timestamp_key=_datetime_to_unix_seconds(key))
     raise TypeError(
         f"Unsupported key type for SCALAR_MAP: {type(key).__name__}. "
         "Supported non-string key types: int, float, bool, uuid.UUID, "
@@ -1576,10 +1646,10 @@ VALUE_TYPE_TO_PROTO_VALUE_MAP: Dict[ValueType, str] = {
 
 def _proto_value_to_value_type(proto_value: ProtoValue) -> ValueType:
     """
-    Returns Feast ValueType given Feast ValueType string.
+    Returns Feast ValueType given a Feast proto value.
 
     Args:
-        proto_str: str
+        proto_value: ProtoValue
 
     Returns:
         A variant of ValueType.
@@ -1590,8 +1660,22 @@ def _proto_value_to_value_type(proto_value: ProtoValue) -> ValueType:
     return PROTO_VALUE_TO_VALUE_TYPE_MAP[proto_str]
 
 
+_FIXED_SIZE_LIST_PREFIX = "fixed_size_list<item: "
+
+
 def pa_to_feast_value_type(pa_type_as_str: str) -> ValueType:
     is_list = False
+    if pa_type_as_str.startswith(_FIXED_SIZE_LIST_PREFIX):
+        # A fixed-width vector is a list whose width happens to be fixed, and is
+        # how Arrow-native stores represent embeddings. Feast value types do not
+        # encode a width -- Field.vector_length carries it -- so this decodes to
+        # the same value type as the variable-width spelling, and is rewritten
+        # into that spelling so the list handling below stays single-sourced.
+        inner = pa_type_as_str[len(_FIXED_SIZE_LIST_PREFIX) :]
+        closing = inner.rfind(">")
+        if closing != -1:
+            pa_type_as_str = f"list<item: {inner[:closing]}>"
+
     if pa_type_as_str.startswith("list<item: "):
         is_list = True
         inner_str = pa_type_as_str[len("list<item: ") : -1]
@@ -1610,8 +1694,14 @@ def pa_to_feast_value_type(pa_type_as_str: str) -> ValueType:
         value_type = ValueType.STRUCT
     else:
         type_map = {
+            "int8": ValueType.INT32,
+            "int16": ValueType.INT32,
             "int32": ValueType.INT32,
             "int64": ValueType.INT64,
+            "uint8": ValueType.INT32,
+            "uint16": ValueType.INT32,
+            "uint32": ValueType.INT64,
+            "uint64": ValueType.INT64,
             "double": ValueType.DOUBLE,
             "float": ValueType.FLOAT,
             "string": ValueType.STRING,
@@ -1668,20 +1758,24 @@ def bq_to_feast_value_type(bq_type_as_str: str) -> ValueType:
 
 def mssql_to_feast_value_type(mssql_type_as_str: str) -> ValueType:
     type_map = {
-        "bigint": ValueType.FLOAT,
+        "bigint": ValueType.INT64,
         "binary": ValueType.BYTES,
         "bit": ValueType.BOOL,
         "char": ValueType.STRING,
         "date": ValueType.UNIX_TIMESTAMP,
         "datetime": ValueType.UNIX_TIMESTAMP,
+        "datetime2": ValueType.UNIX_TIMESTAMP,
         "datetimeoffset": ValueType.UNIX_TIMESTAMP,
-        "float": ValueType.FLOAT,
+        "decimal": ValueType.DECIMAL,
+        "float": ValueType.DOUBLE,
         "int": ValueType.INT32,
         "nchar": ValueType.STRING,
         "nvarchar": ValueType.STRING,
         "nvarchar(max)": ValueType.STRING,
+        "numeric": ValueType.DECIMAL,
         "json": ValueType.JSON,
         "real": ValueType.FLOAT,
+        "smalldatetime": ValueType.UNIX_TIMESTAMP,
         "smallint": ValueType.INT32,
         "tinyint": ValueType.INT32,
         "varbinary": ValueType.BYTES,
@@ -1763,7 +1857,9 @@ def pa_to_mssql_type(pa_type: "pyarrow.DataType") -> str:
         return "date"
 
     if pa_type_as_str.startswith("decimal"):
-        return pa_type_as_str
+        # str() of a PyArrow decimal is "decimal128(p, s)", which is not an MSSQL
+        # type, so build "decimal(p,s)" from the precision and scale.
+        return f"decimal({pa_type.precision},{pa_type.scale})"
 
     if pa_type_as_str.startswith("map<"):
         return "nvarchar(max)"
@@ -1782,9 +1878,14 @@ def pa_to_mssql_type(pa_type: "pyarrow.DataType") -> str:
         "int16": "smallint",
         "int32": "int",
         "int64": "bigint",
+        # MSSQL integer types are signed, except tinyint (unsigned 0..255),
+        # so uint16/uint32 must widen to the next larger signed type to avoid
+        # overflow in the generated DDL. This mirrors the widening already done
+        # in the Athena and Postgres mappers; uint64 uses bigint, the largest
+        # MSSQL integer type.
         "uint8": "tinyint",
-        "uint16": "smallint",
-        "uint32": "int",
+        "uint16": "int",
+        "uint32": "bigint",
         "uint64": "bigint",
         "float": "float",
         "double": "real",
@@ -1887,8 +1988,9 @@ def pa_to_redshift_value_type(pa_type: "pyarrow.DataType") -> str:
         return "date"
 
     if pa_type_as_str.startswith("decimal"):
-        # PyArrow decimal types (e.g. "decimal(38,37)") luckily directly map to the Redshift type.
-        return pa_type_as_str
+        # str() of a PyArrow decimal is "decimal128(p, s)", which is not a Redshift
+        # type, so build "decimal(p,s)" from the precision and scale.
+        return f"decimal({pa_type.precision},{pa_type.scale})"
 
     if pa_type_as_str.startswith("list"):
         return "super"
@@ -1945,6 +2047,8 @@ def spark_to_feast_value_type(spark_type_as_str: str) -> ValueType:
         "string": ValueType.STRING,
         "int": ValueType.INT32,
         "short": ValueType.INT32,
+        "smallint": ValueType.INT32,
+        "tinyint": ValueType.INT32,
         "bigint": ValueType.INT64,
         "long": ValueType.INT64,
         "double": ValueType.DOUBLE,
@@ -1956,6 +2060,8 @@ def spark_to_feast_value_type(spark_type_as_str: str) -> ValueType:
         "array<byte>": ValueType.BYTES_LIST,
         "array<string>": ValueType.STRING_LIST,
         "array<int>": ValueType.INT32_LIST,
+        "array<smallint>": ValueType.INT32_LIST,
+        "array<tinyint>": ValueType.INT32_LIST,
         "array<bigint>": ValueType.INT64_LIST,
         "array<double>": ValueType.DOUBLE_LIST,
         "array<decimal>": ValueType.DOUBLE_LIST,
@@ -2014,10 +2120,16 @@ def arrow_to_pg_type(t_str: str) -> str:
             return "jsonb"
         if t_str.startswith("struct<") or t_str.startswith("struct{"):
             return "jsonb"
+        if t_str.startswith("decimal"):
+            return "numeric"
+        if t_str.startswith("date"):
+            return "date"
         return {
-            "null": "null",
+            # Postgres has no "null" type; an all-null column still needs one.
+            "null": "text",
             "bool": "boolean",
-            "int8": "tinyint",
+            # Postgres has no 1-byte integer type.
+            "int8": "smallint",
             "int16": "smallint",
             "int32": "int",
             "int64": "bigint",
@@ -2032,7 +2144,8 @@ def arrow_to_pg_type(t_str: str) -> str:
             "uint64": "bigint",
             "float": "float",
             "double": "double precision",
-            "binary": "binary",
+            "binary": "bytea",
+            "large_binary": "bytea",
             "string": "text",
         }[t_str]
     except KeyError:
@@ -2269,6 +2382,9 @@ def pa_to_athena_value_type(pa_type: "pyarrow.DataType") -> str:
     if pa_type_as_str.startswith("python_values_to_proto_values"):
         return pa_type_as_str
 
+    if pa_type_as_str.startswith("decimal"):
+        return f"decimal({pa_type.precision},{pa_type.scale})"
+
     if pa_type_as_str.startswith("list"):
         return "array<string>"
 
@@ -2291,10 +2407,14 @@ def pa_to_athena_value_type(pa_type: "pyarrow.DataType") -> str:
         "int16": "smallint",
         "int32": "int",
         "int64": "bigint",
-        "uint8": "tinyint",
-        "uint16": "tinyint",
-        "uint32": "tinyint",
-        "uint64": "tinyint",
+        # Athena integer types are signed, so unsigned Arrow types must be
+        # widened to the next-larger signed type to avoid overflow in the
+        # generated DDL (e.g. uint32 exceeds signed int's max). This mirrors
+        # the widening already done in arrow_to_pg_type for Postgres.
+        "uint8": "smallint",
+        "uint16": "int",
+        "uint32": "bigint",
+        "uint64": "bigint",
         "float": "float",
         "double": "double",
         "binary": "binary",

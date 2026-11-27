@@ -30,10 +30,44 @@ Options:
 -h, --host TEXT                 Specify a host for the server [default: 0.0.0.0]
 -p, --port INTEGER              Specify a port for the server [default: 8888]
 -r, --registry_ttl_sec INTEGER  Number of seconds after which the registry is refreshed. Default is 5 seconds.
+--cors-allowed-origins TEXT     Comma-separated list of trusted origins allowed to make cross-origin (CORS) requests.
 --help                          Show this message and exit.
 ```
 
 This will spin up a Web UI on localhost which automatically refreshes its view of the registry every `registry_ttl_sec`
+
+#### Cross-Origin Resource Sharing (CORS)
+
+By default the UI server does **not** allow cross-origin requests: the bundled
+Web UI is served from the same origin as the API, so it keeps working without
+any CORS policy. This avoids [CVE-2024-11602](https://nvd.nist.gov/vuln/detail/CVE-2024-11602),
+where the server previously reflected every origin (`Access-Control-Allow-Origin: *`)
+together with credentials, letting any site a user visited issue authenticated
+requests to the server.
+
+If you host the UI (or another browser client) on a different origin, opt in by
+passing an explicit allowlist of trusted origins, either with the
+`--cors-allowed-origins` flag or the `FEAST_UI_CORS_ALLOWED_ORIGINS`
+environment variable:
+
+```bash
+feast ui --cors-allowed-origins "https://feast.example.com,https://app.example.com"
+
+# or, equivalently:
+export FEAST_UI_CORS_ALLOWED_ORIGINS="https://feast.example.com,https://app.example.com"
+feast ui
+```
+
+Each value must be a bare origin — scheme and host with an optional port, and
+**no path, query, or trailing slash** (e.g. `https://app.example.com` or
+`http://localhost:3000`, not `https://app.example.com/ui`). Browsers send the
+`Origin` header without a path, so a value that includes one never matches and
+the request is silently rejected.
+
+For production, list the exact origins you trust. Passing `*` is accepted but
+**allows credentialed cross-origin requests from any site** (the CVE-2024-11602
+pattern) and is intended for local development only; the server logs a warning
+when it is used.
 
 #### Curl Generator Feature Server URL
 
@@ -153,3 +187,12 @@ const tabsRegistry = {
 ```
 
 Examples of custom tabs can be found in the `ui/custom-tabs` folder.
+
+## Refreshing the registry
+
+The Feast UI caches registry data (projects, feature views, entities, etc.) using the registry cache. After running `feast apply` to make changes, it may take up to `cache_ttl_seconds` before the updates appear in the UI.
+
+To see changes faster:
+
+- **Lower the TTL**: Set `cache_ttl_seconds: 10` (or similar) in your `feature_store.yaml` registry config. This makes all registry consumers — including the UI — pick up changes within 10 seconds.
+- **Refresh on demand**: The UI has a **Refresh** button that explicitly invalidates the server-side registry cache (`POST /api/v1/registry/refresh`) and reloads the UI without a full page refresh.
