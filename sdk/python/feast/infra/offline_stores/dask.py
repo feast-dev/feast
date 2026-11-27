@@ -3,7 +3,19 @@ import os
 import uuid
 from datetime import date, datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Literal, Optional, Set, Tuple, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    List,
+    Literal,
+    Optional,
+    Set,
+    Tuple,
+    Union,
+    cast,
+)
 
 import dask
 import dask.dataframe as dd
@@ -16,6 +28,7 @@ import pyarrow.parquet as pq
 import pytz
 from pandas.api.types import is_integer_dtype, is_unsigned_integer_dtype
 
+from feast.data_format import DeltaFormat, ParquetFormat
 from feast.data_source import DataSource
 from feast.errors import (
     FeastJoinKeysDuringMaterialization,
@@ -54,6 +67,9 @@ from feast.utils import (
     _get_requested_on_demand_feature_views,
     compute_non_entity_date_range,
 )
+
+if TYPE_CHECKING:
+    from deltalake import DeltaTable
 
 # DaskRetrievalJob will cast string objects to string[pyarrow] from dask version 2023.7.1
 # This is not the desired behavior for our use case, so we set the convert-string option to False
@@ -112,6 +128,20 @@ class DaskRetrievalJob(RetrievalJob):
         timeout: Optional[int] = None,
     ):
         assert isinstance(storage, SavedDatasetFileStorage)
+
+        if isinstance(storage.file_options.file_format, DeltaFormat):
+            raise NotImplementedError(
+                f"The Dask offline store cannot persist a saved dataset to "
+                f"'{storage.file_options.uri}' with file format DeltaFormat; "
+                "only Parquet saved datasets are supported. Writing Parquet "
+                "files under a DeltaFormat declaration would create a "
+                "directory without a Delta transaction log, which the Dask "
+                "reader rejects on retrieval. Persist with ParquetFormat "
+                "storage instead. To serve a saved dataset from a Delta "
+                "table, write the retrieval result with a Delta writer and "
+                "register a FileSource with file_format=DeltaFormat pointing "
+                "at it."
+            )
 
         # Check if the specified location already exists.
         if not allow_overwrite and os.path.exists(storage.file_options.uri):
@@ -264,10 +294,10 @@ class DaskOfflineStore(OfflineStore):
 
             # Load feature view data from sources and join them incrementally
             for feature_view, features in feature_views_to_features.items():
-                timestamp_field = feature_view.batch_source.timestamp_field
-                created_timestamp_column = (
-                    feature_view.batch_source.created_timestamp_column
-                )
+                source = cast(FileSource, feature_view.batch_source)
+                delta_source = isinstance(source.file_format, DeltaFormat)
+                timestamp_field = source.timestamp_field
+                created_timestamp_column = source.created_timestamp_column
 
                 # Build a list of entity columns to join on (from the right table)
                 join_keys = []
@@ -286,18 +316,18 @@ class DaskOfflineStore(OfflineStore):
 
                 all_join_keys = list(set(all_join_keys + join_keys))
 
-                df_to_join = _read_datasource(
-                    feature_view.batch_source, config.repo_path
-                )
+                df_to_join = _read_datasource(source, config.repo_path)
 
-                df_to_join, timestamp_field = _field_mapping(
+                df_to_join, timestamp_field, created_timestamp_column = _field_mapping(
                     df_to_join,
                     feature_view,
                     features,
                     right_entity_key_columns,
                     entity_df_event_timestamp_col,
                     timestamp_field,
+                    created_timestamp_column,
                     full_feature_names,
+                    delta_source=delta_source,
                 )
 
                 # Keep the source timestamps separate from request data.
@@ -329,6 +359,11 @@ class DaskOfflineStore(OfflineStore):
                     )
                     created_timestamp_column = source_created_timestamp_column
 
+                if delta_source:
+                    # A source row without an event time cannot match a point-in-time
+                    # request. Keep genuine unmatched rows from the later left join.
+                    df_to_join = df_to_join[~df_to_join[timestamp_field].isna()]
+
                 # In non-entity mode, if the synthetic entity_df lacks join keys, cross join to build a snapshot
                 # of all entities as-of the requested timestamp, then rely on TTL and deduplication to select
                 # the appropriate latest rows per entity.
@@ -344,7 +379,10 @@ class DaskOfflineStore(OfflineStore):
                 )
 
                 df_to_join = _normalize_timestamp(
-                    df_to_join, timestamp_field, created_timestamp_column
+                    df_to_join,
+                    timestamp_field,
+                    created_timestamp_column,
+                    delta_source=delta_source,
                 )
 
                 df_to_join = _filter_ttl(
@@ -362,6 +400,7 @@ class DaskOfflineStore(OfflineStore):
                         if not non_entity_mode
                         else None
                     ),
+                    delta_source=delta_source,
                 )
 
                 if filter_by_created_timestamp and created_timestamp_column:
@@ -381,6 +420,7 @@ class DaskOfflineStore(OfflineStore):
                     timestamp_field,
                     created_timestamp_column,
                     entity_df_event_timestamp_col,
+                    delta_source=delta_source,
                 )
 
                 entity_df_with_features = _drop_columns(
@@ -479,16 +519,23 @@ class DaskOfflineStore(OfflineStore):
         # FeastJoinKeysDuringMaterialization), Python's atexit handler calls
         # ThreadPoolExecutor.shutdown(wait=True) which can block indefinitely, hanging
         # the subprocess and preventing the parent from reading its output.
-        # df.columns is derived from the Parquet schema metadata — no computation needed.
+        # df.columns is derived from schema metadata — no row reads needed.
         source_columns = set(source_df.columns)
         if not set(join_key_columns).issubset(source_columns):
             raise FeastJoinKeysDuringMaterialization(
                 data_source.path, set(join_key_columns), source_columns
             )
 
+        delta_source = isinstance(data_source.file_format, DeltaFormat)
         source_df = _normalize_timestamp(
-            source_df, timestamp_field, created_timestamp_column
+            source_df,
+            timestamp_field,
+            created_timestamp_column,
+            delta_source=delta_source,
         )
+        if delta_source:
+            start_date = _utc_if_naive(start_date)
+            end_date = _utc_if_naive(end_date)
 
         # try-catch block is added to deal with this issue https://github.com/dask/dask/issues/8939.
         # TODO(kevjumba): remove try catch when fix is merged upstream in Dask.
@@ -498,13 +545,16 @@ class DaskOfflineStore(OfflineStore):
         if created_timestamp_column:
             sort_columns.append(created_timestamp_column)
 
-        try:
-            source_df = source_df.sort_values(by=sort_columns)
-
-        except ZeroDivisionError:
-            # Use 1 partition to get around case where everything in timestamp column is the same so the partition algorithm doesn't
-            # try to divide by zero.
-            source_df = source_df.sort_values(by=sort_columns, npartitions=1)
+        if delta_source:
+            source_df = _sort_delta_timestamps(
+                source_df, sort_columns, na_position="last"
+            )
+        else:
+            try:
+                source_df = source_df.sort_values(by=sort_columns)
+            except ZeroDivisionError:
+                # Use 1 partition when every row has the same timestamp.
+                source_df = source_df.sort_values(by=sort_columns, npartitions=1)
 
         # TODO: The old implementation is inclusive of start_date and exclusive of end_date.
         # Which is inconsistent with other offline stores.
@@ -619,6 +669,14 @@ class DaskOfflineStore(OfflineStore):
         assert isinstance(config.offline_store, DaskOfflineStoreConfig)
         assert isinstance(feature_view.batch_source, FileSource)
 
+        if isinstance(feature_view.batch_source.file_format, DeltaFormat):
+            raise NotImplementedError(
+                f"The Dask offline store cannot write to file source "
+                f"'{feature_view.batch_source.name}' with file format "
+                "DeltaFormat; only Parquet writes are supported. The Parquet "
+                "writer does not commit to the Delta transaction log."
+            )
+
         pa_schema, column_names = get_pyarrow_schema_from_batch_source(
             config, feature_view.batch_source
         )
@@ -664,8 +722,15 @@ class DaskOfflineStore(OfflineStore):
         assert isinstance(data_source, FileSource)
 
         table = _dask_read_batch_arrow(data_source, config.repo_path)
+        if table is None:
+            # Nothing written to the source yet: no metrics to compute.
+            return []
         table = _dask_filter_arrow_by_timestamp(
-            table, timestamp_field, start_date, end_date
+            table,
+            timestamp_field,
+            start_date,
+            end_date,
+            delta_source=isinstance(data_source.file_format, DeltaFormat),
         )
 
         results: List[Dict[str, Any]] = []
@@ -696,16 +761,28 @@ class DaskOfflineStore(OfflineStore):
             repo_path=config.repo_path,
             uri=data_source.file_options.uri,
         )
-        filesystem, path = FileSource.create_filesystem_and_path(
-            str(absolute_path),
-            data_source.file_options.s3_endpoint_override,
-            resolved_credentials=data_source.resolve_credentials(),
-        )
-        try:
-            t = pq.read_table(path, filesystem=filesystem, columns=[timestamp_field])
-        except FileNotFoundError:
-            # Nothing written to the source yet: no data to monitor.
-            return None
+        if _is_delta_source(data_source):
+            from deltalake.exceptions import TableNotFoundError
+
+            try:
+                delta_table = _read_delta_table(data_source, absolute_path)
+            except TableNotFoundError:
+                # Nothing written to the source yet: no data to monitor.
+                return None
+            t = delta_table.to_pyarrow_table(columns=[timestamp_field])
+        else:
+            filesystem, path = FileSource.create_filesystem_and_path(
+                str(absolute_path),
+                data_source.file_options.s3_endpoint_override,
+                resolved_credentials=data_source.resolve_credentials(),
+            )
+            try:
+                t = pq.read_table(
+                    path, filesystem=filesystem, columns=[timestamp_field]
+                )
+            except FileNotFoundError:
+                # Nothing written to the source yet: no data to monitor.
+                return None
         if t.num_rows == 0:
             return None
         arr = t[timestamp_field]
@@ -815,11 +892,20 @@ def _dask_read_parquet_if_exists(path: str) -> Optional[pyarrow.Table]:
 
 def _dask_read_batch_arrow(
     data_source: FileSource, repo_path: Optional[Path]
-) -> pyarrow.Table:
+) -> Optional[pyarrow.Table]:
     absolute_path = FileSource.get_uri_for_file_path(
         repo_path=repo_path,
         uri=data_source.file_options.uri,
     )
+    if _is_delta_source(data_source):
+        from deltalake.exceptions import TableNotFoundError
+
+        try:
+            delta_table = _read_delta_table(data_source, absolute_path)
+        except TableNotFoundError:
+            # Nothing written to the source yet: no data to monitor.
+            return None
+        return delta_table.to_pyarrow_table()
     filesystem, path = FileSource.create_filesystem_and_path(
         str(absolute_path),
         data_source.file_options.s3_endpoint_override,
@@ -828,15 +914,29 @@ def _dask_read_batch_arrow(
     return pq.read_table(path, filesystem=filesystem)
 
 
+def _utc_if_naive(value: Optional[datetime]) -> Optional[datetime]:
+    if value is not None and value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value
+
+
 def _dask_filter_arrow_by_timestamp(
     table: pyarrow.Table,
     timestamp_field: str,
     start_date: Optional[datetime],
     end_date: Optional[datetime],
+    *,
+    delta_source: bool = False,
 ) -> pyarrow.Table:
     if start_date is None and end_date is None:
         return table
     arr = table[timestamp_field]
+    if delta_source and pyarrow.types.is_timestamp(arr.type):
+        # Match retrieval and max-timestamp semantics: naive timestamps are UTC.
+        if arr.type.tz is None:
+            arr = pc.assume_timezone(arr, "UTC")  # type: ignore[attr-defined]
+        start_date = _utc_if_naive(start_date)
+        end_date = _utc_if_naive(end_date)
     mask = None
     if start_date is not None:
         mask = pc.greater_equal(arr, pyarrow.scalar(start_date))  # type: ignore[attr-defined]
@@ -1043,7 +1143,102 @@ def _get_entity_df_event_timestamp_range(
     )
 
 
-def _read_datasource(data_source, repo_path) -> dd.DataFrame:
+def _is_delta_source(data_source: FileSource) -> bool:
+    file_format = data_source.file_format
+    if isinstance(file_format, DeltaFormat):
+        return True
+    if file_format is None or isinstance(file_format, ParquetFormat):
+        return False
+    raise NotImplementedError(
+        f"The Dask offline store cannot read file source '{data_source.name}' "
+        f"with file format {type(file_format).__name__}; only Parquet and Delta "
+        "are supported."
+    )
+
+
+def _read_delta_table(data_source: FileSource, path: str) -> "DeltaTable":
+    from deltalake import DeltaTable
+
+    credentials = data_source.resolve_credentials() or {}
+    storage_options = {
+        key: credentials[key]
+        for key in (
+            "AWS_ACCESS_KEY_ID",
+            "AWS_SECRET_ACCESS_KEY",
+            "AWS_SESSION_TOKEN",
+            "AWS_DEFAULT_REGION",
+        )
+        if credentials.get(key)
+    }
+    endpoint = data_source.file_options.s3_endpoint_override
+    if endpoint:
+        storage_options["AWS_ENDPOINT_URL"] = str(endpoint)
+        if str(endpoint).startswith("http://"):
+            storage_options["AWS_ALLOW_HTTP"] = "true"
+    return DeltaTable(path, storage_options=storage_options or None)
+
+
+def _delta_pandas_dtype(
+    data_type: pyarrow.DataType,
+) -> Optional[pd.api.extensions.ExtensionDtype]:
+    # NumPy promotes a nullable integer column to float64, which rounds large
+    # values and gives it a different dtype from a null-free fragment.
+    if pyarrow.types.is_integer(data_type):
+        prefix = "UInt" if pyarrow.types.is_unsigned_integer(data_type) else "Int"
+        return pd.api.types.pandas_dtype(f"{prefix}{data_type.bit_width}")
+    if pyarrow.types.is_boolean(data_type):
+        return pd.BooleanDtype()
+    return None
+
+
+def _read_delta_fragment(
+    fragment: pyarrow.dataset.Fragment,
+    schema: pyarrow.Schema,
+    columns: Optional[List[str]] = None,
+) -> pd.DataFrame:
+    return fragment.to_table(schema=schema, columns=columns).to_pandas(
+        types_mapper=_delta_pandas_dtype
+    )
+
+
+def _read_datasource(
+    data_source: FileSource, repo_path: Optional[Path]
+) -> dd.DataFrame:
+    path = FileSource.get_uri_for_file_path(
+        repo_path=repo_path,
+        uri=data_source.file_options.uri,
+    )
+    if _is_delta_source(data_source):
+        # Delta supplies the snapshot schema and partition expressions and
+        # rejects reader features it cannot honor. Read data only in Dask tasks.
+        from deltalake.exceptions import TableNotFoundError
+
+        try:
+            delta_table = _read_delta_table(data_source, path)
+        except TableNotFoundError as exc:
+            # Covers both genuinely missing tables and the legacy
+            # saved-dataset directories written as plain Parquet while
+            # declaring DeltaFormat, which older Feast versions accepted.
+            raise TableNotFoundError(
+                f"Delta source '{path}' has no Delta transaction log "
+                "(_delta_log), so it cannot be read as a Delta table: "
+                "directories that only contain Parquet files are not Delta "
+                "tables. If this is a saved dataset written by an earlier "
+                "Feast version that ignored the DeltaFormat declaration and "
+                "wrote plain Parquet, re-create the saved dataset with "
+                "ParquetFormat storage, or register the directory as a "
+                "ParquetFormat FileSource to read the existing Parquet files "
+                "directly."
+            ) from exc
+        dataset = delta_table.to_pyarrow_dataset()
+        fragments = list(dataset.get_fragments())
+        meta = dataset.schema.empty_table().to_pandas(types_mapper=_delta_pandas_dtype)
+        if not fragments:
+            return dd.from_pandas(meta, npartitions=1)
+        return dd.from_map(
+            _read_delta_fragment, fragments, schema=dataset.schema, meta=meta
+        )
+
     storage_options: Optional[dict] = None
     resolved_creds = data_source.resolve_credentials()
 
@@ -1065,15 +1260,7 @@ def _read_datasource(data_source, repo_path) -> dd.DataFrame:
             }
         }
 
-    path = FileSource.get_uri_for_file_path(
-        repo_path=repo_path,
-        uri=data_source.file_options.uri,
-    )
-
-    return dd.read_parquet(
-        path,
-        storage_options=storage_options,
-    )
+    return dd.read_parquet(path, storage_options=storage_options)
 
 
 def _run_dask_field_mapping(
@@ -1095,8 +1282,11 @@ def _field_mapping(
     right_entity_key_columns: List[str],
     entity_df_event_timestamp_col: str,
     timestamp_field: str,
+    created_timestamp_column: str,
     full_feature_names: bool,
-) -> Tuple[dd.DataFrame, str]:
+    *,
+    delta_source: bool,
+) -> Tuple[dd.DataFrame, str, str]:
     # Rename columns by the field mapping dictionary if it exists
     if (
         feature_view.batch_source is not None
@@ -1128,22 +1318,44 @@ def _field_mapping(
         feature_names.append(formatted_feature_name)
         columns_map[feature] = formatted_feature_name
 
+    if delta_source:
+        # Keep an independent copy for time filtering when a source timestamp
+        # is also requested as a feature, whether or not it is prefixed.
+        aliases = {}
+        for column in dict.fromkeys((timestamp_field, created_timestamp_column)):
+            if column and column in columns_map:
+                alias = _unused_column_name(
+                    column, df_to_join, df_to_join, feature_names
+                )
+                df_to_join = df_to_join.assign(**{alias: df_to_join[column]})
+                aliases[column] = alias
+        timestamp_field = aliases.get(timestamp_field, timestamp_field)
+        created_timestamp_column = aliases.get(
+            created_timestamp_column, created_timestamp_column
+        )
+        right_entity_key_columns = [
+            aliases.get(column, column) for column in right_entity_key_columns
+        ]
+
     # Ensure that the source dataframe feature column includes the feature view name as a prefix
     df_to_join = _run_dask_field_mapping(df_to_join, columns_map)
 
     # Select only the columns we need to join from the feature dataframe
-    df_to_join = df_to_join[right_entity_key_columns + feature_names]
+    columns_to_join = right_entity_key_columns + feature_names
+    if delta_source:
+        columns_to_join = list(dict.fromkeys(columns_to_join))
+    df_to_join = df_to_join[columns_to_join]
     df_to_join = df_to_join.persist()
 
     # Make sure to not have duplicated columns
-    if entity_df_event_timestamp_col == timestamp_field:
+    if not delta_source and entity_df_event_timestamp_col == timestamp_field:
         df_to_join = _run_dask_field_mapping(
             df_to_join,
             {timestamp_field: f"__{timestamp_field}"},
         )
         timestamp_field = f"__{timestamp_field}"
 
-    return df_to_join.persist(), timestamp_field
+    return df_to_join.persist(), timestamp_field, created_timestamp_column
 
 
 def _unused_column_name(
@@ -1196,7 +1408,19 @@ def _normalize_timestamp(
     df_to_join: dd.DataFrame,
     timestamp_field: str,
     created_timestamp_column: Optional[str] = None,
+    *,
+    delta_source: bool = False,
 ) -> dd.DataFrame:
+    if delta_source:
+        # Unlike element-wise apply, this also normalizes empty partitions.
+        return df_to_join.assign(
+            **{
+                column: dd.to_datetime(df_to_join[column], utc=True)
+                for column in dict.fromkeys((timestamp_field, created_timestamp_column))
+                if column
+            }
+        ).persist()
+
     df_to_join_types = df_to_join.dtypes
     timestamp_field_type = df_to_join_types[timestamp_field]
 
@@ -1243,8 +1467,9 @@ def _filter_ttl(
     timestamp_field: str,
     preserved_columns: Optional[Set[str]] = None,
     request_columns: Optional[List[str]] = None,
+    *,
+    delta_source: bool = False,
 ) -> dd.DataFrame:
-    # A missing source row is already a valid left-join result.
     within_time_range = (
         df_to_join[timestamp_field] <= df_to_join[entity_df_event_timestamp_col]
     )
@@ -1253,7 +1478,11 @@ def _filter_ttl(
             df_to_join[timestamp_field]
             >= df_to_join[entity_df_event_timestamp_col] - feature_view.ttl
         )
-    valid = df_to_join[timestamp_field].isna() | within_time_range
+    valid = within_time_range
+    if not delta_source or preserved_columns is not None:
+        # A missing source row is already a valid left-join result, unless
+        # it came from the synthetic request for a Delta snapshot.
+        valid = df_to_join[timestamp_field].isna() | valid
 
     if preserved_columns is None:
         # Non-entity snapshots only contain entities with an eligible source row.
@@ -1297,6 +1526,12 @@ def _filter_ttl(
                 )
                 .mask(ttl_missing, other=pd.NA)
                 if is_integer_dtype(marked[column].dtype)
+                and not (
+                    delta_source
+                    and isinstance(
+                        marked[column].dtype, pd.api.extensions.ExtensionDtype
+                    )
+                )
                 else marked[column].mask(ttl_missing, other=pd.NA)
                 for column in marked.columns
                 if column not in preserved_columns
@@ -1334,12 +1569,36 @@ def _apply_created_timestamp_cutoff(
     )
 
 
+def _sort_delta_timestamps(
+    frame: dd.DataFrame,
+    sort_columns: List[str],
+    *,
+    na_position: Literal["first", "last"],
+) -> dd.DataFrame:
+    # Dask uses the first sort column to calculate partition boundaries. A
+    # partition of only NaTs can make that calculation fail or lose rows. Use
+    # a non-null numeric key for partitioning, then the original timestamps
+    # to order any ties (including timestamps rounded to the same float).
+    event_time = frame[sort_columns[0]]
+    order = event_time.astype("int64").astype("float64")
+    if na_position == "last":
+        order = order.mask(event_time.isna(), float(2**63))
+    key = _unused_column_name("delta_timestamp_sort", frame, frame, [])
+    return (
+        frame.assign(**{key: order})
+        .sort_values(by=[key, *sort_columns], na_position=na_position)
+        .drop(columns=key)
+    )
+
+
 def _drop_duplicates(
     df_to_join: dd.DataFrame,
     all_join_keys: List[str],
     timestamp_field: str,
     created_timestamp_column: str,
     entity_df_event_timestamp_col: str,
+    *,
+    delta_source: bool = False,
 ) -> dd.DataFrame:
     column_order = df_to_join.columns
 
@@ -1351,17 +1610,20 @@ def _drop_duplicates(
     if created_timestamp_column:
         sort_columns.append(created_timestamp_column)
 
-    try:
-        df_to_join = df_to_join.sort_values(by=sort_columns, na_position="first")
-        df_to_join = df_to_join.persist()
-
-    except ZeroDivisionError:
-        # Use 1 partition to get around case where everything in timestamp column is the same so the partition algorithm doesn't
-        # try to divide by zero.
-        df_to_join = df_to_join[column_order].sort_values(
-            by=sort_columns, na_position="first", npartitions=1
-        )
-        df_to_join = df_to_join.persist()
+    if delta_source:
+        df_to_join = _sort_delta_timestamps(
+            df_to_join, sort_columns, na_position="first"
+        ).persist()
+    else:
+        try:
+            df_to_join = df_to_join.sort_values(by=sort_columns, na_position="first")
+            df_to_join = df_to_join.persist()
+        except ZeroDivisionError:
+            # Use 1 partition when every row has the same timestamp.
+            df_to_join = df_to_join[column_order].sort_values(
+                by=sort_columns, na_position="first", npartitions=1
+            )
+            df_to_join = df_to_join.persist()
 
     df_to_join = df_to_join.drop_duplicates(
         all_join_keys + [entity_df_event_timestamp_col],

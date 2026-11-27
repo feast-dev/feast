@@ -2,7 +2,21 @@
 
 ## Description
 
-The Dask offline store provides support for reading [FileSources](../data-sources/file.md).
+The Dask offline store reads Parquet and Delta [FileSources](../data-sources/file.md).
+Delta reads require the `feast[delta]` extra and a table protocol supported by its
+Delta Lake reader. Reads use the current snapshot in the transaction log, so
+data files removed by an overwrite or compaction are not included. Use an absolute
+local Delta path when Feast needs to infer the source schema, because `FileSource`
+schema discovery does not resolve that path relative to the repository.
+
+Saved datasets are written as Parquet. `DaskRetrievalJob.persist` rejects
+`SavedDatasetFileStorage(file_format=DeltaFormat())` instead of writing Parquet
+files under a Delta declaration, because such a directory has no Delta transaction
+log and cannot be read back as a Delta table. Saved datasets that an earlier Feast
+version wrote as plain Parquet under a DeltaFormat declaration are also not valid
+Delta tables: re-create them with `ParquetFormat` storage, or register the
+directory as a ParquetFormat `FileSource` to keep reading the existing Parquet
+files.
 
 When an entity dataframe is supplied to `get_historical_features`, entity rows and
 their additional columns (such as training labels) are retained even if all matching
@@ -41,7 +55,7 @@ Below is a matrix indicating which functionality is supported by the dask offlin
 | `get_historical_features` (point-in-time correct join)             | yes |
 | `pull_latest_from_table_or_query` (retrieve latest feature values) | yes |
 | `pull_all_from_table_or_query` (retrieve a saved dataset)          | yes |
-| `offline_write_batch` (persist dataframes to offline store)        | yes |
+| `offline_write_batch` (persist dataframes to offline store)        | yes (Parquet only; Delta sources are rejected) |
 | `write_logged_features` (persist logged features to offline store) | yes |
 
 Below is a matrix indicating which functionality is supported by `DaskRetrievalJob`.
