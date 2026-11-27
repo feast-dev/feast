@@ -47,13 +47,65 @@ from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import BATCH_ENGINE_CLASS_FOR_TYPE, RepoConfig
 from feast.saved_dataset import SavedDataset
 from feast.stream_feature_view import StreamFeatureView
+from feast.type_map import python_values_to_proto_values
 from feast.utils import (
     _convert_arrow_to_proto,
     _run_pyarrow_field_mapping,
     make_tzaware,
 )
+from feast.value_type import ValueType
 
 DEFAULT_BATCH_SIZE = 10_000
+
+# Feature types whose DataFrame values are dicts or lists of dicts.
+# pa.Table.from_pandas infers a struct from them: each row gets the keys of every
+# other row, an integer next to a null becomes a float, and non-string keys fail.
+_DICT_VALUE_TYPES = frozenset(
+    {
+        ValueType.MAP,
+        ValueType.MAP_LIST,
+        ValueType.SCALAR_MAP,
+        ValueType.JSON,
+        ValueType.JSON_LIST,
+        ValueType.STRUCT,
+        ValueType.STRUCT_LIST,
+    }
+)
+
+
+def _dict_feature_columns(
+    feature_view: Union[BaseFeatureView, FeatureView, OnDemandFeatureView],
+    df: pd.DataFrame,
+    column_to_feature: Dict[str, str],
+) -> Dict[str, Tuple[str, ValueType]]:
+    """Map each DataFrame column that holds a dict-valued feature to the feature
+    name and value type."""
+    dict_features = {
+        feature.name: feature.dtype.to_value_type()
+        for feature in feature_view.features
+        if feature.dtype.to_value_type() in _DICT_VALUE_TYPES
+    }
+    columns = {}
+    for column in df.columns:
+        feature_name = column_to_feature.get(column, column)
+        if feature_name in dict_features:
+            columns[column] = (feature_name, dict_features[feature_name])
+    return columns
+
+
+def _set_dict_feature_values(
+    rows: Sequence[
+        Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+    ],
+    df: pd.DataFrame,
+    dict_columns: Dict[str, Tuple[str, ValueType]],
+) -> None:
+    """Convert dict-valued feature columns straight from the DataFrame values."""
+    for column, (feature_name, value_type) in dict_columns.items():
+        series = df[column]
+        values = series.astype(object).where(series.notna(), None).tolist()
+        for row, value in zip(rows, python_values_to_proto_values(values, value_type)):
+            row[1][feature_name] = value
 
 
 class PassthroughProvider(Provider):
@@ -351,7 +403,23 @@ class PassthroughProvider(Provider):
         df: pd.DataFrame,
         field_mapping: Optional[Dict] = None,
     ):
-        table = pa.Table.from_pandas(df)
+        if isinstance(feature_view, OnDemandFeatureView):
+            column_to_feature = field_mapping or {}
+        elif (
+            hasattr(feature_view, "batch_source")
+            and feature_view.batch_source is not None
+        ):
+            column_to_feature = feature_view.batch_source.field_mapping or {}
+        else:
+            column_to_feature = {}
+        dict_columns = _dict_feature_columns(feature_view, df, column_to_feature)
+        if dict_columns:
+            # Arrow gets an all-null placeholder; the real values are set below.
+            df_for_arrow = df.assign(**{column: None for column in dict_columns})
+        else:
+            df_for_arrow = df
+
+        table = pa.Table.from_pandas(df_for_arrow)
         if isinstance(feature_view, OnDemandFeatureView):
             if not field_mapping:
                 field_mapping = {}
@@ -389,6 +457,7 @@ class PassthroughProvider(Provider):
                     join_keys[entity.name] = entity.dtype.to_value_type()
             rows_to_write = _convert_arrow_to_proto(table, feature_view, join_keys)
 
+        _set_dict_feature_values(rows_to_write, df, dict_columns)
         return rows_to_write
 
     def ingest_df(
