@@ -17,6 +17,7 @@ from feast.api.registry.rest.permissions import get_permission_router
 from feast.api.registry.rest.projects import get_project_router, get_registry_router
 from feast.api.registry.rest.saved_datasets import get_saved_dataset_router
 from feast.api.registry.rest.search import get_search_router
+from feast.api.registry.rest.system import get_system_router
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +32,7 @@ def get_ol_processor() -> Optional[Any]:
 
 
 def register_all_routes(app: FastAPI, grpc_handler, server=None, store=None):
+    app.include_router(get_system_router())
     app.include_router(get_entity_router(grpc_handler))
     app.include_router(get_data_source_router(grpc_handler))
     app.include_router(get_feature_service_router(grpc_handler))
@@ -182,7 +184,7 @@ def _register_openlineage_consumer(app: FastAPI, feast_store):
 
                     all_projects = fs.registry.list_projects(allow_cache=True)
                     if not all_projects:
-                        return None
+                        return []
 
                     allowed_projects = permitted_resources(
                         all_projects, AuthzedAction.DESCRIBE
@@ -203,9 +205,13 @@ def _register_openlineage_consumer(app: FastAPI, feast_store):
                         if mapped_project in allowed_project_names:
                             namespaces.add(ext_ns)
 
-                    return list(namespaces) if namespaces else None
-                except Exception:
-                    return None
+                    # An empty list means "no namespaces allowed", not "no filter".
+                    return list(namespaces)
+                except Exception as e:
+                    logger.warning(
+                        f"Denying lineage access, permission check failed: {e}"
+                    )
+                    return []
 
             return _get_allowed
 

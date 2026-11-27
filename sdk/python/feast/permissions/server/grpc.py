@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from typing import Optional
 
 import grpc
 
@@ -9,6 +10,21 @@ from feast.permissions.auth.auth_manager import (
 from feast.permissions.security_manager import get_security_manager
 
 logger = logging.getLogger(__name__)
+
+
+def _request_project(request) -> Optional[str]:
+    """Return the project name of a registry request, or None.
+
+    Most requests carry the project name in the field ``project``. In
+    ``ApplyProjectRequest``, this field holds the whole ``Project`` message, so
+    the name is in its ``spec``.
+    """
+    project = getattr(request, "project", None)
+    if project is None or isinstance(project, str):
+        return project
+    spec = getattr(project, "spec", None)
+    name = getattr(spec, "name", None)
+    return name if isinstance(name, str) else None
 
 
 class AuthInterceptor(grpc.ServerInterceptor):
@@ -36,7 +52,7 @@ class AuthInterceptor(grpc.ServerInterceptor):
         behavior = handler.unary_unary
 
         def project_aware_behavior(request, context):
-            token = sm.set_current_project(getattr(request, "project", None))
+            token = sm.set_current_project(_request_project(request))
             try:
                 return behavior(request, context)
             finally:

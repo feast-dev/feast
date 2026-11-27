@@ -234,7 +234,7 @@ class SavedDatasetPostgreSQLStorage(SavedDatasetStorage):
         )
 
     def to_proto(self) -> SavedDatasetStorageProto:
-        return SavedDatasetStorageProto(custom_storage=self.postgres_options.to_proto())
+        return self._custom_storage_proto(self.postgres_options.to_proto())
 
     def to_data_source(self) -> DataSource:
         return PostgreSQLSource(table=self.postgres_options._table)

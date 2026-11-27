@@ -1,8 +1,11 @@
 import logging
 import os
 import ssl
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 from unittest.mock import Mock
+
+if TYPE_CHECKING:
+    from kubernetes.client import AuthenticationV1Api
 
 import jwt
 from fastapi import Request
@@ -12,6 +15,10 @@ from starlette.authentication import (
     AuthenticationError,
 )
 
+from feast.permissions.auth.intra_comm import (
+    decode_intra_comm_token,
+    get_intra_comm_secret,
+)
 from feast.permissions.auth.token_parser import TokenParser
 from feast.permissions.auth_model import OidcAuthConfig
 from feast.permissions.oidc_service import OIDCDiscoveryService
@@ -40,7 +47,7 @@ class OidcTokenParser(TokenParser):
             verify_ssl=self._auth_config.verify_ssl,
             ca_cert_path=self._auth_config.ca_cert_path,
         )
-        self._k8s_auth_api = None
+        self._k8s_auth_api: Optional["AuthenticationV1Api"] = None
         self._jwks_client: Optional[PyJWKClient] = None  # Initialize it lazily.
 
     def _get_jwks_client(self) -> PyJWKClient:
@@ -194,9 +201,11 @@ class OidcTokenParser(TokenParser):
         Validate the access token then decode it to extract the user credentials,
         roles, and groups.
 
-        A single unverified decode is performed upfront for lightweight routing:
-        intra-server communication, Kubernetes SA tokens (identified by the
-        ``kubernetes.io`` claim), or standard OIDC/Keycloak JWKS validation.
+        Intra-server tokens are trusted only when signed with the shared
+        ``INTRA_COMMUNICATION_BASE64`` secret. For all other tokens, a single
+        unverified decode routes the request: Kubernetes SA tokens (identified
+        by the ``kubernetes.io`` claim) or standard OIDC/Keycloak JWKS
+        validation.
 
         Returns:
             User: Current user, with associated roles, groups, or namespaces.
@@ -209,7 +218,7 @@ class OidcTokenParser(TokenParser):
         except jwt.exceptions.DecodeError as e:
             raise AuthenticationError(f"Failed to decode token: {e}")
 
-        user = self._get_intra_comm_user(unverified)
+        user = self._get_intra_comm_user(access_token)
         if user:
             return user
 
@@ -293,15 +302,13 @@ class OidcTokenParser(TokenParser):
         token_review = client.V1TokenReview(
             spec=client.V1TokenReviewSpec(token=access_token)
         )
-        auth_api: client.AuthenticationV1Api = self._k8s_auth_api
-        response = auth_api.create_token_review(token_review)
+        response = self._k8s_auth_api.create_token_review(token_review)
+        status = response.status
+        if status is None or not status.authenticated:
+            error = getattr(status, "error", None) if status is not None else None
+            raise AuthenticationError(f"Kubernetes token validation failed: {error}")
 
-        if not response.status.authenticated:
-            raise AuthenticationError(
-                f"Kubernetes token validation failed: {response.status.error}"
-            )
-
-        username = getattr(response.status.user, "username", "") or ""
+        username = getattr(status.user, "username", "") or ""
         namespaces = []
         if username.startswith("system:serviceaccount:") and username.count(":") >= 3:
             namespaces.append(username.split(":")[2])
@@ -310,16 +317,9 @@ class OidcTokenParser(TokenParser):
         return User(username=username, roles=[], groups=[], namespaces=namespaces)
 
     @staticmethod
-    def _get_intra_comm_user(decoded_token: dict) -> Optional[User]:
-        intra_communication_base64 = os.getenv("INTRA_COMMUNICATION_BASE64")
-
-        if intra_communication_base64:
-            if "preferred_username" in decoded_token:
-                preferred_username: str = decoded_token["preferred_username"]
-                if (
-                    preferred_username is not None
-                    and preferred_username == intra_communication_base64
-                ):
-                    return User(username=preferred_username, roles=[])
-
+    def _get_intra_comm_user(access_token: str) -> Optional[User]:
+        secret = get_intra_comm_secret()
+        claims = decode_intra_comm_token(access_token)
+        if secret and claims and claims.get("preferred_username") == secret:
+            return User(username=secret, roles=[])
         return None

@@ -122,18 +122,24 @@ class MonitoringService:
         self,
         project: Optional[str] = None,
         feature_view_name: Optional[str] = None,
+        allowed_feature_view_names: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         """Detect date ranges from source data and compute all granularities.
 
         Also computes baseline for any features that don't have one yet
         (idempotent -- features with existing baselines are skipped).
+
+        ``allowed_feature_view_names`` optionally restricts a selector-free run to an
+        explicit set of views (e.g. the caller's authorized subset).
         """
         start_time = time.time()
         self._ensure_monitoring_tables()
         if project is None:
             project = self._store.config.project
 
-        feature_views = self._resolve_feature_views(project, feature_view_name)
+        feature_views = self._resolve_feature_views(
+            project, feature_view_name, allowed_feature_view_names
+        )
         total_features = 0
         total_views = 0
         baseline_features = 0
@@ -306,8 +312,13 @@ class MonitoringService:
         self,
         project: Optional[str] = None,
         feature_service_name: Optional[str] = None,
+        allowed_feature_service_names: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
-        """Auto-detect date ranges from log data and compute all granularities."""
+        """Auto-detect date ranges from log data and compute all granularities.
+
+        ``allowed_feature_service_names`` optionally restricts a selector-free run to an
+        explicit set of services (e.g. the caller's authorized subset).
+        """
         start_time = time.time()
         self._ensure_monitoring_tables()
         if project is None:
@@ -318,6 +329,11 @@ class MonitoringService:
                 self._store.registry.get_feature_service(
                     name=feature_service_name, project=project
                 )
+            ]
+        elif allowed_feature_service_names is not None:
+            services = [
+                self._store.registry.get_feature_service(name=name, project=project)
+                for name in allowed_feature_service_names
             ]
         else:
             services = self._store.registry.list_feature_services(project=project)
@@ -393,17 +409,23 @@ class MonitoringService:
         project: Optional[str] = None,
         feature_view_name: Optional[str] = None,
         feature_names: Optional[List[str]] = None,
+        allowed_feature_view_names: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         """Compute baseline metrics from all available source data.
 
         Idempotent: only features without existing baselines are computed.
+
+        ``allowed_feature_view_names`` optionally restricts a selector-free run to an
+        explicit set of views (e.g. the caller's authorized subset).
         """
         start_time = time.time()
         self._ensure_monitoring_tables()
         if project is None:
             project = self._store.config.project
 
-        feature_views = self._resolve_feature_views(project, feature_view_name)
+        feature_views = self._resolve_feature_views(
+            project, feature_view_name, allowed_feature_view_names
+        )
         total_features = 0
         total_views = 0
 
@@ -474,6 +496,7 @@ class MonitoringService:
         end_date: Optional[date] = None,
         granularity: str = "daily",
         set_baseline: bool = False,
+        allowed_feature_view_names: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         self._ensure_monitoring_tables()
         if granularity not in VALID_GRANULARITIES:
@@ -485,7 +508,9 @@ class MonitoringService:
         start_time = time.time()
         start_dt, end_dt = self._to_date_range(start_date, end_date)
 
-        feature_views = self._resolve_feature_views(project, feature_view_name)
+        feature_views = self._resolve_feature_views(
+            project, feature_view_name, allowed_feature_view_names
+        )
 
         total_features = 0
         total_views = 0
@@ -603,8 +628,10 @@ class MonitoringService:
             parameters=parameters,
         )
 
-    def get_job(self, job_id: str) -> Optional[Dict[str, Any]]:
-        return self.job_manager.get_job(job_id)
+    def get_job(
+        self, job_id: str, project: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        return self.job_manager.get_job(job_id, project=project)
 
     def execute_job(self, job_id: str) -> Dict[str, Any]:
         return self.job_manager.execute_job(job_id, self)
@@ -940,12 +967,24 @@ class MonitoringService:
             results.extend(query_fn(fv_name))
         return results
 
-    def _resolve_feature_views(self, project: str, feature_view_name: Optional[str]):
+    def _resolve_feature_views(
+        self,
+        project: str,
+        feature_view_name: Optional[str],
+        allowed_feature_view_names: Optional[List[str]] = None,
+    ):
         if feature_view_name:
             fv = self._store.registry.get_feature_view(
                 name=feature_view_name, project=project
             )
             return [fv]
+        if allowed_feature_view_names is not None:
+            # Explicit allow-list (e.g. the caller's authorized subset for a
+            # selector-free request). An empty list resolves to no views.
+            return [
+                self._store.registry.get_feature_view(name=name, project=project)
+                for name in allowed_feature_view_names
+            ]
         return self._store.registry.list_feature_views(project=project)
 
     def _get_features_without_baseline(self, project, feature_view, feature_names=None):

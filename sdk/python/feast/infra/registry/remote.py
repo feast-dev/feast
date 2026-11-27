@@ -104,6 +104,9 @@ class RemoteRegistry(BaseRegistry):
     ):
         self.auth_config = auth_config
         assert isinstance(registry_config, RemoteRegistryConfig)
+        self.serve_features_while_materializing = (
+            registry_config.serve_features_while_materializing
+        )
         self.channel = self._create_grpc_channel(registry_config)
         weakref.finalize(self, self.channel.close)
 

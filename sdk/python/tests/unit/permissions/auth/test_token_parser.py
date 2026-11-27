@@ -15,7 +15,10 @@ from starlette.authentication import (
 
 from feast.permissions.auth.kubernetes_token_parser import KubernetesTokenParser
 from feast.permissions.auth.oidc_token_parser import OidcTokenParser
-from feast.permissions.auth_model import OidcAuthConfig
+from feast.permissions.auth_model import AuthConfig, OidcAuthConfig
+from feast.permissions.client.intra_comm_authentication_client_manager import (
+    IntraCommAuthClientManager,
+)
 from feast.permissions.user import User
 
 _CLIENT_ID = "test"
@@ -846,13 +849,11 @@ def test_oidc_default_supports_v1_tokens_against_v2_discovery(
 
 # TODO RBAC: Move role bindings to a reusable fixture
 @patch("feast.permissions.auth.kubernetes_token_parser.config.load_incluster_config")
-@patch("feast.permissions.auth.kubernetes_token_parser.jwt.decode")
 @patch(
     "feast.permissions.auth.kubernetes_token_parser.client.RbacAuthorizationV1Api.list_namespaced_role_binding"
 )
 def test_k8s_token_validation_success(
     mock_rb,
-    mock_jwt,
     mock_config,
     rolebindings,
     monkeypatch,
@@ -865,7 +866,11 @@ def test_k8s_token_validation_success(
         lambda self: my_namespace,
     )
     subject = f"system:serviceaccount:{sa_namespace}:{sa_name}"
-    mock_jwt.return_value = {"sub": subject}
+    # TokenReview authenticates the token as this service account.
+    monkeypatch.setattr(
+        "feast.permissions.auth.kubernetes_token_parser.KubernetesTokenParser._extract_groups_and_namespaces_from_token",
+        lambda self, token: (subject, [], []),
+    )
 
     mock_rb.return_value = rolebindings["items"]
 
@@ -884,6 +889,95 @@ def test_k8s_token_validation_success(
         for r in roles:
             assertpy.assert_that(user.has_matching_role([r])).is_true()
         assertpy.assert_that(user.has_matching_role(["foo"])).is_false()
+
+
+@patch("feast.permissions.auth.kubernetes_token_parser.config.load_incluster_config")
+@patch(
+    "feast.permissions.auth.kubernetes_token_parser.client.AuthenticationV1Api.create_token_review"
+)
+def test_k8s_sa_token_requires_token_review(mock_token_review, mock_config):
+    # TokenReview reports the token as not authenticated.
+    mock_token_review.return_value = MagicMock(
+        status=MagicMock(authenticated=False, user=None, error="invalid token")
+    )
+
+    token_parser = KubernetesTokenParser()
+    with pytest.raises(AuthenticationError):
+        asyncio.run(
+            token_parser.user_details_from_access_token(access_token="aaa-bbb-ccc")
+        )
+
+
+@pytest.mark.parametrize(
+    "username",
+    [
+        "system:serviceaccount:",
+        "system:serviceaccount:my-ns",
+        "system:serviceaccount::my-name",
+        "system:serviceaccount:my-ns:",
+        "system:serviceaccount:my-ns:my-name:extra",
+    ],
+)
+@patch("feast.permissions.auth.kubernetes_token_parser.config.load_incluster_config")
+def test_k8s_malformed_sa_username_is_rejected(mock_config, username, monkeypatch):
+    monkeypatch.setattr(
+        "feast.permissions.auth.kubernetes_token_parser.KubernetesTokenParser._extract_groups_and_namespaces_from_token",
+        lambda self, token: (username, [], []),
+    )
+
+    token_parser = KubernetesTokenParser()
+    with pytest.raises(AuthenticationError):
+        asyncio.run(
+            token_parser.user_details_from_access_token(access_token="aaa-bbb-ccc")
+        )
+
+
+@patch("feast.permissions.auth.kubernetes_token_parser.config.load_incluster_config")
+@patch("feast.permissions.auth.kubernetes_token_parser.jwt.decode")
+@patch(
+    "feast.permissions.auth.kubernetes_token_parser.client.AuthenticationV1Api.create_token_review"
+)
+@patch(
+    "feast.permissions.auth.kubernetes_token_parser.client.RbacAuthorizationV1Api.list_namespaced_role_binding"
+)
+def test_k8s_sa_identity_comes_from_token_review(
+    mock_rb,
+    mock_token_review,
+    mock_jwt,
+    mock_config,
+    rolebindings,
+    monkeypatch,
+    my_namespace,
+    sa_name,
+    sa_namespace,
+):
+    # The token's sub claim names the service account that has roles, but
+    # TokenReview authenticates it as another one. The user details must
+    # follow TokenReview.
+    monkeypatch.setattr(
+        "feast.permissions.auth.kubernetes_token_parser.KubernetesTokenParser._read_namespace_from_file",
+        lambda self: my_namespace,
+    )
+    monkeypatch.setattr(
+        "feast.permissions.auth.kubernetes_token_parser.KubernetesTokenParser._extract_namespace_access_groups",
+        lambda self, namespace: [],
+    )
+    mock_jwt.return_value = {"sub": f"system:serviceaccount:{sa_namespace}:{sa_name}"}
+    mock_rb.return_value = rolebindings["items"]
+    reviewed_user = MagicMock(groups=[])
+    reviewed_user.username = f"system:serviceaccount:{sa_namespace}:other-sa"
+    mock_token_review.return_value = MagicMock(
+        status=MagicMock(authenticated=True, user=reviewed_user)
+    )
+
+    token_parser = KubernetesTokenParser()
+    user = asyncio.run(
+        token_parser.user_details_from_access_token(access_token="aaa-bbb-ccc")
+    )
+
+    assertpy.assert_that(user.username).is_equal_to(f"{sa_namespace}:other-sa")
+    assertpy.assert_that(user.roles).is_empty()
+    assertpy.assert_that(user.has_matching_role(rolebindings["roles"])).is_false()
 
 
 @patch("feast.permissions.auth.kubernetes_token_parser.config.load_incluster_config")
@@ -937,6 +1031,10 @@ def test_k8s_inter_server_comm(
             "feast.permissions.auth.kubernetes_token_parser.KubernetesTokenParser._read_namespace_from_file",
             lambda self: my_namespace,
         )
+        monkeypatch.setattr(
+            "feast.permissions.auth.kubernetes_token_parser.KubernetesTokenParser._extract_groups_and_namespaces_from_token",
+            lambda self, token: (subject, [], []),
+        )
 
     monkeypatch.setattr(
         "feast.permissions.auth.kubernetes_token_parser.config.load_incluster_config",
@@ -968,6 +1066,61 @@ def test_k8s_inter_server_comm(
             for r in roles:
                 assertpy.assert_that(user.has_matching_role([r])).is_true()
             assertpy.assert_that(user.has_matching_role(["foo"])).is_false()
+
+
+_INTRA_SECRET = "a-private-intra-server-secret-of-32-bytes"  # pragma: allowlist secret
+
+
+@pytest.mark.parametrize("auth_type", ["oidc", "kubernetes"])
+def test_intra_comm_token_must_be_signed_with_shared_secret(
+    auth_type, oidc_config, monkeypatch
+):
+    monkeypatch.setenv("INTRA_COMMUNICATION_BASE64", _INTRA_SECRET)
+    monkeypatch.setattr(
+        "feast.permissions.auth.kubernetes_token_parser.config.load_incluster_config",
+        lambda: None,
+    )
+
+    # Stub the regular (non intra-server) path of each parser
+    async def reject(self, access_token):
+        raise RuntimeError("not a valid IdP token")
+
+    monkeypatch.setattr(OidcTokenParser, "_check_discovery_endpoints", reject)
+    monkeypatch.setattr(
+        KubernetesTokenParser,
+        "_extract_groups_and_namespaces_from_token",
+        lambda self, token: ("", [], []),
+    )
+    monkeypatch.setattr(
+        KubernetesTokenParser, "_read_namespace_from_file", lambda self: "feast"
+    )
+    monkeypatch.setattr(KubernetesTokenParser, "get_roles", lambda self, **kw: [])
+
+    parser = (
+        OidcTokenParser(auth_config=oidc_config)
+        if auth_type == "oidc"
+        else KubernetesTokenParser()
+    )
+
+    def username_for(token: str):
+        try:
+            return asyncio.run(parser.user_details_from_access_token(token)).username
+        except AuthenticationError:
+            return None
+
+    # The token minted by Feast's own client is trusted
+    signed = IntraCommAuthClientManager(
+        AuthConfig(type=auth_type), _INTRA_SECRET
+    ).get_token()
+    assertpy.assert_that(username_for(signed)).is_equal_to(_INTRA_SECRET)
+
+    # The same claims unsigned, or signed with another key, are not
+    claims = jwt.decode(signed, options={"verify_signature": False})
+    for forged in (
+        jwt.encode(claims, "", algorithm="none"),
+        jwt.encode(claims, "x" * 32, algorithm="HS256"),
+    ):
+        assertpy.assert_that(username_for(forged)).is_not_equal_to(_INTRA_SECRET)
 
 
 # ---------------------------------------------------------------------------

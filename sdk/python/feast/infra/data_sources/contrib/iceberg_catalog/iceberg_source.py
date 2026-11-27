@@ -131,6 +131,38 @@ class IcebergSource(DataSource):
     def source_type(self) -> DataSourceProto.SourceType.ValueType:
         return DataSourceProto.BATCH_ICEBERG
 
+    def get_pyiceberg_catalog_config(self) -> Dict[str, str]:
+        """Return the PyIceberg ``load_catalog`` properties for a REST catalog.
+
+        Subclasses (for example ``PolarisSource``) override this to add
+        catalog-specific authentication or credential-vending properties.
+        """
+        config: Dict[str, str] = {
+            "type": "rest",
+            "uri": self.endpoint,
+            "warehouse": self.warehouse,
+        }
+        if self.token_env_var:
+            token = os.environ.get(self.token_env_var)
+            if token:
+                config["token"] = token
+        return config
+
+    def load_pyiceberg_table(self):
+        """Load the backing table as a PyIceberg ``Table``.
+
+        REST sources are loaded from ``get_pyiceberg_catalog_config()``; other
+        catalog types delegate to ``get_catalog_client()``.
+        """
+        fqn = f"{self.namespace}.{self.iceberg_table}"
+        if self.catalog_type != "rest":
+            return self.get_catalog_client().load_table(fqn)
+
+        from pyiceberg.catalog import load_catalog
+
+        catalog = load_catalog(self.catalog_name, **self.get_pyiceberg_catalog_config())
+        return catalog.load_table(fqn)
+
     @staticmethod
     def from_proto(data_source: DataSourceProto) -> Any:
         cls_type = data_source.data_source_class_type
@@ -140,6 +172,12 @@ class IcebergSource(DataSource):
             )
 
             return UnityCatalogSource.from_proto(data_source)
+        if cls_type and "PolarisSource" in cls_type:
+            from feast.infra.data_sources.contrib.iceberg_catalog.polaris_source import (
+                PolarisSource,
+            )
+
+            return PolarisSource.from_proto(data_source)
 
         custom_options = json.loads(
             str(data_source.custom_options.configuration, encoding="utf8")

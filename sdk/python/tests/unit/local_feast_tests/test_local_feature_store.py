@@ -16,7 +16,7 @@ from feast.feast_object import ALL_RESOURCE_TYPES
 from feast.feature_store import FeatureStore
 from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_NAME, FeatureView
 from feast.field import Field
-from feast.infra.offline_stores.file_source import FileSource
+from feast.infra.offline_stores.file_source import FileSource, SavedDatasetFileStorage
 from feast.infra.online_stores.dynamodb import DynamoDBOnlineStore
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from feast.on_demand_feature_view import OnDemandFeatureView
@@ -24,6 +24,7 @@ from feast.permissions.action import AuthzedAction
 from feast.permissions.permission import Permission
 from feast.permissions.policy import RoleBasedPolicy
 from feast.repo_config import RegistryConfig, RepoConfig
+from feast.saved_dataset import SavedDataset
 from feast.stream_feature_view import stream_feature_view
 from feast.transformation.pandas_transformation import PandasTransformation
 from feast.types import Array, Bytes, Float32, Int64, String, ValueType, from_value_type
@@ -439,6 +440,34 @@ def test_apply_permissions(test_feature_store):
 
     permissions = test_feature_store.list_permissions()
     assert len(permissions) == 0
+
+    test_feature_store.teardown()
+
+
+@pytest.mark.parametrize(
+    "test_feature_store",
+    [lazy_fixture("feature_store_with_local_registry")],
+)
+def test_apply_delete_saved_dataset(test_feature_store):
+    """Test that a saved dataset can be deleted using objects_to_delete with partial=False."""
+    assert isinstance(test_feature_store, FeatureStore)
+
+    saved_dataset = SavedDataset(
+        name="my_saved_dataset",
+        features=["driver_fv:conv_rate"],
+        join_keys=["driver_id"],
+        storage=SavedDatasetFileStorage(path="my_saved_dataset.parquet"),
+    )
+    test_feature_store.registry.apply_saved_dataset(
+        saved_dataset, test_feature_store.project, commit=True
+    )
+    assert len(test_feature_store.list_saved_datasets()) == 1
+
+    test_feature_store.apply(
+        objects=[], objects_to_delete=[saved_dataset], partial=False
+    )
+
+    assert test_feature_store.list_saved_datasets() == []
 
     test_feature_store.teardown()
 

@@ -61,6 +61,7 @@ class SavedDatasetSpec(google.protobuf.message.Message):
     NAMESPACE_FIELD_NUMBER: builtins.int
     COLLECTION_FIELD_NUMBER: builtins.int
     DESCRIPTION_FIELD_NUMBER: builtins.int
+    COLUMNS_FIELD_NUMBER: builtins.int
     name: builtins.str
     """Name of the dataset. Must be unique since it's possible to overwrite dataset by name"""
     project: builtins.str
@@ -92,6 +93,12 @@ class SavedDatasetSpec(google.protobuf.message.Message):
     """
     description: builtins.str
     """Description of the saved dataset."""
+    @property
+    def columns(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___SavedDatasetColumn]:
+        """Optional schema column definitions for data-registry assets.
+        Used to map Iceberg REST / OpenAPI SchemaField (name/type/description/nullable).
+        Empty means no schema was provided at registration time.
+        """
     def __init__(
         self,
         *,
@@ -106,11 +113,43 @@ class SavedDatasetSpec(google.protobuf.message.Message):
         namespace: builtins.str = ...,
         collection: builtins.str = ...,
         description: builtins.str = ...,
+        columns: collections.abc.Iterable[global___SavedDatasetColumn] | None = ...,
     ) -> None: ...
     def HasField(self, field_name: typing_extensions.Literal["storage", b"storage"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["collection", b"collection", "description", b"description", "feature_service_name", b"feature_service_name", "features", b"features", "full_feature_names", b"full_feature_names", "join_keys", b"join_keys", "name", b"name", "namespace", b"namespace", "project", b"project", "storage", b"storage", "tags", b"tags"]) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["collection", b"collection", "columns", b"columns", "description", b"description", "feature_service_name", b"feature_service_name", "features", b"features", "full_feature_names", b"full_feature_names", "join_keys", b"join_keys", "name", b"name", "namespace", b"namespace", "project", b"project", "storage", b"storage", "tags", b"tags"]) -> None: ...
 
 global___SavedDatasetSpec = SavedDatasetSpec
+
+class SavedDatasetColumn(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    NAME_FIELD_NUMBER: builtins.int
+    TYPE_FIELD_NUMBER: builtins.int
+    DESCRIPTION_FIELD_NUMBER: builtins.int
+    NULLABLE_FIELD_NUMBER: builtins.int
+    name: builtins.str
+    """Column name."""
+    type: builtins.str
+    """Column type name (Iceberg-compatible), e.g. "string", "long", "double", "date"."""
+    description: builtins.str
+    """Optional human-readable column description."""
+    nullable: builtins.bool
+    """Whether the column accepts NULL values (OpenAPI SchemaField.nullable).
+    optional so unset ≠ false: absent means default true (OpenAPI / SDK).
+    """
+    def __init__(
+        self,
+        *,
+        name: builtins.str = ...,
+        type: builtins.str = ...,
+        description: builtins.str = ...,
+        nullable: builtins.bool | None = ...,
+    ) -> None: ...
+    def HasField(self, field_name: typing_extensions.Literal["_nullable", b"_nullable", "nullable", b"nullable"]) -> builtins.bool: ...
+    def ClearField(self, field_name: typing_extensions.Literal["_nullable", b"_nullable", "description", b"description", "name", b"name", "nullable", b"nullable", "type", b"type"]) -> None: ...
+    def WhichOneof(self, oneof_group: typing_extensions.Literal["_nullable", b"_nullable"]) -> typing_extensions.Literal["nullable"] | None: ...
+
+global___SavedDatasetColumn = SavedDatasetColumn
 
 class SavedDatasetStorage(google.protobuf.message.Message):
     DESCRIPTOR: google.protobuf.descriptor.Descriptor

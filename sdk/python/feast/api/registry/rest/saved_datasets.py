@@ -17,6 +17,7 @@ from feast.api.registry.rest.rest_utils import (
     grpc_call,
     parse_tags,
 )
+from feast.errors import FeastPermissionError
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.protos.feast.core.SavedDataset_pb2 import (
     SavedDataset as SavedDatasetProto,
@@ -572,6 +573,10 @@ def get_saved_dataset_router(grpc_handler) -> APIRouter:
         )
         try:
             result = grpc_call(grpc_handler.CreateDatasetFromRetrieval, req)
+        except FeastPermissionError as e:
+            raise HTTPException(status_code=403, detail=str(e))
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
         except Exception as e:
             raise HTTPException(
                 status_code=500,

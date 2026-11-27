@@ -117,7 +117,7 @@ def _setup_rest_mode(app: FastAPI, store: "feast.FeatureStore"):
     auth_cfg = store.config.auth_config
     dependencies = []
     if auth_cfg and auth_cfg.type != "no_auth":
-        from feast.permissions.server.rest import inject_user_details
+        from feast.permissions.server.rest import build_auth_dependency
 
         auth_type = str_to_auth_manager_type(auth_cfg.type)
         init_security_manager(auth_type=auth_type, fs=store)
@@ -126,7 +126,7 @@ def _setup_rest_mode(app: FastAPI, store: "feast.FeatureStore"):
             server_type=ServerType.REST,
             auth_config=auth_cfg,
         )
-        dependencies.append(Depends(inject_user_details))
+        dependencies.append(Depends(build_auth_dependency(scope_to_query_project=True)))
 
     rest_app = FastAPI(root_path="/api/v1", dependencies=dependencies)
 
@@ -874,16 +874,37 @@ def get_app(
     store: "feast.FeatureStore",
     project_id: str,
     root_path: str = "",
+    cors_origins: Optional[List[str]] = None,
 ):
     app = FastAPI()
 
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    # CORS is only required for cross-origin browsers calling the API. The UI is
+    # served from this same app (same origin), so it keeps working without any
+    # permissive CORS policy. Allowing every origin together with credentials
+    # (``allow_origins=["*"]`` + ``allow_credentials=True``) lets any website a
+    # user visits issue authenticated cross-origin requests to this server
+    # (CVE-2024-11602 / CWE-346), so it is disabled by default. Operators who
+    # need cross-origin access must opt in with an explicit list of trusted
+    # origins via ``feast ui --cors-allowed-origins``.
+    if cors_origins:
+        if "*" in cors_origins:
+            # Honor an explicit wildcard (an informed, opt-in operator choice,
+            # like Feast's own ``auth_type=no_auth``), but make the risk loud:
+            # with credentials, Starlette reflects the caller's origin for any
+            # site, which is the CVE-2024-11602 pattern. Not a safe default.
+            logger.warning(
+                "CORS is configured to allow all origins ('*'). This permits "
+                "credentialed cross-origin requests from any site and is "
+                "intended for development only. Configure an explicit list of "
+                "trusted origins for production deployments."
+            )
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=cors_origins,
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
 
     _setup_rest_mode(app, store)
 
@@ -1207,22 +1228,30 @@ def start_server(
     root_path: str = "",
     tls_key_path: str = "",
     tls_cert_path: str = "",
+    cors_origins: Optional[List[str]] = None,
 ):
     app = get_app(
         store,
         project_id,
         root_path,
+        cors_origins=cors_origins,
     )
 
     logger.info(f"Starting Feast UI server on {host}:{port}")
 
+    ssl_kwargs: dict = {}
     if tls_key_path and tls_cert_path:
-        uvicorn.run(
-            app,
-            host=host,
-            port=port,
-            ssl_keyfile=tls_key_path,
-            ssl_certfile=tls_cert_path,
-        )
+        ssl_kwargs["ssl_keyfile"] = tls_key_path
+        ssl_kwargs["ssl_certfile"] = tls_cert_path
+
+    if host == "::":
+        # Plain uvicorn.run(host="::") binds IPv6-only (see
+        # feast.utils._make_dual_stack_socket), which would drop IPv4
+        # clients on every host, not just IPv6-less ones.
+        from feast.utils import _make_dual_stack_socket
+
+        sock = _make_dual_stack_socket(port)
+        config = uvicorn.Config(app, **ssl_kwargs)
+        uvicorn.Server(config).run(sockets=[sock])
     else:
-        uvicorn.run(app, host=host, port=port)
+        uvicorn.run(app, host=host, port=port, **ssl_kwargs)

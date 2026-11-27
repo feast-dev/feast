@@ -147,4 +147,7 @@ class TextChunker(BaseChunker):
             )
             chunk_index += 1
 
+            if i + self.config.chunk_size >= len(words):
+                break
+
         return chunks

@@ -217,4 +217,4 @@ services:
 - [Sample: OIDC auth](https://github.com/feast-dev/feast/blob/stable/infra/feast-operator/config/samples/v1_featurestore_oidc_auth.yaml)
 - [Sample: Postgres with TLS volumes](https://github.com/feast-dev/feast/blob/stable/infra/feast-operator/config/samples/v1_featurestore_postgres_db_volumes_tls.yaml)
 - [Sample: OpenShift non-TLS](https://github.com/feast-dev/feast/blob/stable/infra/feast-operator/config/samples/v1_featurestore_all_openshift_non_tls.yaml)
-- [Feast SDK — Auth Overview](../reference/auth/)
+- [Feast SDK — Auth Overview](../../reference/auth/)

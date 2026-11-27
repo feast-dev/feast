@@ -8,12 +8,12 @@ Since Feast is designed to be modular, it's possible to swap such components wit
 
 ### Scaling Feast Registry
 
-The default Feast [registry](../getting-started/concepts/registry.md) is a file-based registry. Any changes to the feature repo, or materializing data into the online store, results in a mutation to the registry.
+The default Feast [registry](../getting-started/components/registry.md) is a file-based registry. Any changes to the feature repo, or materializing data into the online store, results in a mutation to the registry.
 
 However, there are inherent limitations with a file-based registry, since changing a single field in the registry requires re-writing the whole registry file.
 With multiple concurrent writers, this presents a risk of data loss, or bottlenecks writes to the registry since all changes have to be serialized (e.g. when running materialization for multiple feature views or time ranges concurrently).
 
-The recommended solution in this case is to use the [SQL based registry](../tutorials/using-scalable-registry.md), which allows concurrent, transactional, and fine-grained updates to the registry. This registry implementation requires access to an existing database (such as MySQL, Postgres, etc).
+The recommended solution in this case is to use the [SQL based registry](../reference/registries/sql.md), which allows concurrent, transactional, and fine-grained updates to the registry. This registry implementation requires access to an existing database (such as MySQL, Postgres, etc).
 
 ### Scaling Materialization
 
@@ -118,6 +118,7 @@ The operator enforces the following rules:
 - `spec.replicas > 1` and `services.scaling.autoscaling` are **mutually exclusive** -- you cannot set both.
 - Scaling with `replicas > 1` or any `autoscaling` config is **rejected** if any enabled service uses file-based persistence.
 - S3 (`s3://`) and GCS (`gs://`) backed registry file persistence is allowed with scaling, since these object stores support concurrent readers.
+- The online store is deployed with file-based defaults when `services.onlineStore` is omitted, so it counts as an enabled service. Set `services.onlineStore.disabled: true` to scale a FeatureStore that runs only the registry, offline store, or UI.
 
 #### High Availability
 

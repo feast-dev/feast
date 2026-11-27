@@ -376,6 +376,9 @@ class SqlRegistry(CachingRegistry):
         self.enable_online_versioning = (
             registry_config.enable_online_feature_view_versioning
         )
+        self.serve_features_while_materializing = (
+            registry_config.serve_features_while_materializing
+        )
         super().__init__(
             project=project,
             cache_ttl_seconds=registry_config.cache_ttl_seconds,
@@ -1086,14 +1089,13 @@ class SqlRegistry(CachingRegistry):
         )
 
     def delete_data_source(self, name: str, project: str, commit: bool = True):
-        with self.write_engine.begin() as conn:
-            stmt = delete(data_sources).where(
-                data_sources.c.data_source_name == name,
-                data_sources.c.project_id == project,
-            )
-            rows = conn.execute(stmt)
-            if rows.rowcount < 1:
-                raise DataSourceObjectNotFoundException(name, project)
+        return self._delete_object(
+            data_sources,
+            name,
+            project,
+            "data_source_name",
+            DataSourceObjectNotFoundException,
+        )
 
     def _list_feature_services(
         self, project: str, tags: Optional[dict[str, str]], **kwargs
@@ -1748,9 +1750,11 @@ class SqlRegistry(CachingRegistry):
             if not self.purge_feast_metadata:
                 self._set_last_updated_metadata(_utc_now(), project, conn)
 
-            if self.cache_mode == "sync":
-                self.refresh()
-            return rows.rowcount
+        # Refresh only after the transaction commits, otherwise the cache is
+        # rebuilt from a snapshot that still contains the deleted object.
+        if self.cache_mode == "sync":
+            self.refresh()
+        return rows.rowcount
 
     def _get_object(
         self,
@@ -1924,14 +1928,9 @@ class SqlRegistry(CachingRegistry):
         )
 
     def delete_permission(self, name: str, project: str, commit: bool = True):
-        with self.write_engine.begin() as conn:
-            stmt = delete(permissions).where(
-                permissions.c.permission_name == name,
-                permissions.c.project_id == project,
-            )
-            rows = conn.execute(stmt)
-            if rows.rowcount < 1:
-                raise PermissionNotFoundException(name, project)
+        return self._delete_object(
+            permissions, name, project, "permission_name", PermissionNotFoundException
+        )
 
     def _list_projects(
         self,

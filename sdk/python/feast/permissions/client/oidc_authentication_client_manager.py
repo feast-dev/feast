@@ -7,6 +7,7 @@ from typing import Dict, Optional, Tuple
 import jwt
 import requests
 
+from feast.permissions.auth.intra_comm import encode_intra_comm_token
 from feast.permissions.auth_model import OidcClientAuthConfig
 from feast.permissions.client.auth_client_manager import AuthenticationClientManager
 from feast.permissions.oidc_service import OIDCDiscoveryService
@@ -37,7 +38,7 @@ class OidcAuthClientManager(AuthenticationClientManager):
             payload = {
                 "preferred_username": f"{intra_communication_base64}",
             }
-            return jwt.encode(payload, "", algorithm="none")
+            return encode_intra_comm_token(payload, intra_communication_base64)
 
         if self.auth_config.token:
             return self.auth_config.token

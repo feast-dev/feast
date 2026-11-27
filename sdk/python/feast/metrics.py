@@ -34,8 +34,10 @@ of the in-process metric state.  To aggregate across workers we use
 1. ``PROMETHEUS_MULTIPROCESS_DIR`` is set (to a temp dir if the user
    has not already set it) **before** any metric objects are created.
 2. Gauges specify ``multiprocess_mode`` so they aggregate correctly.
-3. The metrics HTTP server uses ``MultiProcessCollector`` to read all
-   workers' metric files.
+3. The metrics HTTP server runs in a **dedicated child process**
+   (not a thread) so that scrape aggregation never contends for the
+   GIL with request-serving workers.  It uses ``MultiProcessCollector``
+   to read all workers' metric files.
 4. Gunicorn hooks (``post_worker_init``, ``child_exit``) are wired up
    in ``feature_server.py`` to start per-worker monitoring and to
    clean up dead-worker files.
@@ -44,15 +46,18 @@ of the in-process metric state.  To aggregate across workers we use
 import atexit
 import json
 import logging
+import multiprocessing
 import os
 import shutil
+import socket
 import tempfile
 import threading
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Callable, Iterable, List, Optional
+from wsgiref.simple_server import WSGIRequestHandler, WSGIServer, make_server
 
 import psutil
 
@@ -184,7 +189,7 @@ memory_usage_gauge = Gauge(
 request_count = Counter(
     "feast_feature_server_request_total",
     "Total number of requests to the Feast feature server",
-    ["endpoint", "status"],
+    ["endpoint", "status", "status_class"],
 )
 request_latency = Histogram(
     "feast_feature_server_request_latency_seconds",
@@ -257,14 +262,16 @@ write_transformation_duration_seconds = Histogram(
 )
 
 # ---------------------------------------------------------------------------
-# Feature freshness metrics — "max" shows the worst-case staleness across
-# processes (freshness is identical regardless of which process computes it).
+# Feature freshness metrics — "livemax" shows the worst-case staleness across
+# the workers that are running. A plain "max" also reads the files of workers
+# that exited, and mark_process_dead does not delete those, so one leftover
+# file pins the gauge for the life of the process group.
 # ---------------------------------------------------------------------------
 feature_freshness_seconds = Gauge(
     "feast_feature_freshness_seconds",
     "Seconds since the most recent materialization end time per feature view",
     ["feature_view", "project"],
-    multiprocess_mode="max",
+    multiprocess_mode="livemax",
 )
 
 # ---------------------------------------------------------------------------
@@ -306,13 +313,47 @@ class RequestMetricsContext:
     (e.g. ``/get-online-features`` where the feature count is only
     known after ``_get_features`` succeeds) can set the attributes
     on the yielded object and they will be picked up in ``finally``.
+
+    ``status_code`` is the HTTP status code of the response.  It defaults
+    to ``200`` and is derived from the exception when the block raises,
+    so handlers only need to set it when they *return* a non-2xx
+    response (e.g. a 404 or 409 ``JSONResponse``).
     """
 
-    __slots__ = ("feature_count", "feature_view_count")
+    __slots__ = ("feature_count", "feature_view_count", "status_code")
 
-    def __init__(self, feature_count: str = "", feature_view_count: str = ""):
+    def __init__(
+        self,
+        feature_count: str = "",
+        feature_view_count: str = "",
+        status_code: int = 200,
+    ):
         self.feature_count = feature_count
         self.feature_view_count = feature_view_count
+        self.status_code = status_code
+
+
+def _status_code_for_exception(exc: Exception) -> int:
+    """Return the HTTP status code the feature server responds with for *exc*.
+
+    Mirrors the REST exception handling: ``FeastError`` subclasses carry
+    their own status code, ``HTTPException`` is answered with its status
+    code, and anything else becomes a 500.
+    """
+    from starlette.exceptions import HTTPException
+
+    from feast.errors import FeastError
+
+    if isinstance(exc, FeastError):
+        return exc.http_status_code()
+    if isinstance(exc, HTTPException):
+        return exc.status_code
+    return 500
+
+
+def _status_class(status_code: int) -> str:
+    """Map an HTTP status code to its class label, e.g. ``404`` -> ``"4xx"``."""
+    return f"{status_code // 100}xx"
 
 
 @contextmanager
@@ -321,11 +362,16 @@ def track_request_latency(
 ):
     """Context manager that records endpoint latency and increments request count.
 
-    Yields a :class:`RequestMetricsContext` whose ``feature_count`` and
-    ``feature_view_count`` attributes can be updated inside the block.
-    The final values are used when recording the histogram and counter
-    in ``finally``, so labels are accurate even when they depend on
-    work done inside the block.
+    Yields a :class:`RequestMetricsContext` whose ``feature_count``,
+    ``feature_view_count`` and ``status_code`` attributes can be updated
+    inside the block.  The final values are used when recording the
+    histogram and counter in ``finally``, so labels are accurate even
+    when they depend on work done inside the block.
+
+    The request counter is labelled with ``status`` (``success`` for
+    status codes below 400, ``error`` otherwise) and ``status_class``
+    (``2xx``, ``4xx``, ``5xx``, ...), so client errors can be told
+    apart from server errors.
 
     Gated by the ``request`` category flag.
     """
@@ -335,11 +381,10 @@ def track_request_latency(
         return
 
     start = time.monotonic()
-    status_label = "success"
     try:
         yield ctx
-    except Exception:
-        status_label = "error"
+    except Exception as exc:
+        ctx.status_code = _status_code_for_exception(exc)
         raise
     finally:
         elapsed = time.monotonic() - start
@@ -348,7 +393,11 @@ def track_request_latency(
             feature_count=ctx.feature_count,
             feature_view_count=ctx.feature_view_count,
         ).observe(elapsed)
-        request_count.labels(endpoint=endpoint, status=status_label).inc()
+        request_count.labels(
+            endpoint=endpoint,
+            status="success" if ctx.status_code < 400 else "error",
+            status_class=_status_class(ctx.status_code),
+        ).inc()
 
 
 def track_online_features_entities(entity_count: int):
@@ -374,9 +423,12 @@ def track_online_store_read(duration_seconds: float):
 
 
 def track_feature_statuses(
-    feature_view_name: str, present_count: int, not_found_count: int
+    feature_view_name: str,
+    present_count: int,
+    not_found_count: int,
+    outside_max_age_count: int = 0,
 ):
-    """Record the number of PRESENT vs NOT_FOUND feature values for a feature view."""
+    """Record the number of PRESENT, NOT_FOUND and OUTSIDE_MAX_AGE feature values for a feature view."""
     if not _config.online_features:
         return
     if present_count > 0:
@@ -387,6 +439,10 @@ def track_feature_statuses(
         online_features_status_total.labels(
             feature_view=feature_view_name, status="not_found"
         ).inc(not_found_count)
+    if outside_max_age_count > 0:
+        online_features_status_total.labels(
+            feature_view=feature_view_name, status="outside_max_age"
+        ).inc(outside_max_age_count)
 
 
 def track_transformation(odfv_name: str, mode: str, duration_seconds: float):
@@ -583,6 +639,120 @@ def init_worker_freshness_monitoring(store: "FeatureStore"):
         t.start()
 
 
+class _QuietWSGIRequestHandler(WSGIRequestHandler):
+    """Request handler that does not log each scrape to stderr.
+
+    Avoids per-request access-log writes. The metrics server previously ran
+    as a thread in the Gunicorn master; a fork while that thread held the
+    stderr buffer lock left workers hung on their first log line. Same class
+    of problem as #6647. prometheus_client's own server uses a silent
+    handler for the same reason. Kept for the dedicated metrics process so
+    scrapes stay quiet.
+    """
+
+    def log_message(self, format, *args):  # noqa: A002 - signature of the base class
+        pass
+
+
+def _make_metrics_httpd(port: int, app: Callable[..., Iterable[bytes]]) -> WSGIServer:
+    """Build the metrics HTTP server, dual-stack ("::") when the host
+    supports IPv6, or IPv4-only (falls back to `make_server`'s default
+    behavior) otherwise.
+    """
+    from feast import utils
+
+    if not utils._ipv6_available():
+        return make_server("", port, app, handler_class=_QuietWSGIRequestHandler)
+
+    class DualStackWSGIServer(WSGIServer):
+        address_family = socket.AF_INET6
+
+        def server_bind(self) -> None:
+            self.socket.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+            super().server_bind()
+
+    return make_server(
+        "::",
+        port,
+        app,
+        server_class=DualStackWSGIServer,
+        handler_class=_QuietWSGIRequestHandler,
+    )
+
+
+def _run_metrics_server(port: int, mp_dir: str, ready_event=None):
+    """Entry point for the dedicated metrics-server child process.
+
+    Runs in its own process so that Prometheus scrape aggregation
+    (``MultiProcessCollector`` file reads + text serialization) never
+    contends for the GIL with request-serving workers or the Gunicorn
+    master.
+
+    The function re-imports ``prometheus_client`` so it works correctly
+    on platforms that use the ``spawn`` multiprocessing start method
+    (e.g. macOS with Python 3.8+).
+
+    Args:
+        port: TCP port for the Prometheus HTTP endpoint.
+        mp_dir: Path to the ``PROMETHEUS_MULTIPROCESS_DIR``.
+        ready_event: Optional ``multiprocessing.Event`` that is set once
+            the server has successfully bound to *port*.  The parent
+            process can wait on this to confirm startup succeeded.
+    """
+    import signal
+
+    os.environ.setdefault("PROMETHEUS_MULTIPROCESS_DIR", mp_dir)
+    os.environ.setdefault("PROMETHEUS_MULTIPROC_DIR", mp_dir)
+
+    from prometheus_client import CollectorRegistry, make_wsgi_app
+    from prometheus_client.multiprocess import MultiProcessCollector
+
+    try:
+        registry = CollectorRegistry()
+        MultiProcessCollector(registry)
+        httpd = _make_metrics_httpd(port, make_wsgi_app(registry))
+    except Exception:
+        logger.exception(
+            "Failed to initialize Prometheus metrics server on port %d "
+            "(multiprocess dir: %s)",
+            port,
+            mp_dir,
+        )
+        return
+
+    if ready_event is not None:
+        ready_event.set()
+
+    def _shutdown(signum, frame):
+        threading.Thread(target=httpd.shutdown, daemon=True).start()
+
+    signal.signal(signal.SIGTERM, _shutdown)
+    signal.signal(signal.SIGINT, _shutdown)
+
+    httpd.serve_forever()
+
+
+# The metrics-server process started by start_metrics_server() in this process
+# (the Gunicorn master), and whether the at-fork hook below is registered.
+_metrics_process: Optional[multiprocessing.Process] = None
+_metrics_at_fork_registered: bool = False
+
+
+def _forget_metrics_process_in_child() -> None:
+    """Drop the inherited metrics-server process from multiprocessing's registry.
+
+    Runs in every child forked from the process that started the metrics
+    server (for example each Gunicorn worker). A forked child inherits
+    multiprocessing's registry of child processes, and at interpreter exit
+    ``multiprocessing.util._exit_function`` terminates every daemon process in
+    it. Without this, the first worker exit would SIGTERM the master's metrics
+    server and ``/metrics`` would stop responding. The child does not own the
+    process; the parent still terminates it on its own exit.
+    """
+    if _metrics_process is not None:
+        multiprocessing.process._children.discard(_metrics_process)  # type: ignore[attr-defined]
+
+
 def start_metrics_server(
     store: "FeatureStore",
     port: int = 8000,
@@ -593,8 +763,14 @@ def start_metrics_server(
     """
     Start the Prometheus metrics HTTP server and background monitoring threads.
 
-    Uses ``MultiProcessCollector`` so that metrics from all Gunicorn
-    workers are correctly aggregated when Prometheus scrapes port *port*.
+    The HTTP endpoint runs in a **dedicated child process** so that
+    scrape-time aggregation (reading mmap files from every Gunicorn
+    worker, merging, and serializing to Prometheus text format) is
+    fully isolated from the request-serving GIL.
+
+    Background monitoring threads (resource, freshness) remain in-process
+    because they only *write* to mmap-backed Gauges — an operation that
+    is fast and does not benefit from process isolation.
 
     Args:
         store: The FeatureStore instance (used for freshness checks).
@@ -610,7 +786,7 @@ def start_metrics_server(
             workers — the ``post_worker_init`` hook starts per-worker
             freshness monitoring instead.
     """
-    global _config
+    global _config, _metrics_process, _metrics_at_fork_registered
 
     if metrics_config is not None:
         _config = metrics_config
@@ -627,20 +803,39 @@ def start_metrics_server(
             audit_logging=False,
         )
 
-    from prometheus_client import CollectorRegistry, make_wsgi_app
-    from prometheus_client.multiprocess import MultiProcessCollector
-
-    registry = CollectorRegistry()
-    MultiProcessCollector(registry)
-
-    from wsgiref.simple_server import make_server
-
-    httpd = make_server("", port, make_wsgi_app(registry))
-    metrics_thread = threading.Thread(target=httpd.serve_forever, daemon=True)
-    metrics_thread.start()
-    logger.info(
-        "Prometheus metrics server started on port %d (multiprocess-safe)", port
+    ready_event = multiprocessing.Event()
+    metrics_proc = multiprocessing.Process(
+        target=_run_metrics_server,
+        args=(port, _prometheus_mp_dir, ready_event),
+        daemon=True,
+        name="feast-metrics-server",
     )
+    metrics_proc.start()
+    _metrics_process = metrics_proc
+    if not _metrics_at_fork_registered and hasattr(os, "register_at_fork"):
+        os.register_at_fork(after_in_child=_forget_metrics_process_in_child)
+        _metrics_at_fork_registered = True
+
+    if ready_event.wait(timeout=5):
+        logger.info(
+            "Prometheus metrics server started on port %d in dedicated process (pid=%d)",
+            port,
+            metrics_proc.pid,
+        )
+    else:
+        if not metrics_proc.is_alive():
+            logger.error(
+                "Prometheus metrics server process exited before becoming ready "
+                "(port=%d). Check logs for initialization errors.",
+                port,
+            )
+        else:
+            logger.warning(
+                "Prometheus metrics server process (pid=%d) did not signal readiness "
+                "within 5 s — it may still be starting (port=%d).",
+                metrics_proc.pid,
+                port,
+            )
 
     if _config.resource and start_resource_monitoring:
         resource_thread = threading.Thread(

@@ -299,6 +299,9 @@ message DataSource {
   // the online store on-demand, such as by stream consumers.
   message PushOptions {
     reserved 1;
+    // Names of upstream FeatureViews/LabelViews consumed by the external process feeding this PushSource.
+    // Represents external pipeline lineage metadata; does not trigger Feast-managed DAG execution.
+    repeated string upstream_feature_view_names = 2;
   }
 
 

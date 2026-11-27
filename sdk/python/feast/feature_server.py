@@ -14,6 +14,7 @@
 
 import asyncio
 import functools
+import gc
 import os
 import sys
 import threading
@@ -22,7 +23,7 @@ import traceback
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from importlib import resources as importlib_resources
 from types import SimpleNamespace
 from typing import Any, DefaultDict, Dict, List, NamedTuple, Optional, Set, Union
@@ -59,6 +60,7 @@ from feast.feature_server_utils import convert_response_to_dict
 from feast.feature_view import FeatureViewState
 from feast.feature_view_utils import get_feature_view_from_feature_store
 from feast.filter_models import ComparisonFilter, CompoundFilter
+from feast.infra.feature_servers.base_config import MetricsConfig
 from feast.permissions.action import WRITE, AuthzedAction
 from feast.permissions.security_manager import (
     assert_permissions,
@@ -173,8 +175,14 @@ class FeatureVectorResponse(BaseModel):
     event_timestamps: List[str] = []
 
 
+class FeatureViewMetadataResponse(BaseModel):
+    name: str = ""
+    version: int = 0
+
+
 class OnlineFeaturesMetadataResponse(BaseModel):
     feature_names: List[str] = []
+    feature_view_metadata: List[FeatureViewMetadataResponse] = []
 
     @field_validator("feature_names", mode="before")
     @classmethod
@@ -238,6 +246,21 @@ def _resolve_feature_counts(
     return str(feat_count), str(len(fv_names))
 
 
+def bin_feature_count(count: int, bins: List[int]) -> str:
+    """Map a raw feature count to an inclusive range label."""
+    if count == 0:
+        return "0"
+
+    lower = 1
+
+    for upper in bins:
+        if count <= upper:
+            return f"{lower}-{upper}"
+        lower = upper + 1
+
+    return f"{lower}+"
+
+
 def _emit_online_audit(
     request: GetOnlineFeaturesRequest,
     features: Union[List[str], "feast.FeatureService"],
@@ -246,6 +269,8 @@ def _emit_online_audit(
     latency_ms: float,
 ):
     """Best-effort audit log emission for online feature requests."""
+    if not feast_metrics._config.audit_logging:
+        return
     try:
         from feast.permissions.security_manager import get_security_manager
 
@@ -454,8 +479,7 @@ def _parse_materialize_timestamps(
 ) -> tuple:
     """Parse and validate start/end timestamps from a MaterializeRequest."""
     if request.disable_event_timestamp:
-        now = datetime.now()
-        return datetime(1970, 1, 1), now
+        return datetime(1970, 1, 1, tzinfo=timezone.utc), utils._utc_now()
 
     if not request.start_ts or not request.end_ts:
         raise ValueError(
@@ -587,10 +611,26 @@ def get_app(
             active_timer = threading.Timer(registry_ttl_sec, async_refresh)
             active_timer.start()
 
+    # --- Audit logging setup ---
+    audit_logging_cfg = getattr(fs_cfg, "audit_logging", None)
+    audit_logger_instance = None
+    if audit_logging_cfg is not None and getattr(audit_logging_cfg, "enabled", False):
+        from feast.audit.audit_logger import create_audit_logger_from_config
+
+        audit_logger_instance = create_audit_logger_from_config(audit_logging_cfg)
+        if audit_logger_instance:
+            logger.info(
+                "Structured audit logging is ENABLED (sink=%s)",
+                getattr(audit_logging_cfg, "sink", "stdout"),
+            )
+
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         # Load static artifacts before initializing store
         await load_static_artifacts(app, store)
+
+        if audit_logger_instance is not None:
+            app.state.audit_logger = audit_logger_instance
 
         await store.initialize()
         async_refresh()
@@ -603,9 +643,28 @@ def get_app(
             # wait=False: do not block process exit on in-flight materialize
             # (same fire-and-forget contract as returning 202 mid-job).
             materialize_executor.shutdown(wait=False)
+            if audit_logger_instance is not None:
+                audit_logger_instance.close()
             await store.close()
 
     app = FastAPI(lifespan=lifespan)
+
+    # Add audit logging middleware when enabled (REST only;
+    # MCP audit is handled at the protocol layer in mcp_server.py)
+    if audit_logger_instance is not None:
+        from feast.audit.audit_middleware import AuditLoggingMiddleware
+
+        app.add_middleware(AuditLoggingMiddleware)
+
+    fs_cfg = getattr(store.config, "feature_server", None)
+    metrics_cfg = getattr(fs_cfg, "metrics", None)
+
+    default_feature_count_bins = MetricsConfig().feature_count_bins
+    feature_count_bins = (
+        getattr(metrics_cfg, "feature_count_bins", default_feature_count_bins)
+        if metrics_cfg is not None
+        else default_feature_count_bins
+    )
 
     @app.post(
         "/get-online-features",
@@ -618,7 +677,11 @@ def get_app(
         ) as metrics_ctx:
             features = await _get_features(request, store)
             feat_count, fv_count = _resolve_feature_counts(features)
-            metrics_ctx.feature_count = feat_count
+
+            metrics_ctx.feature_count = bin_feature_count(
+                int(feat_count),
+                feature_count_bins,
+            )
             metrics_ctx.feature_view_count = fv_count
 
             entity_count = len(next(iter(request.entities.values()), []))
@@ -631,9 +694,11 @@ def get_app(
                 include_feature_view_version_metadata=request.include_feature_view_version_metadata,
             )
 
-            audit_start_ms = time.monotonic() * 1000
+            audit_start_ms = 0.0
             audit_status = "success"
             try:
+                if feast_metrics._config.audit_logging:
+                    audit_start_ms = time.monotonic() * 1000
                 if store._get_provider().async_supported.online.read:
                     response = await store.get_online_features_async(**read_params)  # type: ignore
                 else:
@@ -644,10 +709,11 @@ def get_app(
                 audit_status = "error"
                 raise
             finally:
-                audit_latency_ms = time.monotonic() * 1000 - audit_start_ms
-                _emit_online_audit(
-                    request, features, entity_count, audit_status, audit_latency_ms
-                )
+                if feast_metrics._config.audit_logging:
+                    audit_latency_ms = time.monotonic() * 1000 - audit_start_ms
+                    _emit_online_audit(
+                        request, features, entity_count, audit_status, audit_latency_ms
+                    )
 
             response_dict = await run_in_threadpool(
                 convert_response_to_dict, response.proto
@@ -761,7 +827,7 @@ def get_app(
     ) -> JSONResponse:
         with feast_metrics.track_request_latency(
             "/v1/vector_stores/{vector_store_id}/search"
-        ):
+        ) as metrics_ctx:
             try:
                 feature_view = vs_registry.resolve(vector_store_id)
                 assert_permissions(
@@ -788,6 +854,7 @@ def get_app(
                     ),
                 )
             except FeatureViewNotFoundException:
+                metrics_ctx.status_code = 404
                 return JSONResponse(
                     status_code=404,
                     content={
@@ -798,6 +865,7 @@ def get_app(
                     },
                 )
             except ValueError as e:
+                metrics_ctx.status_code = 422
                 return JSONResponse(
                     status_code=422,
                     content={
@@ -961,7 +1029,7 @@ def get_app(
         async_mode: bool = Query(False, alias="async"),
         force: bool = Query(False),
     ):
-        with feast_metrics.track_request_latency("/materialize"):
+        with feast_metrics.track_request_latency("/materialize") as metrics_ctx:
             fv_names = _authorize_materialize_views(
                 store, request.feature_views, version=request.version
             )
@@ -973,6 +1041,7 @@ def get_app(
                 else:
                     conflict = _check_already_materializing(store, fv_names)
                     if conflict:
+                        metrics_ctx.status_code = conflict.status_code
                         return conflict
 
                 # Reserve MATERIALIZING before 202 so concurrent requests hit 409.
@@ -1020,7 +1089,9 @@ def get_app(
         async_mode: bool = Query(False, alias="async"),
         force: bool = Query(False),
     ):
-        with feast_metrics.track_request_latency("/materialize-incremental"):
+        with feast_metrics.track_request_latency(
+            "/materialize-incremental"
+        ) as metrics_ctx:
             fv_names = _authorize_materialize_views(
                 store, request.feature_views, version=request.version
             )
@@ -1032,6 +1103,7 @@ def get_app(
                 else:
                     conflict = _check_already_materializing(store, fv_names)
                     if conflict:
+                        metrics_ctx.status_code = conflict.status_code
                         return conflict
 
                 _update_fv_state(store, fv_names, FeatureViewState.MATERIALIZING)
@@ -1153,12 +1225,12 @@ def get_app(
         app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
     # Add MCP support if enabled in feature server configuration
-    _add_mcp_support_if_enabled(app, store)
+    _add_mcp_support_if_enabled(app, store, audit_logger_instance)
 
     return app
 
 
-def _add_mcp_support_if_enabled(app, store: "feast.FeatureStore"):
+def _add_mcp_support_if_enabled(app, store: "feast.FeatureStore", audit_logger=None):
     """Add MCP support to the FastAPI app if enabled in configuration."""
     mcp_transport_not_supported_error = None
     try:
@@ -1180,7 +1252,9 @@ def _add_mcp_support_if_enabled(app, store: "feast.FeatureStore"):
                 logger.error(f"Error checking/adding MCP support: {e}")
                 return
 
-            mcp_server = add_mcp_support_to_app(app, store, store.config.feature_server)
+            mcp_server = add_mcp_support_to_app(
+                app, store, store.config.feature_server, audit_logger=audit_logger
+            )
 
             if mcp_server:
                 logger.info("MCP support has been enabled for the Feast feature server")
@@ -1239,6 +1313,21 @@ if sys.platform != "win32":
         feast_metrics.mark_process_dead(worker.pid)
 
 
+def _freeze_gc() -> None:
+    """Move the objects that exist now out of the cyclic garbage collector.
+
+    The registry, feature definitions and protobuf classes are built once and
+    live until the process exits, yet every full collection walks all of them.
+    In a worker that walk blocks the event loop, so the requests waiting on it
+    look like slow online store reads. gc.collect() runs first so no garbage is
+    frozen. Called in the gunicorn master before the workers are forked, so
+    every worker starts frozen, including one restarted by --max-requests.
+    """
+    gc.collect()
+    gc.freeze()
+    logger.info(f"gc.freeze(): {gc.get_freeze_count()} objects frozen")
+
+
 def start_server(
     store: "feast.FeatureStore",
     host: str,
@@ -1253,6 +1342,7 @@ def start_server(
     tls_key_path: str,
     tls_cert_path: str,
     metrics: bool,
+    gc_freeze: bool = False,
 ):
     if (tls_key_path and not tls_cert_path) or (not tls_key_path and tls_cert_path):
         raise ValueError(
@@ -1261,8 +1351,10 @@ def start_server(
 
     fs_cfg = getattr(store.config, "feature_server", None)
     metrics_cfg = getattr(fs_cfg, "metrics", None)
+
     metrics_from_config = getattr(metrics_cfg, "enabled", False)
     metrics_active = metrics or metrics_from_config
+    gc_freeze_active = gc_freeze or getattr(fs_cfg, "gc_freeze", False)
     uses_gunicorn = sys.platform != "win32"
     if metrics_active:
         flags = feast_metrics.build_metrics_flags(metrics_cfg)
@@ -1301,13 +1393,18 @@ def start_server(
         if tls_key_path and tls_cert_path:
             options["keyfile"] = tls_key_path
             options["certfile"] = tls_cert_path
-        FeastServeApplication(
+        application = FeastServeApplication(
             store=store, metrics_enabled=metrics_active, **options
-        ).run()
+        )
+        if gc_freeze_active:
+            _freeze_gc()
+        application.run()
     else:
         import uvicorn
 
         app = get_app(store, registry_ttl_sec)
+        if gc_freeze_active:
+            _freeze_gc()
         if tls_key_path and tls_cert_path:
             uvicorn.run(
                 app,

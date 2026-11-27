@@ -44,6 +44,9 @@ func (feast *FeastServices) setTlsDefaults() error {
 	if feast.isUiServer() {
 		tlsDefaults(appliedServices.UI.TLS)
 	}
+	if feast.isMcpServer() {
+		tlsDefaults(appliedServices.McpServer.TLS)
+	}
 	return nil
 }
 
@@ -67,6 +70,13 @@ func (feast *FeastServices) setOpenshiftTls() error {
 		appliedServices.UI.TLS = &feastdevv1.TlsConfigs{
 			SecretRef: &corev1.LocalObjectReference{
 				Name: feast.initFeastSvc(UIFeastType).Name + tlsNameSuffix,
+			},
+		}
+	}
+	if feast.mcpServerOpenshiftTls() {
+		appliedServices.McpServer.TLS = &feastdevv1.TlsConfigs{
+			SecretRef: &corev1.LocalObjectReference{
+				Name: feast.initFeastSvc(McpServerFeastType).Name + tlsNameSuffix,
 			},
 		}
 	}
@@ -114,7 +124,7 @@ func (feast *FeastServices) setOpenshiftTls() error {
 }
 
 func (feast *FeastServices) checkOpenshiftTls() (bool, error) {
-	if feast.offlineOpenshiftTls() || feast.onlineOpenshiftTls() || feast.localRegistryOpenshiftTls() || feast.uiOpenshiftTls() {
+	if feast.offlineOpenshiftTls() || feast.onlineOpenshiftTls() || feast.localRegistryOpenshiftTls() || feast.uiOpenshiftTls() || feast.mcpServerOpenshiftTls() {
 		return true, nil
 	}
 	return feast.remoteRegistryOpenshiftTls()
@@ -130,6 +140,8 @@ func (feast *FeastServices) isOpenShiftTls(feastType FeastServiceType) (isOpenSh
 		isOpenShift = feast.localRegistryOpenshiftTls()
 	case UIFeastType:
 		isOpenShift = feast.uiOpenshiftTls()
+	case McpServerFeastType:
+		isOpenShift = feast.mcpServerOpenshiftTls()
 	}
 
 	return
@@ -162,6 +174,12 @@ func (feast *FeastServices) onlineOpenshiftTls() bool {
 func (feast *FeastServices) uiOpenshiftTls() bool {
 	return isOpenShift &&
 		feast.isUiServer() && feast.Handler.FeatureStore.Spec.Services.UI.TLS == nil
+}
+
+// True if running in an openshift cluster and Tls not configured in the service Spec
+func (feast *FeastServices) mcpServerOpenshiftTls() bool {
+	return isOpenShift &&
+		feast.isMcpServer() && feast.Handler.FeatureStore.Spec.Services.McpServer.TLS == nil
 }
 
 // True if running in an openshift cluster and Tls not configured in the service Spec
@@ -209,6 +227,7 @@ func (feast *FeastServices) mountTlsConfigs(podSpec *corev1.PodSpec) {
 	feast.mountTlsConfig(OfflineFeastType, podSpec)
 	feast.mountTlsConfig(OnlineFeastType, podSpec)
 	feast.mountTlsConfig(UIFeastType, podSpec)
+	feast.mountTlsConfig(McpServerFeastType, podSpec)
 	feast.mountCustomCABundle(podSpec)
 	appliedSpec := feast.Handler.FeatureStore.Status.Applied
 	if appliedSpec.AuthzConfig != nil && appliedSpec.AuthzConfig.OidcAuthz != nil {

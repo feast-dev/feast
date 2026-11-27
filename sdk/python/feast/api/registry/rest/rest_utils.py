@@ -568,8 +568,8 @@ def get_all_project_resources(
         err_msg = f"Error getting resources for project '{project}'"
         errors.append(err_msg)
         logger.error(f"{err_msg}: {e}")
-    finally:
-        return resources, pagination, errors
+
+    return resources, pagination, errors
 
 
 def filter_search_results_and_match_score(
@@ -699,8 +699,8 @@ def list_entities(
     except Exception as e:
         err_msg = f"Error searching entities in project '{project}'"
         logger.error(f"{err_msg}: {e}")
-    finally:
-        return entities, pagination, err_msg
+
+    return entities, pagination, err_msg
 
 
 def list_feature_views(
@@ -745,8 +745,8 @@ def list_feature_views(
     except Exception as e:
         err_msg = f"Error searching feature views in project '{project}'"
         logger.error(f"{err_msg}: {e}")
-    finally:
-        return feature_views, pagination, err_msg
+
+    return feature_views, pagination, err_msg
 
 
 def list_feature_services(
@@ -790,8 +790,8 @@ def list_feature_services(
     except Exception as e:
         err_msg = f"Error searching feature services in project '{project}'"
         logger.error(f"{err_msg}: {e}")
-    finally:
-        return feature_services, pagination, err_msg
+
+    return feature_services, pagination, err_msg
 
 
 def list_data_sources(
@@ -835,8 +835,8 @@ def list_data_sources(
     except Exception as e:
         err_msg = f"Error searching data sources in project '{project}'"
         logger.error(f"{err_msg}: {e}")
-    finally:
-        return data_sources, pagination, err_msg
+
+    return data_sources, pagination, err_msg
 
 
 def list_saved_datasets(
@@ -880,8 +880,8 @@ def list_saved_datasets(
     except Exception as e:
         err_msg = f"Error searching saved datasets in project '{project}'"
         logger.error(f"{err_msg}: {e}")
-    finally:
-        return saved_datasets, pagination, err_msg
+
+    return saved_datasets, pagination, err_msg
 
 
 def list_features(
@@ -921,8 +921,8 @@ def list_features(
     except Exception as e:
         err_msg = f"Error searching features in project '{project}'"
         logger.error(f"{err_msg}: {e}")
-    finally:
-        return features, pagination, err_msg
+
+    return features, pagination, err_msg
 
 
 def list_label_views(
@@ -962,8 +962,8 @@ def list_label_views(
     except Exception as e:
         err_msg = f"Error searching label views in project '{project}'"
         logger.error(f"{err_msg}: {e}")
-    finally:
-        return label_views, pagination, err_msg
+
+    return label_views, pagination, err_msg
 
 
 def list_labels(
@@ -1002,8 +1002,8 @@ def list_labels(
     except Exception as e:
         err_msg = f"Error searching labels in project '{project}'"
         logger.error(f"{err_msg}: {e}")
-    finally:
-        return labels, pagination, err_msg
+
+    return labels, pagination, err_msg
 
 
 def list_all_projects(
@@ -1043,5 +1043,5 @@ def list_all_projects(
     except Exception as e:
         err_msg = "Error searching all projects"
         logger.error(f"{err_msg}: {e}")
-    finally:
-        return projects, pagination, err_msg
+
+    return projects, pagination, err_msg

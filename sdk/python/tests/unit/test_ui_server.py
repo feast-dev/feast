@@ -105,6 +105,17 @@ def test_ui_server_health_endpoint(ui_app_with_registry):
     assertpy.assert_that(response.status_code).is_equal_to(EXPECTED_SUCCESS_STATUS)
 
 
+def test_ui_server_exposes_version_under_rest_api(ui_app_with_registry):
+    """Version endpoint is mounted under the authenticated REST API."""
+    client = TestClient(ui_app_with_registry)
+
+    with patch("feast.api.registry.rest.system.get_version", return_value="1.2.3"):
+        response = client.get("/api/v1/version")
+
+    assertpy.assert_that(response.status_code).is_equal_to(EXPECTED_SUCCESS_STATUS)
+    assertpy.assert_that(response.json()).is_equal_to({"version": "1.2.3"})
+
+
 def test_ui_server_health_endpoint_with_unavailable_registry(ui_app_without_registry):
     """Health endpoint returns 503 when registry is unavailable."""
     client = TestClient(ui_app_without_registry)
@@ -313,3 +324,178 @@ def test_registry_refresh_endpoint_error(mock_feature_store):
         client = TestClient(app, raise_server_exceptions=False)
         resp = client.post("/api/v1/registry/refresh")
         assertpy.assert_that(resp.status_code).is_equal_to(500)
+
+
+# ---------- CORS tests (CVE-2024-11602) ----------
+
+
+@contextlib.contextmanager
+def _cors_client(mock_feature_store, cors_origins):
+    """Yield a TestClient for a UI app built with the given cors_origins.
+
+    The static-files directory is only valid while the TemporaryDirectory is
+    open, so the client must be used inside this context.
+    """
+    mock_registry = MagicMock()
+    mock_registry.list_projects.return_value = []
+    mock_feature_store.registry = mock_registry
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        _create_mock_ui_files(temp_dir)
+
+        with _setup_importlib_mocks(temp_dir):
+            app = get_app(
+                mock_feature_store,
+                TEST_PROJECT_NAME,
+                cors_origins=cors_origins,
+            )
+        yield TestClient(app)
+
+
+def test_cors_disabled_by_default(mock_feature_store):
+    """Without cors_origins, no cross-origin request is granted.
+
+    Regression test for CVE-2024-11602: the server used to send
+    ``Access-Control-Allow-Origin: *`` with credentials, letting any website a
+    user visits read authenticated responses from this server. The CVE's
+    proof of concept is exactly this -- a cross-origin GET carrying an Origin
+    header.
+    """
+    with _cors_client(mock_feature_store, cors_origins=None) as client:
+        response = client.get("/health", headers={"Origin": "https://evil.example.com"})
+        assertpy.assert_that(response.status_code).is_equal_to(EXPECTED_SUCCESS_STATUS)
+        assertpy.assert_that(response.headers).does_not_contain_key(
+            "access-control-allow-origin"
+        )
+
+
+def test_cors_allows_only_configured_origins(mock_feature_store):
+    """With an explicit allowlist, only trusted origins are echoed back."""
+    trusted = "https://feast.example.com"
+    with _cors_client(mock_feature_store, cors_origins=[trusted]) as client:
+        allowed = client.get("/health", headers={"Origin": trusted})
+        assertpy.assert_that(
+            allowed.headers.get("access-control-allow-origin")
+        ).is_equal_to(trusted)
+
+        denied = client.get("/health", headers={"Origin": "https://evil.example.com"})
+        assertpy.assert_that(denied.headers).does_not_contain_key(
+            "access-control-allow-origin"
+        )
+
+
+def test_cors_never_uses_wildcard(mock_feature_store):
+    """An untrusted origin is never reflected even when an allowlist is set."""
+    with _cors_client(
+        mock_feature_store, cors_origins=["https://feast.example.com"]
+    ) as client:
+        response = client.get(
+            "/health", headers={"Origin": "https://attacker.example.com"}
+        )
+        assertpy.assert_that(
+            response.headers.get("access-control-allow-origin")
+        ).is_none()
+
+
+def test_wildcard_cors_origin_is_allowed_but_warns(mock_feature_store, caplog):
+    """An explicit '*' is honored (informed opt-in) but logs a warning.
+
+    We intentionally do not reject '*': it is a deliberate, documented operator
+    choice for local development (mirroring Feast's own `auth_type=no_auth`).
+    The warning makes the risk visible so it can't be set unknowingly.
+    """
+    import logging
+
+    with caplog.at_level(logging.WARNING, logger="feast.ui_server"):
+        with _cors_client(mock_feature_store, cors_origins=["*"]) as client:
+            response = client.get(
+                "/health", headers={"Origin": "https://any.example.com"}
+            )
+
+    assertpy.assert_that(response.status_code).is_equal_to(EXPECTED_SUCCESS_STATUS)
+    assertpy.assert_that(caplog.text.lower()).contains("allow all origins")
+
+
+@patch("feast.ui_server.uvicorn")
+@patch("feast.ui_server.get_app")
+def test_start_server_dual_stack_binds_prebuilt_socket(mock_get_app, mock_uvicorn):
+    """host="::" must go through a pre-bound dual-stack socket, not
+    uvicorn.run(host="::"), which binds IPv6-only and drops IPv4 clients."""
+    from feast.ui_server import start_server
+
+    mock_app = MagicMock()
+    mock_get_app.return_value = mock_app
+    mock_sock = MagicMock()
+
+    with patch(
+        "feast.utils._make_dual_stack_socket", return_value=mock_sock
+    ) as mock_make_sock:
+        start_server(
+            MagicMock(),
+            host="::",
+            port=8888,
+            project_id=TEST_PROJECT_NAME,
+            tls_key_path="key.pem",
+            tls_cert_path="cert.pem",
+        )
+
+    mock_make_sock.assert_called_once_with(8888)
+    mock_uvicorn.Config.assert_called_once_with(
+        mock_app, ssl_keyfile="key.pem", ssl_certfile="cert.pem"
+    )
+    mock_uvicorn.Server.assert_called_once_with(mock_uvicorn.Config.return_value)
+    mock_uvicorn.Server.return_value.run.assert_called_once_with(sockets=[mock_sock])
+    mock_uvicorn.run.assert_not_called()
+
+
+@patch("feast.utils._make_dual_stack_socket")
+@patch("feast.ui_server.uvicorn")
+@patch("feast.ui_server.get_app")
+def test_start_server_plain_host_uses_uvicorn_run(
+    mock_get_app, mock_uvicorn, mock_make_sock
+):
+    """A non dual-stack host keeps today's plain uvicorn.run behavior. Also
+    mocks _make_dual_stack_socket so a broken host comparison fails fast on
+    an assertion instead of hanging in a real uvicorn.Server.run()."""
+    from feast.ui_server import start_server
+
+    mock_app = MagicMock()
+    mock_get_app.return_value = mock_app
+
+    start_server(
+        MagicMock(),
+        host="0.0.0.0",
+        port=8888,
+        project_id=TEST_PROJECT_NAME,
+    )
+
+    mock_uvicorn.run.assert_called_once_with(mock_app, host="0.0.0.0", port=8888)
+    mock_uvicorn.Server.assert_not_called()
+    mock_make_sock.assert_not_called()
+
+
+@patch("feast.utils._make_dual_stack_socket")
+@patch("feast.ui_server.uvicorn")
+@patch("feast.ui_server.get_app")
+def test_start_server_non_wildcard_host_uses_uvicorn_run(
+    mock_get_app, mock_uvicorn, mock_make_sock
+):
+    """A host that sorts after "::" (e.g. starting with a letter) must still
+    take the plain uvicorn.run path -- regression test for a comparison
+    mutant (host == "::" weakened to >=) that a "0.0.0.0"-only test can't
+    catch, since "0.0.0.0" < "::" either way."""
+    from feast.ui_server import start_server
+
+    mock_app = MagicMock()
+    mock_get_app.return_value = mock_app
+
+    start_server(
+        MagicMock(),
+        host="example.com",
+        port=8888,
+        project_id=TEST_PROJECT_NAME,
+    )
+
+    mock_uvicorn.run.assert_called_once_with(mock_app, host="example.com", port=8888)
+    mock_uvicorn.Server.assert_not_called()
+    mock_make_sock.assert_not_called()

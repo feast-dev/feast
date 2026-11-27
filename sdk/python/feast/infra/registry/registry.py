@@ -247,6 +247,12 @@ class Registry(BaseRegistry):
             else False
         )
 
+        self.serve_features_while_materializing = (
+            registry_config.serve_features_while_materializing
+            if registry_config is not None
+            else False
+        )
+
         self.cache_mode = (
             registry_config.cache_mode if registry_config is not None else "sync"
         )
@@ -609,6 +615,15 @@ class Registry(BaseRegistry):
             existing_proto.spec.enable_validation = getattr(
                 updated_fv, "enable_validation"
             )
+        if hasattr(existing_proto.spec, "online_config") and isinstance(
+            updated_fv, FeatureView
+        ):
+            if updated_fv.online_config is None:
+                existing_proto.spec.ClearField("online_config")
+            else:
+                existing_proto.spec.online_config.CopyFrom(
+                    updated_fv.online_config.to_proto()
+                )
 
         # Enabled/disabled state
         if hasattr(existing_proto.spec, "disabled") and hasattr(updated_fv, "enabled"):

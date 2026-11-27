@@ -297,6 +297,7 @@ def get_consumer_router(
         or matching dataSource URIs).
         """
         ns_filter = _get_namespace_filter(get_allowed_namespaces)
+        allowed_namespaces = ns_filter
         if namespace:
             if ns_filter is not None and namespace not in ns_filter:
                 return {"nodes": [], "edges": [], "symlinks": []}
@@ -337,6 +338,10 @@ def get_consumer_router(
                     "schema": schema,
                     "description": ds.get("description"),
                     "source_type": ds.get("source_type"),
+                    "owner": ds.get("owner_name"),
+                    "owner_type": ds.get("owner_type"),
+                    "lifecycle_state": ds.get("lifecycle_state"),
+                    "current_version": ds.get("current_version"),
                     "facets": facets,
                 }
             )
@@ -356,6 +361,21 @@ def get_consumer_router(
 
         edges = store.get_all_lineage_edges(namespaces=ns_filter)
         symlinks = store.get_all_symlinks()
+        if allowed_namespaces is not None:
+            # A link is only shown when both of its ends are in namespaces the
+            # caller may see, so it cannot reveal another team's datasets.
+            allowed = set(allowed_namespaces)
+            edges = [
+                e
+                for e in edges
+                if e["source_namespace"] in allowed and e["target_namespace"] in allowed
+            ]
+            symlinks = [
+                sl
+                for sl in symlinks
+                if sl["dataset_namespace"] in allowed
+                and sl["linked_namespace"] in allowed
+            ]
         for sl in symlinks:
             edges.append(
                 {
@@ -376,6 +396,61 @@ def get_consumer_router(
             "symlinks": symlinks,
             "total_nodes": total_nodes,
         }
+
+    # ── Dataset versioning endpoints ──
+
+    @router.get("/lineage/openlineage/datasets/{namespace}/{name}/versions")
+    def list_dataset_versions(
+        namespace: str,
+        name: str,
+        limit: int = Query(50, ge=1, le=500),
+        offset: int = Query(0, ge=0),
+    ):
+        """List version history for a dataset."""
+        ns_filter = _get_namespace_filter(get_allowed_namespaces)
+        if ns_filter is not None and namespace not in ns_filter:
+            return {"versions": [], "total": 0}
+        total = store.count_dataset_versions(namespace, name)
+        versions = store.get_dataset_versions(namespace, name, limit, offset)
+        for v in versions:
+            v["schema"] = _safe_parse_json(v.pop("schema_json", None))
+            v["facets"] = _safe_parse_json(v.pop("facets_json", None))
+        return {"versions": versions, "total": total}
+
+    # ── Column-level lineage endpoint ──
+
+    @router.get("/lineage/openlineage/datasets/{namespace}/{name}/columns")
+    def get_column_lineage(
+        namespace: str,
+        name: str,
+        direction: str = Query("both", pattern="^(both|upstream|downstream)$"),
+    ):
+        """Get column-level lineage for a dataset.
+
+        Shows which input fields map to which output fields, including
+        transformation types when available.
+        """
+        ns_filter = _get_namespace_filter(get_allowed_namespaces)
+        if ns_filter is not None and namespace not in ns_filter:
+            return {"column_lineage": []}
+        cl = store.get_column_lineage(namespace, name, direction)
+        return {"column_lineage": cl}
+
+    # ── Execution tree endpoint ──
+
+    @router.get("/lineage/openlineage/runs/{run_id}/tree")
+    def get_run_tree(run_id: str):
+        """Get the full execution tree (all runs sharing the same root).
+
+        If *run_id* is a child run, the endpoint resolves its
+        ``root_run_id`` first so the full tree is always returned.
+        Results are filtered to the caller's allowed namespaces.
+        """
+        ns_filter = _get_namespace_filter(get_allowed_namespaces)
+        tree = store.get_run_tree(run_id)
+        if ns_filter is not None:
+            tree = [r for r in tree if r.get("job_namespace") in ns_filter]
+        return {"runs": tree, "total": len(tree)}
 
     # ── Run history endpoints ──
 
@@ -454,7 +529,8 @@ def get_consumer_router(
             try:
                 return ns_callable()
             except Exception:
-                return None
+                # Fail closed: a broken RBAC check must not expose every namespace.
+                return []
         return None
 
     return router

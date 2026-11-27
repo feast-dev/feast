@@ -1,16 +1,19 @@
+import copy
 import functools
 import warnings
 from datetime import datetime, timedelta
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
 
 import dill
 
 from feast import flags_helper
 from feast.aggregation import Aggregation
+from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
 from feast.entity import Entity
 from feast.feature_view import FeatureView
 from feast.field import Field
+from feast.online_config import OnlineConfig
 from feast.protos.feast.core.DataSource_pb2 import DataSource as DataSourceProto
 from feast.transformation.base import Transformation
 from feast.transformation.mode import TransformationMode
@@ -43,6 +46,7 @@ class BatchFeatureView(FeatureView):
             columns. If not specified, can be inferred from the underlying data source.
         source: The batch source of data where this group of features is stored.
         online: A boolean indicating whether online retrieval and write to online store is enabled for this feature view.
+        online_config: Optional online retention and write semantics.
         offline: A boolean indicating whether offline retrieval and write to offline store is enabled for this feature view.
         description: A human-readable description.
         tags: A dictionary of key-value pairs to store arbitrary metadata.
@@ -90,6 +94,7 @@ class BatchFeatureView(FeatureView):
         ttl: Optional[timedelta] = None,
         tags: Optional[Dict[str, str]] = None,
         online: bool = False,
+        online_config: Optional[OnlineConfig] = None,
         offline: bool = False,
         description: str = "",
         owner: str = "",
@@ -149,6 +154,7 @@ class BatchFeatureView(FeatureView):
             ttl=ttl,
             tags=tags,
             online=online,
+            online_config=online_config,
             offline=offline,
             description=description,
             owner=owner,
@@ -159,6 +165,53 @@ class BatchFeatureView(FeatureView):
             mode=mode,
             enable_validation=enable_validation,
             version=version,
+        )
+
+    def __copy__(self) -> "BatchFeatureView":
+        fv = BatchFeatureView(
+            name=self.name,
+            mode=cast(Union[TransformationMode, str], self.mode),
+            source=cast(List["BatchFeatureView"], self.source_views)
+            if self.source_views
+            else self.batch_source,
+            sink_source=self.batch_source if self.source_views else None,
+            schema=self.schema,
+            ttl=self.ttl,
+            tags=self.tags,
+            online=self.online,
+            offline=self.offline,
+            description=self.description,
+            owner=self.owner,
+            org=self.org,
+            udf=self.udf,
+            udf_string=self.udf_string,
+            feature_transformation=self.feature_transformation,
+            batch_engine=self.batch_engine,
+            aggregations=self.aggregations,
+            enable_validation=self.enable_validation,
+            version=self.version,
+            online_config=self.online_config,
+        )
+        fv.enabled = self.enabled
+        fv.state = self.state
+        fv.entities = self.entities
+        fv.features = copy.copy(self.features)
+        fv.entity_columns = copy.copy(self.entity_columns)
+        fv.projection = copy.copy(self.projection)
+        fv._raw_feature_transformation_proto = self._raw_feature_transformation_proto
+        return fv
+
+    def _schema_or_udf_changed(self, other: BaseFeatureView) -> bool:
+        """Check for BatchFeatureView schema/UDF changes."""
+        if super()._schema_or_udf_changed(other):
+            return True
+
+        if not isinstance(other, BatchFeatureView):
+            return True
+
+        # A changed UDF must be stored, not treated as a metadata-only update.
+        return _transformation_changed(
+            self.feature_transformation, other.feature_transformation
         )
 
     def get_feature_transformation(self) -> Optional[Transformation]:
@@ -180,6 +233,46 @@ class BatchFeatureView(FeatureView):
             )
 
 
+def _transformation_changed(
+    new: Optional[Transformation], old: Optional[Transformation]
+) -> bool:
+    if new is None or old is None:
+        return new is not old
+    if type(new) is not type(old):
+        return True
+    # Some types compare extra state, e.g. a Substrait plan.
+    if type(new).__eq__ is not object.__eq__ and new != old:
+        return True
+    if new.udf_string and old.udf_string:
+        return new.udf_string != old.udf_string
+    return _udf_changed(new.udf, old.udf)
+
+
+def _udf_changed(new_udf: Callable, old_udf: Callable) -> bool:
+    """Compare two UDFs that have no source text.
+
+    Bytecode alone misses constants: ``lambda _: "SELECT 1"`` and
+    ``lambda _: "SELECT 2"`` share it. The code object also holds the
+    constants, so compare it whole, plus the default arguments and the values
+    captured in the closure.
+    """
+
+    def state(udf: Callable) -> tuple:
+        closure = tuple(cell.cell_contents for cell in udf.__closure__ or ())  # type: ignore[attr-defined]
+        return (
+            udf.__code__,  # type: ignore[attr-defined]
+            udf.__defaults__,  # type: ignore[attr-defined]
+            udf.__kwdefaults__,  # type: ignore[attr-defined]
+            closure,
+        )
+
+    try:
+        return bool(state(new_udf) != state(old_udf))
+    except Exception:
+        # Values that cannot be compared count as a change, so the new UDF is stored.
+        return True
+
+
 def batch_feature_view(
     *,
     name: Optional[str] = None,
@@ -189,6 +282,7 @@ def batch_feature_view(
     source: Optional[DataSource] = None,
     tags: Optional[Dict[str, str]] = None,
     online: bool = True,
+    online_config: Optional[OnlineConfig] = None,
     offline: bool = True,
     description: str = "",
     owner: str = "",
@@ -220,6 +314,7 @@ def batch_feature_view(
             source=source,
             tags=tags,
             online=online,
+            online_config=online_config,
             offline=offline,
             description=description,
             owner=owner,

@@ -65,6 +65,11 @@ class BaseRegistry(ABC):
     feature views, and data sources).
     """
 
+    # Opt-in: keep serving a feature view's last-materialized values while it is
+    # MATERIALIZING. Registries built from a RegistryConfig set it from
+    # ``registry_config.serve_features_while_materializing``.
+    serve_features_while_materializing: bool = False
+
     # Entity operations
     @abstractmethod
     def apply_entity(self, entity: Entity, project: str, commit: bool = True):
@@ -941,7 +946,7 @@ class BaseRegistry(ABC):
         Deletes a project or raises an ProjectNotFoundException exception if not found.
 
         Args:
-            project: Feast project name that needs to be deleted
+            name: Feast project name that needs to be deleted
             commit: Whether the change should be persisted immediately
         """
         raise NotImplementedError

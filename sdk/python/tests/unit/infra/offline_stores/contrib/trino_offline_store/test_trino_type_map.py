@@ -112,13 +112,35 @@ class TestTrinoToPaValueType:
         assert trino_to_pa_value_type("timestamp(3)") == pa.timestamp("us")
 
     def test_decimal_bare(self) -> None:
-        assert trino_to_pa_value_type("decimal") == pa.float64()
+        assert trino_to_pa_value_type("decimal") == pa.decimal128(38, 0)
 
     def test_decimal_with_precision(self) -> None:
-        assert trino_to_pa_value_type("decimal(10, 2)") == pa.float32()
-        assert trino_to_pa_value_type("decimal(38, 2)") == pa.float64()
-        assert trino_to_pa_value_type("decimal(32)") == pa.float32()
-        assert trino_to_pa_value_type("decimal(33)") == pa.float64()
+        assert trino_to_pa_value_type("decimal(10, 2)") == pa.decimal128(10, 2)
+        assert trino_to_pa_value_type("decimal(10,2)") == pa.decimal128(10, 2)
+        assert trino_to_pa_value_type("decimal(38, 10)") == pa.decimal128(38, 10)
+        assert trino_to_pa_value_type("decimal(32)") == pa.decimal128(32, 0)
+        assert trino_to_pa_value_type("decimal(9)") == pa.decimal128(9, 0)
+
+    def test_decimal_precision_clamps_to_38(self) -> None:
+        assert trino_to_pa_value_type("decimal(39, 2)") == pa.decimal128(38, 2)
+
+    def test_decimal_schema_accepts_cursor_values(self) -> None:
+        from decimal import Decimal
+
+        import pandas as pd
+
+        schema = pa.schema(
+            [pa.field("amount", trino_to_pa_value_type("decimal(10, 2)"))]
+        )
+        df = pd.DataFrame({"amount": [Decimal("12.34"), None, Decimal("-0.01")]})
+
+        table = pa.Table.from_pandas(df, schema=schema, preserve_index=False)
+
+        assert table.column("amount").to_pylist() == [
+            Decimal("12.34"),
+            None,
+            Decimal("-0.01"),
+        ]
 
     def test_array_simple(self) -> None:
         assert trino_to_pa_value_type("array(bigint)") == pa.list_(pa.int64())
@@ -127,7 +149,9 @@ class TestTrinoToPaValueType:
         assert trino_to_pa_value_type("array(varchar(10))") == pa.list_(pa.string())
 
     def test_array_parameterized_decimal(self) -> None:
-        assert trino_to_pa_value_type("array(decimal(10, 2))") == pa.list_(pa.float32())
+        assert trino_to_pa_value_type("array(decimal(10, 2))") == pa.list_(
+            pa.decimal128(10, 2)
+        )
 
     def test_array_nested(self) -> None:
         assert trino_to_pa_value_type("array(array(bigint))") == pa.list_(

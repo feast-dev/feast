@@ -38,7 +38,7 @@ The OpenTelemetry integration in Feast consists of several components working to
 To add monitoring to the Feast Feature Server, follow these steps:
 
 ### 1. Deploy Prometheus Operator
-Follow the [Prometheus Operator documentation](https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/user-guides/getting-started.md) to install the operator.
+Follow the [Prometheus Operator documentation](https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/getting-started/installation.md) to install the operator.
 
 ### 2. Deploy OpenTelemetry Operator
 Before installing the OpenTelemetry Operator:

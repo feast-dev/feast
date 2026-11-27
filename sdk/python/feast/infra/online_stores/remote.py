@@ -222,8 +222,13 @@ class RemoteOnlineStore(OnlineStore):
         proto = GetOnlineFeaturesResponse()
 
         metadata = GetOnlineFeaturesResponseMetadata()
-        feature_names = resp_json.get("metadata", {}).get("feature_names", [])
+        resp_metadata = resp_json.get("metadata", {})
+        feature_names = resp_metadata.get("feature_names", [])
         metadata.feature_names.val.extend(feature_names)
+        for fvm in resp_metadata.get("feature_view_metadata", []):
+            fv_metadata = metadata.feature_view_metadata.add()
+            fv_metadata.name = fvm.get("name", "")
+            fv_metadata.version = fvm.get("version", 0)
         proto.metadata.CopyFrom(metadata)
 
         for result in resp_json.get("results", []):

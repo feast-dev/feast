@@ -144,7 +144,8 @@ If your feature services have logging configured, you can compute metrics from t
 In your feature definitions:
 
 ```python
-from feast import FeatureService, LoggingConfig
+from feast import FeatureService
+from feast.feature_logging import LoggingConfig
 from feast.infra.offline_stores.contrib.postgres_offline_store.postgres_source import (
     PostgreSQLLoggingDestination,
 )
@@ -359,6 +360,7 @@ Monitoring works natively with all offline stores that serve as compute engines 
 | BigQuery | SQL push-down | `MERGE` into BQ tables |
 | Redshift | SQL push-down | `MERGE` via Data API |
 | Spark | SparkSQL push-down | Parquet tables |
+| Trino | SQL push-down | Trino tables |
 | Oracle | SQL via Ibis | `MERGE` from `DUAL` |
 | DuckDB | In-memory SQL | Parquet files |
 | Dask | PyArrow compute | Parquet files |

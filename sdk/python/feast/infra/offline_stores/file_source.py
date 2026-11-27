@@ -339,8 +339,8 @@ class FileOptions:
 
         Args:
             uri: File source url, e.g. s3:// or local file.
-            file_format (optional): File source format, e.g. parquet.
-            s3_endpoint_override (optional): Custom s3 endpoint (used only with s3 uri).
+            file_format: File source format, e.g. parquet.
+            s3_endpoint_override: Custom s3 endpoint (used only with s3 uri).
         """
         self.uri = uri
         self.file_format = file_format

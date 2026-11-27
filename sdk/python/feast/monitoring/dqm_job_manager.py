@@ -47,10 +47,19 @@ class DQMJobManager:
         self._offline_store.save_monitoring_metrics(self._config, "job", [row])
         return job_id
 
-    def get_job(self, job_id: str) -> Optional[Dict[str, Any]]:
+    def get_job(
+        self, job_id: str, project: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """Look up a job by id.
+
+        When ``project`` is provided the query is additionally scoped to that
+        project, so a caller authorized for one project cannot read a job
+        belonging to another. Internal callers (status transitions during
+        execution) pass no project and match on the job id alone.
+        """
         rows = self._offline_store.query_monitoring_metrics(
             config=self._config,
-            project="",
+            project=project or "",
             metric_type="job",
             filters={"job_id": job_id},
         )
@@ -113,16 +122,22 @@ class DQMJobManager:
             job_type = job["job_type"]
             project = job["project_id"]
 
+            # Optional authorized subset for selector-free runs, carried in the
+            # job parameters by the REST layer.
+            allowed_feature_view_names = params.get("allowed_feature_view_names")
+
             if job_type == "auto_compute":
                 result = monitoring_service.auto_compute(
                     project=project,
                     feature_view_name=job.get("feature_view_name"),
+                    allowed_feature_view_names=allowed_feature_view_names,
                 )
             elif job_type == "baseline":
                 result = monitoring_service.compute_baseline(
                     project=project,
                     feature_view_name=job.get("feature_view_name"),
                     feature_names=params.get("feature_names"),
+                    allowed_feature_view_names=allowed_feature_view_names,
                 )
             elif job_type == "compute":
                 result = monitoring_service.compute_metrics(
@@ -137,6 +152,7 @@ class DQMJobManager:
                     else None,
                     granularity=params.get("granularity", "daily"),
                     set_baseline=params.get("set_baseline", False),
+                    allowed_feature_view_names=allowed_feature_view_names,
                 )
             else:
                 raise ValueError(f"Unknown job type '{job_type}'")

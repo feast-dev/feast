@@ -237,9 +237,11 @@ class OnlineStore(ABC):
                 online_features_response,
                 full_feature_names,
                 output_len,
+                first_idxs,
                 grouped_refs,
                 registry,
                 project,
+                feature_service=features,
             )
             if not precomputed_ok:
                 raise RuntimeError(
@@ -522,9 +524,11 @@ class OnlineStore(ABC):
                 online_features_response,
                 full_feature_names,
                 output_len,
+                first_idxs,
                 grouped_refs,
                 registry,
                 project,
+                feature_service=features,
             )
             if not precomputed_ok:
                 raise RuntimeError(
@@ -606,11 +610,16 @@ class OnlineStore(ABC):
         online_features_response: Any,
         full_feature_names: bool,
         num_rows: int,
+        entity_row_indices: Sequence[Sequence[int]],
         grouped_refs: List,
         registry: BaseRegistry,
         project: str,
+        feature_service: Optional[Any] = None,
     ) -> bool:
         """Build the response from pre-computed vectors.
+
+        ``entity_row_indices`` maps each deduplicated entity vector to its original
+        request rows, preserving input order and repeated entities in the response.
 
         Returns True if the fast path succeeded for ALL entities, False otherwise
         (caller should fall back to per-FV reads).
@@ -656,27 +665,65 @@ class OnlineStore(ABC):
         reorder_map: Optional[List[int]] = None
         vectors: List[PrecomputedFeatureVector] = []
 
+        # A nameless vector is validated by fingerprint and takes its names, in
+        # stored order, from the FeatureService it was built for.
+        service_names: Optional[List[str]] = None
+        service_fingerprint: Optional[str] = None
+        if feature_service is not None and hasattr(
+            feature_service, "precompute_schema_fingerprint"
+        ):
+            service_names = feature_service.precompute_feature_names()
+            service_fingerprint = feature_service.precompute_schema_fingerprint()
+
         for blob in blobs:
             vec = PrecomputedFeatureVector()
             vec.ParseFromString(blob)  # type: ignore[arg-type]
             vectors.append(vec)
 
+            stored_names = list(vec.feature_names)
+            if not stored_names:
+                if (
+                    service_names is None
+                    or vec.schema_fingerprint != service_fingerprint
+                ):
+                    logger.warning(
+                        "Pre-computed vector fingerprint mismatch at index %d: stored=%s, expected=%s",
+                        len(vectors) - 1,
+                        vec.schema_fingerprint,
+                        service_fingerprint,
+                    )
+                    return False
+                stored_names = service_names
+
             if first_stored_names is None:
-                first_stored_names = list(vec.feature_names)
-                if set(first_stored_names) != expected_set:
+                first_stored_names = stored_names
+                # Vectors always store "<fv>__<feature>"; the caller's expected
+                # names are bare unless full_feature_names was requested.
+                comparable_names = (
+                    first_stored_names
+                    if full_feature_names
+                    else [n.split("__", 1)[-1] for n in first_stored_names]
+                )
+                if set(comparable_names) != expected_set:
                     logger.warning(
                         "Pre-computed vector schema mismatch: stored=%s, expected=%s",
                         first_stored_names,
                         expected_feature_names,
                     )
                     return False
-                if first_stored_names != expected_feature_names:
-                    name_to_idx = {n: i for i, n in enumerate(first_stored_names)}
+                if comparable_names != expected_feature_names:
+                    name_to_idx = {n: i for i, n in enumerate(comparable_names)}
                     reorder_map = [name_to_idx[n] for n in expected_feature_names]
+                feat_fv_names = [
+                    first_stored_names[reorder_map[i] if reorder_map else i].split(
+                        "__", 1
+                    )[0]
+                    for i in range(n_features)
+                ]
             else:
                 if (
-                    len(vec.feature_names) != n_features
-                    or list(vec.feature_names) != first_stored_names
+                    len(stored_names) != n_features
+                    or stored_names != first_stored_names
                 ):
                     logger.warning(
                         "Pre-computed vector schema varies across entities at index %d",
@@ -695,8 +742,10 @@ class OnlineStore(ABC):
 
         now_secs = _time_mod.time() if any_ttl else 0.0
 
-        for row_idx, vec in enumerate(vectors):
-            ts_list[row_idx] = vec.precomputed_at
+        for entity_idx, vec in enumerate(vectors):
+            destination_row_indices = entity_row_indices[entity_idx]
+            for row_idx in destination_row_indices:
+                ts_list[row_idx] = vec.precomputed_at
 
             # Build per-FV expiry flags once per entity (not per feature).
             fv_expired: Optional[Dict[str, bool]] = None
@@ -720,14 +769,16 @@ class OnlineStore(ABC):
             stored_values = vec.values
             for out_idx in range(n_features):
                 src_idx = reorder_map[out_idx] if reorder_map else out_idx
-                feat_values[out_idx][row_idx] = stored_values[src_idx]
+                status = PRESENT
 
                 if fv_expired:
                     feat_fv = feat_fv_names[out_idx]
                     if feat_fv and fv_expired.get(feat_fv, False):
-                        feat_statuses[out_idx][row_idx] = OUTSIDE_MAX_AGE
-                        continue
-                feat_statuses[out_idx][row_idx] = PRESENT
+                        status = OUTSIDE_MAX_AGE
+
+                for row_idx in destination_row_indices:
+                    feat_values[out_idx][row_idx] = stored_values[src_idx]
+                    feat_statuses[out_idx][row_idx] = status
 
         online_features_response.metadata.feature_names.val.extend(
             expected_feature_names

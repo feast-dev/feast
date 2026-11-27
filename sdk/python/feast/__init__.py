@@ -6,6 +6,9 @@ from feast.infra.offline_stores.bigquery_source import BigQuerySource
 from feast.infra.offline_stores.contrib.athena_offline_store.athena_source import (
     AthenaSource,
 )
+from feast.infra.offline_stores.contrib.chronon_offline_store.chronon_source import (
+    ChrononSource,
+)
 from feast.infra.offline_stores.contrib.oracle_offline_store.oracle_source import (
     OracleSource,
 )
@@ -36,6 +39,7 @@ from .field import Field
 from .filter_models import FilterTranslator
 from .labeling import ConflictPolicy, LabelView
 from .on_demand_feature_view import OnDemandFeatureView
+from .online_config import OnlineConfig
 from .project import Project
 from .repo_config import RepoConfig
 from .stream_feature_view import StreamFeatureView
@@ -66,6 +70,7 @@ __all__ = [
     "LabelView",
     "ConflictPolicy",
     "OnDemandFeatureView",
+    "OnlineConfig",
     "RepoConfig",
     "StreamFeatureView",
     "ValueType",
@@ -77,6 +82,7 @@ __all__ = [
     "RequestSource",
     "AthenaSource",
     "OracleSource",
+    "ChrononSource",
     "Project",
     "FeastVectorStore",
     "DocEmbedder",
