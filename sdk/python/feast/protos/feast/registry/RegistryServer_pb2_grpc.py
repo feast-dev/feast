@@ -68,6 +68,11 @@ class RegistryServerStub(object):
                 request_serializer=feast_dot_registry_dot_RegistryServer__pb2.DeleteDataSourceRequest.SerializeToString,
                 response_deserializer=google_dot_protobuf_dot_empty__pb2.Empty.FromString,
                 )
+        self.ValidateDataSource = channel.unary_unary(
+                '/feast.registry.RegistryServer/ValidateDataSource',
+                request_serializer=feast_dot_registry_dot_RegistryServer__pb2.ValidateDataSourceRequest.SerializeToString,
+                response_deserializer=feast_dot_registry_dot_RegistryServer__pb2.ValidateDataSourceResponse.FromString,
+                )
         self.ApplyFeatureView = channel.unary_unary(
                 '/feast.registry.RegistryServer/ApplyFeatureView',
                 request_serializer=feast_dot_registry_dot_RegistryServer__pb2.ApplyFeatureViewRequest.SerializeToString,
@@ -353,6 +358,12 @@ class RegistryServerServicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def DeleteDataSource(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def ValidateDataSource(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -695,6 +706,11 @@ def add_RegistryServerServicer_to_server(servicer, server):
                     servicer.DeleteDataSource,
                     request_deserializer=feast_dot_registry_dot_RegistryServer__pb2.DeleteDataSourceRequest.FromString,
                     response_serializer=google_dot_protobuf_dot_empty__pb2.Empty.SerializeToString,
+            ),
+            'ValidateDataSource': grpc.unary_unary_rpc_method_handler(
+                    servicer.ValidateDataSource,
+                    request_deserializer=feast_dot_registry_dot_RegistryServer__pb2.ValidateDataSourceRequest.FromString,
+                    response_serializer=feast_dot_registry_dot_RegistryServer__pb2.ValidateDataSourceResponse.SerializeToString,
             ),
             'ApplyFeatureView': grpc.unary_unary_rpc_method_handler(
                     servicer.ApplyFeatureView,
@@ -1074,6 +1090,23 @@ class RegistryServer(object):
         return grpc.experimental.unary_unary(request, target, '/feast.registry.RegistryServer/DeleteDataSource',
             feast_dot_registry_dot_RegistryServer__pb2.DeleteDataSourceRequest.SerializeToString,
             google_dot_protobuf_dot_empty__pb2.Empty.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def ValidateDataSource(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/feast.registry.RegistryServer/ValidateDataSource',
+            feast_dot_registry_dot_RegistryServer__pb2.ValidateDataSourceRequest.SerializeToString,
+            feast_dot_registry_dot_RegistryServer__pb2.ValidateDataSourceResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 

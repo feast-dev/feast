@@ -170,6 +170,45 @@ var _ = Describe("FeatureStore Controller - standalone MCP server", func() {
 			Expect(cond.Reason).To(Equal(feastdevv1.ReadyReason))
 		})
 
+		It("should serve HTTPS when mcpServer.tls is set", func() {
+			controllerReconciler := &FeatureStoreReconciler{
+				Client: k8sClient,
+				Scheme: k8sClient.Scheme(),
+			}
+
+			resource := &feastdevv1.FeatureStore{}
+			Expect(k8sClient.Get(ctx, typeNamespacedName, resource)).To(Succeed())
+			resource.Spec.Services.McpServer.TLS = &feastdevv1.TlsConfigs{
+				SecretRef: &corev1.LocalObjectReference{Name: "mcp-tls"},
+			}
+			Expect(k8sClient.Update(ctx, resource)).To(Succeed())
+
+			_, err := controllerReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: typeNamespacedName,
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			feast := newFeast(resource, controllerReconciler)
+			deploy := &appsv1.Deployment{}
+			objMeta := feast.GetObjectMeta()
+			Expect(k8sClient.Get(ctx, types.NamespacedName{
+				Name:      objMeta.Name,
+				Namespace: objMeta.Namespace,
+			}, deploy)).To(Succeed())
+
+			mcpContainer := services.GetMcpServerContainer(*deploy)
+			Expect(mcpContainer).NotTo(BeNil())
+			Expect(mcpContainer.Command).To(Equal([]string{
+				"feast", "mcp",
+				"--host", "0.0.0.0",
+				"--port", "8101",
+				"--tls-cert", "/tls/mcpserver/tls.crt",
+				"--tls-key", "/tls/mcpserver/tls.key",
+				"--config", "/etc/feast/mcp/feast_mcp.yaml",
+			}))
+			Expect(mcpContainer.ReadinessProbe.HTTPGet.Scheme).To(Equal(corev1.URISchemeHTTPS))
+		})
+
 		It("should remove the mcpserver container and Service when mcpServer is unset", func() {
 			By("Reconciling with mcpServer configured")
 			controllerReconciler := &FeatureStoreReconciler{

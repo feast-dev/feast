@@ -31,6 +31,10 @@ lance_format = LanceFormat(
 )
 ```
 
+The DuckDB offline store reads a `LanceSource` as a lazy scan, so only the
+columns a query selects are read from the dataset. Materializing a few scalar
+features does not load the embedding columns stored beside them.
+
 ### Apache Iceberg
 
 [Apache Iceberg](https://iceberg.apache.org/) is an open table format designed for huge analytic datasets. It provides:

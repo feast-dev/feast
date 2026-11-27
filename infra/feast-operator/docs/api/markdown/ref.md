@@ -581,14 +581,18 @@ _Appears in:_
 
 
 McpServerConfig configures a standalone Feast MCP server container (the `feast mcp` command).
-The server proxies to the online feature server and/or REST registry server over HTTP. Its
+The server proxies to the online feature server and/or REST registry server. Its
 transport, upstream URLs, authentication and observability are read from a feast_mcp.yaml
 config file supplied via a ConfigMap. The operator owns the container's bind host and port
-(used for the generated Service). The container image defaults to the shared feature-server
-image (which already includes `feast mcp` via the `minimal` extra).
+(used for the generated Service) and its server TLS. The container image defaults to the
+shared feature-server image (which already includes `feast mcp` via the `minimal` extra).
+
+When `tls` is set, or by default on OpenShift (using a service serving certificate), the
+operator mounts the TLS secret and passes `--tls-cert`/`--tls-key` to `feast mcp`, so the
+server, Service and probes all use HTTPS. Set `tls.disable: true` to opt out on OpenShift.
 
 NOTE: the following embedded ServerConfigs fields are ignored for mcpServer:
-`tls` (operator-managed TLS is not supported yet), `metrics`, and `workerConfigs`.
+`metrics` and `workerConfigs`.
 To run multiple gunicorn workers, set `server.workers` in the feast_mcp.yaml ConfigMap.
 
 _Appears in:_

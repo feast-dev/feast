@@ -20,6 +20,10 @@ import {
   NumericHistogramChart,
   CategoricalHistogramChart,
 } from "../monitoring/components/HistogramChart";
+import {
+  isNumericHistogram,
+  selectLatestWindowMetric,
+} from "../monitoring/components/histogramUtils";
 import StatsPanel from "../monitoring/components/StatsPanel";
 
 const FeatureMonitoringTab = () => {
@@ -45,12 +49,9 @@ const FeatureMonitoringTab = () => {
     return <EuiSkeletonText lines={6} />;
   }
 
-  const latestMetric = (() => {
-    if (!metrics || metrics.length === 0) return null;
-    const withData = metrics.filter((m) => m.row_count > 0);
-    const candidates = withData.length > 0 ? withData : metrics;
-    return candidates.reduce((a, b) => (a.metric_date > b.metric_date ? a : b));
-  })();
+  // The API returns the baseline as a row dated by computation day, so the
+  // newest window must be picked among real window rows only (#7054).
+  const latestMetric = selectLatestWindowMetric(metrics);
 
   const baselineMetric =
     baselineMetrics && baselineMetrics.length > 0 ? baselineMetrics[0] : null;
@@ -84,7 +85,11 @@ const FeatureMonitoringTab = () => {
           {isNumeric && latestMetric.histogram && (
             <NumericHistogramChart
               histogram={latestMetric.histogram as NumericHistogram}
-              baseline={baselineMetric?.histogram as NumericHistogram | null}
+              baseline={
+                isNumericHistogram(baselineMetric?.histogram)
+                  ? baselineMetric?.histogram
+                  : null
+              }
               title="Distribution"
             />
           )}

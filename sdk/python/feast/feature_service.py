@@ -1,4 +1,5 @@
 import copy
+import hashlib
 from datetime import datetime
 from typing import TYPE_CHECKING, Dict, List, Optional, Union
 
@@ -61,6 +62,7 @@ class FeatureService:
     logging_config: Optional[LoggingConfig] = None
 
     precompute_online: bool = False
+    precompute_omit_names: bool = False
 
     def __init__(
         self,
@@ -72,6 +74,7 @@ class FeatureService:
         owner: str = "",
         logging_config: Optional[LoggingConfig] = None,
         precompute_online: bool = False,
+        precompute_omit_names: bool = False,
     ):
         """
         Creates a FeatureService object.
@@ -108,6 +111,7 @@ class FeatureService:
         self.last_updated_timestamp = None
         self.logging_config = logging_config
         self.precompute_online = precompute_online
+        self.precompute_omit_names = precompute_omit_names
         for feature_grouping in self._features:
             if isinstance(feature_grouping, str):
                 # No registry at construction time; resolved in resolve_pending_refs.
@@ -360,6 +364,7 @@ class FeatureService:
             owner=self.owner,
             logging_config=self.logging_config,
             precompute_online=self.precompute_online,
+            precompute_omit_names=self.precompute_omit_names,
         )
         prepared.created_timestamp = self.created_timestamp
         prepared.last_updated_timestamp = self.last_updated_timestamp
@@ -394,6 +399,20 @@ class FeatureService:
     def __hash__(self):
         return hash(self.name)
 
+    def precompute_feature_names(self) -> List[str]:
+        """``<fv>__<feature>`` names in the order pre-computed vectors store values."""
+        return [
+            f"{projection.name_to_use()}__{feature.name}"
+            for projection in self.feature_view_projections
+            for feature in projection.features
+        ]
+
+    def precompute_schema_fingerprint(self) -> str:
+        """Stable digest of :meth:`precompute_feature_names` for nameless vectors."""
+        return hashlib.sha256(
+            "\n".join(self.precompute_feature_names()).encode("utf-8")
+        ).hexdigest()[:16]
+
     def __eq__(self, other):
         if not isinstance(other, FeatureService):
             return False
@@ -404,6 +423,7 @@ class FeatureService:
             or self.tags != other.tags
             or self.owner != other.owner
             or self.precompute_online != other.precompute_online
+            or self.precompute_omit_names != other.precompute_omit_names
         ):
             return False
 
@@ -432,6 +452,7 @@ class FeatureService:
                 feature_service_proto.spec.logging_config
             ),
             precompute_online=feature_service_proto.spec.precompute_online,
+            precompute_omit_names=feature_service_proto.spec.precompute_omit_names,
         )
         fs.feature_view_projections.extend(
             [
@@ -484,6 +505,7 @@ class FeatureService:
             if self.logging_config
             else None,
             precompute_online=self.precompute_online,
+            precompute_omit_names=self.precompute_omit_names,
         )
 
         return FeatureServiceProto(spec=spec, meta=meta)

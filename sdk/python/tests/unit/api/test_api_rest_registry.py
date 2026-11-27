@@ -215,6 +215,26 @@ def test_feature_views_type_field_via_rest(fastapi_test_app):
     assert data["spec"]["name"] == "user_profile"
 
 
+def test_feature_views_spec_project_via_rest(fastapi_test_app):
+    """Test that spec.project is populated on every feature view endpoint."""
+    response = fastapi_test_app.get("/feature_views?project=demo_project")
+    assert response.status_code == 200
+    for fv in response.json()["featureViews"]:
+        assert fv["spec"]["project"] == "demo_project"
+
+    response = fastapi_test_app.get("/feature_views/user_profile?project=demo_project")
+    assert response.status_code == 200
+    assert response.json()["spec"]["project"] == "demo_project"
+
+    response = fastapi_test_app.get("/feature_views/all")
+    assert response.status_code == 200
+    feature_views = response.json()["featureViews"]
+    assert feature_views
+    for fv in feature_views:
+        assert fv["project"] == "demo_project"
+        assert fv["spec"]["project"] == "demo_project"
+
+
 def test_feature_views_entity_filtering_via_rest(fastapi_test_app):
     """Test that feature views can be filtered by entity."""
     response = fastapi_test_app.get("/feature_views?project=demo_project")
@@ -442,6 +462,41 @@ def test_data_sources_via_rest(fastapi_test_app):
         ast.parse(code)
     except SyntaxError as e:
         pytest.fail(f"featureDefinition is not valid Python: {e}")
+
+
+def test_data_source_validate_via_rest(fastapi_test_app):
+    valid_statuses = {"success", "failed", "not_applicable", "unavailable"}
+
+    # Request sources have no external connection to test.
+    response = fastapi_test_app.post(
+        "/data_sources/input_request_source/validate?project=demo_project"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "input_request_source"
+    assert data["project"] == "demo_project"
+    assert data["status"] == "not_applicable"
+    assert "message" in data
+    assert "testedAt" in data
+
+    # A batch (file) source returns a concrete pass/fail result.
+    response = fastapi_test_app.post(
+        "/data_sources/user_profile_source/validate?project=demo_project"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "user_profile_source"
+    assert data["status"] in valid_statuses
+    assert "message" in data
+    assert "testedAt" in data
+    if data["status"] == "success":
+        assert isinstance(data.get("columns"), list)
+
+    # Unknown data source -> 404.
+    response = fastapi_test_app.post(
+        "/data_sources/nonexistent_source/validate?project=demo_project"
+    )
+    assert response.status_code == 404
 
 
 def test_projects_via_rest(fastapi_test_app):
@@ -2427,3 +2482,37 @@ def test_validate_projects_does_not_swallow_base_exceptions():
     with patch.object(search, "list_all_projects", side_effect=KeyboardInterrupt):
         with pytest.raises(KeyboardInterrupt):
             search._validate_projects(["p"], MagicMock(), allow_cache=True)
+
+
+def test_openlineage_hides_lineage_from_user_without_projects(tmp_path):
+    """A user allowed no Feast project must see no lineage, not all of it."""
+    from fastapi import FastAPI
+
+    from feast.api.registry import rest as rest_module
+    from feast.openlineage.config import OpenLineageConfig, OpenLineageConsumerConfig
+    from feast.openlineage.store import OpenLineageStore
+    from feast.permissions import security_manager as sm_module
+
+    connection_string = f"sqlite:///{tmp_path}/lineage.db"
+    ol_store = OpenLineageStore(connection_string=connection_string)
+    ol_store.initialize()
+    ol_store.upsert_job("other-team", "secret_job", {"facets": {}})
+
+    feast_store = MagicMock()
+    feast_store.config.openlineage = OpenLineageConfig(
+        enabled=True,
+        consumer=OpenLineageConsumerConfig(
+            enabled=True, connection_string=connection_string
+        ),
+    )
+    app = FastAPI()
+    rest_module._register_openlineage_consumer(app, feast_store)
+
+    with (
+        patch.object(sm_module, "get_security_manager", return_value=MagicMock()),
+        patch.object(sm_module, "permitted_resources", return_value=[]),
+    ):
+        resp = TestClient(app).get("/lineage/openlineage/jobs")
+
+    assert resp.status_code == 200
+    assert resp.json()["jobs"] == []

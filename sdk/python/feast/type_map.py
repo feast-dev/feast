@@ -88,7 +88,28 @@ def _zone_name(tzinfo: Optional[Any]) -> str:
         return key
     name = str(tzinfo)
     # zoneinfo prints as the key; pytz prints the name; offsets print as "UTC-07:00"
+    if not _is_readable_zone_name(name):
+        # pytz and dateutil fixed offsets print as "pytz.FixedOffset(330)" or
+        # "tzoffset(None, 19800)", which _zone_from_name can't read back. pyarrow
+        # returns pytz offsets for an offset-zoned timestamp column, so store the
+        # offset the way datetime.timezone prints it ("UTC+05:30").
+        offset = tzinfo.utcoffset(None)
+        if offset is not None:
+            return str(timezone(offset))
     return name
+
+
+def _is_readable_zone_name(zone: str) -> bool:
+    """Whether ``_zone_from_name`` resolves ``zone`` instead of falling back to UTC."""
+    if _fixed_offset_from_name(zone) is not None:
+        return True
+    try:
+        from zoneinfo import ZoneInfo
+
+        ZoneInfo(zone)
+        return True
+    except Exception:
+        return False
 
 
 def _zone_from_name(zone: str):
@@ -235,7 +256,11 @@ def feast_value_type_to_python_type(
     if val_attr in ("uuid_val", "time_uuid_val"):
         return uuid_module.UUID(val) if isinstance(val, str) else val
     if val_attr in ("uuid_list_val", "time_uuid_list_val"):
-        return [uuid_module.UUID(v) if isinstance(v, str) else v for v in val]
+        # None elements are stored as "" (see _LIST_NONE_DEFAULTS)
+        return [
+            None if v == "" else uuid_module.UUID(v) if isinstance(v, str) else v
+            for v in val
+        ]
     if val_attr in ("uuid_set_val", "time_uuid_set_val"):
         return {uuid_module.UUID(v) if isinstance(v, str) else v for v in val}
 
@@ -243,7 +268,10 @@ def feast_value_type_to_python_type(
     if val_attr == "decimal_val":
         return decimal.Decimal(val) if isinstance(val, str) else val
     if val_attr == "decimal_list_val":
-        return [decimal.Decimal(v) if isinstance(v, str) else v for v in val]
+        return [
+            None if v == "" else decimal.Decimal(v) if isinstance(v, str) else v
+            for v in val
+        ]
     if val_attr == "decimal_set_val":
         return {decimal.Decimal(v) if isinstance(v, str) else v for v in val}
 
@@ -716,6 +744,22 @@ PYTHON_SCALAR_VALUE_TYPE_TO_PROTO_VALUE: Dict[
 }
 
 
+_UNIX_EPOCH = datetime(1970, 1, 1, tzinfo=timezone.utc)
+
+
+def _datetime_to_unix_seconds(value: datetime) -> int:
+    """Whole seconds since the epoch, floored like numpy's datetime64[s] cast.
+
+    A naive datetime is UTC, as everywhere else in Feast; datetime.timestamp()
+    would read it in the machine's local timezone. int(value.timestamp()) would
+    also truncate toward zero, moving a pre-1970 datetime with a fractional
+    second one second later (23:59:59.5 becomes 00:00:00).
+    """
+    if value.utcoffset() is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return (value - _UNIX_EPOCH) // timedelta(seconds=1)
+
+
 def _python_datetime_to_int_timestamp(
     values: Sequence[Any],
 ) -> Sequence[Union[int, np.int_]]:
@@ -728,11 +772,7 @@ def _python_datetime_to_int_timestamp(
     int_timestamps = []
     for value in values:
         if isinstance(value, datetime):
-            # A naive datetime is UTC, as everywhere else in Feast. Without this,
-            # datetime.timestamp() would read it in the machine's local timezone.
-            if value.utcoffset() is None:
-                value = value.replace(tzinfo=timezone.utc)
-            int_timestamps.append(int(value.timestamp()))
+            int_timestamps.append(_datetime_to_unix_seconds(value))
         elif isinstance(value, Timestamp):
             int_timestamps.append(int(value.ToSeconds()))
         elif isinstance(value, np.datetime64):
@@ -1022,13 +1062,20 @@ def _convert_list_values_to_proto(
 
         json_sample = json.loads(sample)
         if isinstance(json_sample, list):
-            json_values = [json.loads(value) for value in values]
+            json_values = [
+                json.loads(value) if value is not None else None for value in values
+            ]
             if feast_value_type == ValueType.BOOL_LIST:
                 json_values = [
-                    [bool(item) for item in list_item] for list_item in json_values
+                    [bool(item) for item in list_item]
+                    if list_item is not None
+                    else None
+                    for list_item in json_values
                 ]
             return [
                 ProtoValue(**{field_name: proto_type(val=v)})  # type: ignore[arg-type]
+                if v is not None
+                else ProtoValue()
                 for v in json_values
             ]
         raise _type_err(sample, valid_types[0])
@@ -1089,6 +1136,15 @@ def _is_array_like(value: Any) -> bool:
     )
 
 
+def _is_key_value_pairs(value: Any) -> bool:
+    """Return True if *value* is a sequence of (key, value) pairs, the form an
+    Arrow map column takes after ``to_numpy()``, ``to_pylist()`` or a pandas
+    round trip."""
+    return isinstance(value, (list, np.ndarray)) and all(
+        isinstance(pair, (list, tuple, np.ndarray)) and len(pair) == 2 for pair in value
+    )
+
+
 def _convert_scalar_values_to_proto(
     feast_value_type: ValueType,
     values: List[Any],
@@ -1142,7 +1198,7 @@ def _convert_scalar_values_to_proto(
                 out.append(
                     ProtoValue(
                         zoned_timestamp_val=ZonedTimestamp(
-                            unix_timestamp=int(dt.timestamp()),
+                            unix_timestamp=_datetime_to_unix_seconds(dt),
                             zone=_zone_name(value.tzinfo),
                         )
                     )  # type: ignore
@@ -1241,6 +1297,9 @@ def _python_value_to_proto_value(
             else:
                 if isinstance(value, str):
                     value = json.loads(value)
+                if _is_key_value_pairs(value):
+                    # An Arrow map column arrives as key/value pairs, not a dict.
+                    value = {key: item for key, item in value}
                 if not isinstance(value, dict):
                     raise TypeError(
                         f"Expected dict for MAP type, got {type(value).__name__}: {value!r}"
@@ -1484,8 +1543,7 @@ def _python_value_to_map_key_proto(key: Any) -> MapKey:
     if isinstance(key, bytes):
         return MapKey(bytes_key=key)
     if isinstance(key, (datetime, pd.Timestamp)):
-        ts = int(pd.Timestamp(key).timestamp())
-        return MapKey(unix_timestamp_key=ts)
+        return MapKey(unix_timestamp_key=_datetime_to_unix_seconds(key))
     raise TypeError(
         f"Unsupported key type for SCALAR_MAP: {type(key).__name__}. "
         "Supported non-string key types: int, float, bool, uuid.UUID, "
@@ -1588,10 +1646,10 @@ VALUE_TYPE_TO_PROTO_VALUE_MAP: Dict[ValueType, str] = {
 
 def _proto_value_to_value_type(proto_value: ProtoValue) -> ValueType:
     """
-    Returns Feast ValueType given Feast ValueType string.
+    Returns Feast ValueType given a Feast proto value.
 
     Args:
-        proto_str: str
+        proto_value: ProtoValue
 
     Returns:
         A variant of ValueType.
@@ -1706,14 +1764,18 @@ def mssql_to_feast_value_type(mssql_type_as_str: str) -> ValueType:
         "char": ValueType.STRING,
         "date": ValueType.UNIX_TIMESTAMP,
         "datetime": ValueType.UNIX_TIMESTAMP,
+        "datetime2": ValueType.UNIX_TIMESTAMP,
         "datetimeoffset": ValueType.UNIX_TIMESTAMP,
+        "decimal": ValueType.DECIMAL,
         "float": ValueType.DOUBLE,
         "int": ValueType.INT32,
         "nchar": ValueType.STRING,
         "nvarchar": ValueType.STRING,
         "nvarchar(max)": ValueType.STRING,
+        "numeric": ValueType.DECIMAL,
         "json": ValueType.JSON,
         "real": ValueType.FLOAT,
+        "smalldatetime": ValueType.UNIX_TIMESTAMP,
         "smallint": ValueType.INT32,
         "tinyint": ValueType.INT32,
         "varbinary": ValueType.BYTES,
@@ -1795,7 +1857,9 @@ def pa_to_mssql_type(pa_type: "pyarrow.DataType") -> str:
         return "date"
 
     if pa_type_as_str.startswith("decimal"):
-        return pa_type_as_str
+        # str() of a PyArrow decimal is "decimal128(p, s)", which is not an MSSQL
+        # type, so build "decimal(p,s)" from the precision and scale.
+        return f"decimal({pa_type.precision},{pa_type.scale})"
 
     if pa_type_as_str.startswith("map<"):
         return "nvarchar(max)"
@@ -1814,9 +1878,14 @@ def pa_to_mssql_type(pa_type: "pyarrow.DataType") -> str:
         "int16": "smallint",
         "int32": "int",
         "int64": "bigint",
+        # MSSQL integer types are signed, except tinyint (unsigned 0..255),
+        # so uint16/uint32 must widen to the next larger signed type to avoid
+        # overflow in the generated DDL. This mirrors the widening already done
+        # in the Athena and Postgres mappers; uint64 uses bigint, the largest
+        # MSSQL integer type.
         "uint8": "tinyint",
-        "uint16": "smallint",
-        "uint32": "int",
+        "uint16": "int",
+        "uint32": "bigint",
         "uint64": "bigint",
         "float": "float",
         "double": "real",
@@ -1919,8 +1988,9 @@ def pa_to_redshift_value_type(pa_type: "pyarrow.DataType") -> str:
         return "date"
 
     if pa_type_as_str.startswith("decimal"):
-        # PyArrow decimal types (e.g. "decimal(38,37)") luckily directly map to the Redshift type.
-        return pa_type_as_str
+        # str() of a PyArrow decimal is "decimal128(p, s)", which is not a Redshift
+        # type, so build "decimal(p,s)" from the precision and scale.
+        return f"decimal({pa_type.precision},{pa_type.scale})"
 
     if pa_type_as_str.startswith("list"):
         return "super"
@@ -2050,10 +2120,16 @@ def arrow_to_pg_type(t_str: str) -> str:
             return "jsonb"
         if t_str.startswith("struct<") or t_str.startswith("struct{"):
             return "jsonb"
+        if t_str.startswith("decimal"):
+            return "numeric"
+        if t_str.startswith("date"):
+            return "date"
         return {
-            "null": "null",
+            # Postgres has no "null" type; an all-null column still needs one.
+            "null": "text",
             "bool": "boolean",
-            "int8": "tinyint",
+            # Postgres has no 1-byte integer type.
+            "int8": "smallint",
             "int16": "smallint",
             "int32": "int",
             "int64": "bigint",
@@ -2068,7 +2144,8 @@ def arrow_to_pg_type(t_str: str) -> str:
             "uint64": "bigint",
             "float": "float",
             "double": "double precision",
-            "binary": "binary",
+            "binary": "bytea",
+            "large_binary": "bytea",
             "string": "text",
         }[t_str]
     except KeyError:
@@ -2304,6 +2381,9 @@ def pa_to_athena_value_type(pa_type: "pyarrow.DataType") -> str:
 
     if pa_type_as_str.startswith("python_values_to_proto_values"):
         return pa_type_as_str
+
+    if pa_type_as_str.startswith("decimal"):
+        return f"decimal({pa_type.precision},{pa_type.scale})"
 
     if pa_type_as_str.startswith("list"):
         return "array<string>"

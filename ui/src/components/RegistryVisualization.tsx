@@ -797,6 +797,9 @@ const registryToFlow = (
     if (fv.spec?.batchSource?.name) {
       dataSources.add(fv.spec.batchSource.name);
     }
+    if (fv.spec?.streamSource?.name) {
+      dataSources.add(fv.spec.streamSource.name);
+    }
   });
 
   objects.streamFeatureViews?.forEach((sfv) => {
@@ -828,6 +831,12 @@ const registryToFlow = (
     if (lv.spec?.batchSource?.name) {
       dataSources.add(lv.spec.batchSource.name);
     }
+  });
+
+  // Also include standalone registered data sources
+  ((objects as any).dataSources || []).forEach((ds: any) => {
+    const name = ds.spec?.name || ds.name;
+    if (name) dataSources.add(name);
   });
 
   Array.from(dataSources).forEach((dsName) => {

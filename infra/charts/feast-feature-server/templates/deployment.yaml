@@ -43,8 +43,13 @@ spec:
           env:
             - name: FEATURE_STORE_YAML_BASE64
               value: {{ .Values.feature_store_yaml_base64 }}
+            {{- if .Values.intraCommunicationSecret.name }}
             - name: INTRA_COMMUNICATION_BASE64
-              value: {{ "intra-server-communication" | b64enc }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.intraCommunicationSecret.name }}
+                  key: {{ .Values.intraCommunicationSecret.key }}
+            {{- end }}
             {{- with .Values.extraEnvs}}
               {{- toYaml . | nindent 12 }}
             {{- end}}

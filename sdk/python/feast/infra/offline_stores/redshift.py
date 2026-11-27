@@ -1270,7 +1270,7 @@ WITH entity_dataframe AS (
             {% if featureview.entities %}
             ,(
                 {% for entity in featureview.entities %}
-                    CAST({{entity}} as VARCHAR) ||
+                    CAST(LENGTH(CAST({{entity}} AS VARCHAR)) AS VARCHAR) || ':' || CAST({{entity}} AS VARCHAR) ||
                 {% endfor %}
                 CAST({{entity_df_event_timestamp_col}} AS VARCHAR)
             ) AS {{featureview.name}}__entity_row_unique_id

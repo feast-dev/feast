@@ -7,10 +7,12 @@ from unittest.mock import MagicMock
 import pytest
 from google.protobuf.timestamp_pb2 import Timestamp
 
+from feast.data_source import PushSource
 from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.field import Field
 from feast.infra.offline_stores.file_source import FileSource
+from feast.infra.online_stores.online_store import OnlineStore
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.protos.feast.core.PrecomputedFeatureVector_pb2 import (
     FeatureViewTimestamp,
@@ -270,7 +272,14 @@ class TestFeatureServiceValidation:
 
 
 class TestSchemaMismatchFallback:
-    def _fast_path(self, blobs, expected_names, grouped_refs=None, num_rows=None):
+    def _fast_path(
+        self,
+        blobs,
+        expected_names,
+        grouped_refs=None,
+        num_rows=None,
+        full_feature_names=True,
+    ):
         from feast.infra.online_stores.online_store import OnlineStore
 
         resolved_num_rows = num_rows or len(blobs)
@@ -279,7 +288,7 @@ class TestSchemaMismatchFallback:
             blobs=blobs,
             expected_feature_names=expected_names,
             online_features_response=response,
-            full_feature_names=True,
+            full_feature_names=full_feature_names,
             num_rows=resolved_num_rows,
             entity_row_indices=tuple([i] for i in range(len(blobs))),
             grouped_refs=grouped_refs or [],
@@ -309,6 +318,86 @@ class TestSchemaMismatchFallback:
         assert ok is True
         assert len(response.results) == 1
         assert response.results[0].values[0].float_val == pytest.approx(42.0)
+
+    def test_bare_names_match_when_full_feature_names_is_false(self):
+        vector = _make_vector(
+            feature_names=["fv1__f1", "fv1__f2"],
+            values=[ValueProto(float_val=1.0), ValueProto(float_val=2.0)],
+        )
+        ok, response = self._fast_path(
+            [vector.SerializeToString()], ["f1", "f2"], full_feature_names=False
+        )
+        assert ok is True
+        assert list(response.metadata.feature_names.val) == ["f1", "f2"]
+        assert response.results[1].values[0].float_val == pytest.approx(2.0)
+
+    def test_bare_names_reorder_when_full_feature_names_is_false(self):
+        vector = _make_vector(
+            feature_names=["fv1__f1", "fv1__f2"],
+            values=[ValueProto(float_val=1.0), ValueProto(float_val=2.0)],
+        )
+        ok, response = self._fast_path(
+            [vector.SerializeToString()], ["f2", "f1"], full_feature_names=False
+        )
+        assert ok is True
+        assert response.results[0].values[0].float_val == pytest.approx(2.0)
+        assert response.results[1].values[0].float_val == pytest.approx(1.0)
+
+    def _nameless_service(self):
+        service = MagicMock()
+        service.precompute_feature_names.return_value = ["fv1__f1", "fv1__f2"]
+        service.precompute_schema_fingerprint.return_value = "abc123"
+        return service
+
+    def test_nameless_vector_matches_on_fingerprint(self):
+        from feast.infra.online_stores.online_store import OnlineStore
+
+        vector = _make_vector(
+            feature_names=[],
+            values=[ValueProto(float_val=1.0), ValueProto(float_val=2.0)],
+        )
+        vector.schema_fingerprint = "abc123"
+        response = GetOnlineFeaturesResponse(results=[])
+        ok = OnlineStore._try_precomputed_fast_path(
+            blobs=[vector.SerializeToString()],
+            expected_feature_names=["f2", "f1"],
+            online_features_response=response,
+            full_feature_names=False,
+            num_rows=1,
+            entity_row_indices=([0],),
+            grouped_refs=[],
+            registry=MagicMock(),
+            project="test",
+            feature_service=self._nameless_service(),
+        )
+        assert ok is True
+        assert response.results[0].values[0].float_val == pytest.approx(2.0)
+        assert response.results[1].values[0].float_val == pytest.approx(1.0)
+
+    def test_nameless_vector_with_stale_fingerprint_returns_false(self):
+        from feast.infra.online_stores.online_store import OnlineStore
+
+        vector = _make_vector(feature_names=[], values=[ValueProto(float_val=1.0)])
+        vector.schema_fingerprint = "stale"
+        ok = OnlineStore._try_precomputed_fast_path(
+            blobs=[vector.SerializeToString()],
+            expected_feature_names=["f1"],
+            online_features_response=GetOnlineFeaturesResponse(results=[]),
+            full_feature_names=False,
+            num_rows=1,
+            entity_row_indices=([0],),
+            grouped_refs=[],
+            registry=MagicMock(),
+            project="test",
+            feature_service=self._nameless_service(),
+        )
+        assert ok is False
+
+    def test_nameless_vector_without_service_returns_false(self):
+        vector = _make_vector(feature_names=[], values=[ValueProto(float_val=1.0)])
+        vector.schema_fingerprint = "abc123"
+        ok, _ = self._fast_path([vector.SerializeToString()], ["fv1__f1"])
+        assert ok is False
 
     def test_extra_feature_in_expected_returns_false(self):
         vector = _make_vector(
@@ -568,6 +657,128 @@ def test_precomputed_retrieval_preserves_entity_order_and_duplicates(use_async):
     result = response.to_dict()
     assert result["driver_id"] == [3, 1, 3, 2]
     assert result["driver_stats__score"] == [30.0, 10.0, 30.0, 20.0]
+
+
+class _InMemoryOnlineStore(OnlineStore):
+    """Minimal key-value store so push -> precompute -> read runs end to end."""
+
+    def __init__(self):
+        self._rows: dict = {}
+
+    @staticmethod
+    def _key(table: FeatureView, entity_key) -> tuple:
+        return table.name, entity_key.SerializeToString()
+
+    def online_write_batch(self, config, table, data, progress):
+        for entity_key, values, _timestamp, _created_ts in data:
+            self._rows.setdefault(self._key(table, entity_key), {}).update(values)
+
+    def online_read(self, config, table, entity_keys, requested_features=None):
+        rows = []
+        for entity_key in entity_keys:
+            values = dict(self._rows.get(self._key(table, entity_key), {}))
+            if requested_features is not None:
+                values = {
+                    name: value
+                    for name, value in values.items()
+                    if name in requested_features
+                }
+            rows.append((None, values or None))
+        return rows
+
+    def update(
+        self,
+        config,
+        tables_to_delete,
+        tables_to_keep,
+        entities_to_delete,
+        entities_to_keep,
+        partial,
+    ):
+        pass
+
+    def teardown(self, config, tables, entities):
+        pass
+
+
+def _pushable_store(tmp_path):
+    from feast.entity import Entity
+    from feast.feature_store import FeatureStore
+    from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
+    from feast.repo_config import RepoConfig
+    from feast.value_type import ValueType
+
+    store = FeatureStore(
+        config=RepoConfig(
+            registry=str(tmp_path / "registry.db"),
+            project="test",
+            provider="local",
+            online_store=SqliteOnlineStoreConfig(path=str(tmp_path / "online.db")),
+            entity_key_serialization_version=3,
+        )
+    )
+
+    driver = Entity(name="driver", join_keys=["driver_id"], value_type=ValueType.INT64)
+    push_source = PushSource(
+        name="driver_stats_push",
+        batch_source=FileSource(
+            name="driver_stats_batch",
+            path=str(tmp_path / "driver_stats.parquet"),
+            timestamp_field="event_timestamp",
+            # Columns arrive from the pushing job under the source names.
+            field_mapping={"raw_driver_id": "driver_id"},
+        ),
+    )
+    feature_view = FeatureView(
+        name="driver_stats",
+        entities=[driver],
+        schema=[
+            Field(name="driver_id", dtype=Int64),
+            Field(name="score", dtype=Float32),
+        ],
+        source=push_source,
+    )
+    feature_service = FeatureService(
+        name="driver_service",
+        features=[feature_view],
+        precompute_online=True,
+    )
+    store.apply([driver, feature_view, feature_service])
+    store.provider._online_store = _InMemoryOnlineStore()
+    return store, feature_service
+
+
+def _push_score(store, score, event_timestamp):
+    import pandas as pd
+
+    store.push(
+        "driver_stats_push",
+        pd.DataFrame(
+            {
+                "raw_driver_id": [1001],
+                "score": [score],
+                "event_timestamp": [event_timestamp],
+            }
+        ),
+    )
+
+
+def test_push_with_field_mapping_refreshes_precomputed_vector(tmp_path):
+    """A push names its columns by source name; the vector must still refresh."""
+    store, feature_service = _pushable_store(tmp_path)
+    first_ts = datetime.now(tz=timezone.utc)
+
+    _push_score(store, 0.5, first_ts)
+    response = store.get_online_features(
+        features=feature_service, entity_rows=[{"driver_id": 1001}]
+    )
+    assert response.to_dict()["score"] == [pytest.approx(0.5)]
+
+    _push_score(store, 0.9, first_ts + timedelta(seconds=1))
+    response = store.get_online_features(
+        features=feature_service, entity_rows=[{"driver_id": 1001}]
+    )
+    assert response.to_dict()["score"] == [pytest.approx(0.9)]
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1008,7 +1219,19 @@ class TestPrecomputeForPush:
         store._precompute_for_push = FeatureStore._precompute_for_push.__get__(store)
         return store
 
+    def _make_pushed_fv(self):
+        from feast.field import Field
+        from feast.types import Int64
+
+        fv = MagicMock()
+        fv.join_keys = ["driver_id"]
+        fv.entity_columns = [Field(name="driver_id", dtype=Int64)]
+        fv.batch_source = None
+        return fv
+
     def test_triggers_for_matching_fv(self):
+        import pandas as pd
+
         proj = MagicMock()
         proj.name = "pushed_fv"
         svc = MagicMock()
@@ -1017,8 +1240,56 @@ class TestPrecomputeForPush:
         svc.name = "svc"
 
         store = self._make_mock_store([svc])
-        store._precompute_for_push("pushed_fv", MagicMock())
-        store.precompute_feature_service.assert_called_once_with("svc")
+        store.registry.get_any_feature_view.return_value = self._make_pushed_fv()
+        df = pd.DataFrame(
+            {"driver_id": [1001, 1002, 1001], "conv_rate": [0.1, 0.2, 0.3]}
+        )
+        store._precompute_for_push("pushed_fv", df)
+
+        store.precompute_feature_service.assert_called_once()
+        args, kwargs = store.precompute_feature_service.call_args
+        assert args == ("svc",)
+        entity_keys = kwargs["entity_keys"]
+        assert [ek.entity_values[0].int64_val for ek in entity_keys] == [1001, 1002]
+        assert all(list(ek.join_keys) == ["driver_id"] for ek in entity_keys)
+
+    def test_maps_source_columns_before_building_entity_keys(self):
+        import pandas as pd
+
+        proj = MagicMock()
+        proj.name = "pushed_fv"
+        svc = MagicMock()
+        svc.precompute_online = True
+        svc.feature_view_projections = [proj]
+        svc.name = "svc"
+
+        fv = self._make_pushed_fv()
+        fv.batch_source = MagicMock(field_mapping={"raw_driver_id": "driver_id"})
+        store = self._make_mock_store([svc])
+        store.registry.get_any_feature_view.return_value = fv
+        df = pd.DataFrame(
+            {"raw_driver_id": [1001, 1002, 1001], "conv_rate": [0.1, 0.2, 0.3]}
+        )
+        store._precompute_for_push("pushed_fv", df)
+
+        store.precompute_feature_service.assert_called_once()
+        entity_keys = store.precompute_feature_service.call_args.kwargs["entity_keys"]
+        assert [ek.entity_values[0].int64_val for ek in entity_keys] == [1001, 1002]
+
+    def test_skips_when_pushed_rows_have_no_entity_keys(self):
+        import pandas as pd
+
+        proj = MagicMock()
+        proj.name = "pushed_fv"
+        svc = MagicMock()
+        svc.precompute_online = True
+        svc.feature_view_projections = [proj]
+        svc.name = "svc"
+
+        store = self._make_mock_store([svc])
+        store.registry.get_any_feature_view.return_value = self._make_pushed_fv()
+        store._precompute_for_push("pushed_fv", pd.DataFrame({"conv_rate": [0.1]}))
+        store.precompute_feature_service.assert_not_called()
 
     def test_skips_non_matching_fv(self):
         proj = MagicMock()
@@ -1065,3 +1336,46 @@ class TestPrecomputeForPush:
         from feast.feature_store import FeatureStore
 
         FeatureStore._precompute_for_push(store, "fv", MagicMock())
+
+
+class TestPrecomputeOmitNames:
+    def _service(self, omit):
+        fv = _make_fv(
+            "fv1", [Field(name="f1", dtype=Float32), Field(name="f2", dtype=Float32)]
+        )
+        return FeatureService(
+            name="svc",
+            features=[fv],
+            precompute_online=True,
+            precompute_omit_names=omit,
+        )
+
+    def test_flag_round_trips_through_proto(self):
+        service = self._service(True)
+        assert FeatureService.from_proto(service.to_proto()).precompute_omit_names
+        assert not FeatureService.from_proto(
+            self._service(False).to_proto()
+        ).precompute_omit_names
+
+    def test_fingerprint_follows_ordered_names(self):
+        service = self._service(True)
+        assert service.precompute_feature_names() == ["fv1__f1", "fv1__f2"]
+        reordered = FeatureService(
+            name="svc2",
+            features=[
+                _make_fv(
+                    "fv1",
+                    [Field(name="f2", dtype=Float32), Field(name="f1", dtype=Float32)],
+                )
+            ],
+            precompute_online=True,
+            precompute_omit_names=True,
+        )
+        assert (
+            service.precompute_schema_fingerprint()
+            != reordered.precompute_schema_fingerprint()
+        )
+        assert (
+            service.precompute_schema_fingerprint()
+            == self._service(True).precompute_schema_fingerprint()
+        )

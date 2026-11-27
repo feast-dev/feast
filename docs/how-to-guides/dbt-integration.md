@@ -215,6 +215,8 @@ feast dbt import -m target/manifest.json -e driver_id --tag feast
 
 All specified entity columns must exist in each dbt model being imported. Models missing any entity column will be skipped with a warning.
 
+Entity columns should be string or integer columns. Feast prints a warning for entity columns whose type maps to another Feast type, such as `FLOAT64`, `BOOLEAN`, `BYTES` or `TIMESTAMP`, and still imports the model. Models with an array entity column are skipped with a warning.
+
 ### Generated Code
 
 The `--output` flag generates code like:
@@ -265,6 +267,7 @@ feast dbt import <manifest_path> [OPTIONS]
 |--------|-------------|---------|
 | `--entity-column`, `-e` | Entity column name (can be specified multiple times) | (required) |
 | `--data-source-type`, `-d` | Data source type: `bigquery`, `snowflake`, `file` | `bigquery` |
+| `--file-path-template` | File source path; `{model}` expands to the dbt model name | `/data/{model}.parquet` |
 | `--tag-filter`, `-t` | Filter models by dbt tag | None |
 | `--model`, `-m` | Import specific model(s) only | None |
 | `--timestamp-field` | Timestamp column name | `event_timestamp` |
@@ -337,7 +340,7 @@ SnowflakeSource(
 ### File
 
 ```bash
-feast dbt import manifest.json -e user_id -d file -o features.py
+feast dbt import -m manifest.json -e user_id -d file -o features.py
 ```
 
 Generates `FileSource` with a placeholder path:
@@ -349,8 +352,40 @@ FileSource(
 ```
 
 {% hint style="info" %}
-For file sources, update the generated path to point to your actual data files.
+When `--file-path-template` is omitted, the placeholder path is preserved. Update it
+manually or supply a template pointing to your actual files.
 {% endhint %}
+
+Use `--file-path-template` to configure the paths for both direct registry imports
+and generated Python definitions:
+
+```bash
+# Import directly into the Feast registry
+feast dbt import -m manifest.json -e user_id -d file \
+    --file-path-template "/warehouse/{model}.parquet"
+
+# Generate definitions with the same paths
+feast dbt import -m manifest.json -e user_id -d file \
+    --file-path-template "/warehouse/{model}.parquet" -o features.py
+```
+
+`{model}` is replaced with the dbt model's name, not its warehouse alias. For a
+model named `user_stats`, the example produces `/warehouse/user_stats.parquet`.
+A literal path without `{model}` is also accepted; it is used for every selected
+model. Repeat `{model}` if needed, and use `{{` and `}}` for literal braces.
+
+Paths are preserved as supplied after substitution, including relative paths and
+URIs such as `s3://bucket/{model}.parquet`. The importer does not check whether the
+files exist or change how the configured offline store resolves them. For the
+File/Dask offline store, relative paths are resolved against the feature repository,
+not the manifest's directory or the generated Python file's directory.
+
+The option is only valid with `--data-source-type file`. Empty templates, unknown
+placeholders, attribute/index access, conversions, format specifications, and
+unmatched braces produce an error before importing or writing definitions.
+
+The Python APIs accept the same optional `file_path_template` argument on
+`DbtToFeastMapper`, `DbtCodeGenerator`, and `generate_feast_code`.
 
 ## Best Practices
 
@@ -431,3 +466,15 @@ Ensure your dbt model includes the entity column specified with `--entity-column
 ### "Missing timestamp column"
 
 By default, Feast looks for `event_timestamp`. Use `--timestamp-field` to specify a different column name.
+
+### "Timestamp field ... does not map to a timestamp type"
+
+The timestamp column exists but its `data_type` in schema.yml is not a timestamp type (for example `STRING` or `INT64`). The model is still imported, but point-in-time retrieval needs a real timestamp column. Declare the column as `TIMESTAMP`, `DATETIME` or `DATE` in schema.yml. Columns with no `data_type` are treated as `STRING` and also trigger this warning.
+
+### "Entity column ... may not be suitable as an entity key"
+
+The entity column's `data_type` in schema.yml maps to a Feast type other than a string or integer type. Floating point values are unreliable join keys, and boolean, binary and timestamp columns rarely identify an entity. The model is still imported. Use a `STRING` or `INT64` column as the entity, or declare the column's type in schema.yml if it is wrong. `NUMBER` types with a precision above 18, such as Snowflake's `NUMBER(38,0)`, map to `Float64`; declare integer IDs as `INTEGER` or `NUMBER(18,0)` instead.
+
+### "Model ... has array entity column(s)"
+
+Array columns cannot be used as entity keys, so the model is skipped. Choose a scalar column with `--entity-column`.

@@ -116,6 +116,12 @@ logging.basicConfig(level=logging.INFO)
     show_default=True,
     help="Enable the Metrics Server",
 )
+@click.option(
+    "--gc-freeze",
+    is_flag=True,
+    show_default=True,
+    help="Run gc.freeze() after startup so full garbage collections skip the registry and other startup objects",
+)
 @click.pass_context
 def serve_command(
     ctx: click.Context,
@@ -132,6 +138,7 @@ def serve_command(
     tls_key_path: str,
     tls_cert_path: str,
     metrics: bool,
+    gc_freeze: bool,
 ):
     """Start a feature server locally on a given port."""
     if (tls_key_path and not tls_cert_path) or (not tls_key_path and tls_cert_path):
@@ -158,6 +165,7 @@ def serve_command(
         tls_key_path=tls_key_path,
         tls_cert_path=tls_cert_path,
         registry_ttl_sec=registry_ttl_sec,
+        gc_freeze=gc_freeze,
     )
 
 

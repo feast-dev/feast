@@ -9,7 +9,9 @@ from feast.mcp.server import _gunicorn_bind, _run_uvicorn
 
 
 def _cfg(host: str, port: int = 8000):
-    return SimpleNamespace(server=SimpleNamespace(host=host, port=port))
+    return SimpleNamespace(
+        server=SimpleNamespace(host=host, port=port, tls_cert=None, tls_key=None)
+    )
 
 
 @patch("feast.mcp.server._build_http_app")

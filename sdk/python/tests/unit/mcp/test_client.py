@@ -7,6 +7,8 @@ it) a denial payload dressed up as feature data.
 
 from __future__ import annotations
 
+import ssl
+
 import httpx
 import pytest
 
@@ -128,3 +130,21 @@ class TestTransportFailures:
         client = FeastClient("http://feast.invalid", timeout=1.0)
         with pytest.raises(httpx.ReadTimeout):
             await client.request("GET", "/x")
+
+
+class TestCustomCa:
+    async def test_cert_is_trusted_as_the_ca_bundle(self, feast_backend, monkeypatch):
+        """A self-signed Feast server is verified against ``cert``, not skipped."""
+        ctx = ssl.create_default_context()
+        cafiles = []
+
+        def create_default_context(cafile=None):
+            cafiles.append(cafile)
+            return ctx
+
+        monkeypatch.setattr(ssl, "create_default_context", create_default_context)
+        client = FeastClient("https://feast.invalid", cert="/certs/ca.crt")
+        await client.request("GET", "/x")
+
+        assert cafiles == ["/certs/ca.crt"]
+        assert feast_backend.client_verifies == [ctx]

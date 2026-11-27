@@ -2,7 +2,7 @@ import json
 import logging
 import re
 
-from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
@@ -15,7 +15,7 @@ from feast.errors import (
     PushSourceNotFoundException,
 )
 from feast.permissions.auth.auth_manager import get_auth_manager
-from feast.permissions.server.rest import inject_user_details
+from feast.permissions.server.rest import build_auth_dependency
 from feast.permissions.server.utils import (
     ServerType,
     init_auth_manager,
@@ -57,18 +57,12 @@ class RestRegistryServer:
         self.app = FastAPI(
             title="Feast REST Registry Server",
             description="Feast REST Registry Server",
-            dependencies=[Depends(inject_user_details)],
+            dependencies=[Depends(build_auth_dependency(scope_to_query_project=True))],
             version="1.0.0",
             openapi_url="/openapi.json",
             root_path="/api/v1",
             docs_url="/",
             redoc_url="/docs",
-            default_status_code=status.HTTP_200_OK,
-            default_headers={
-                "X-Content-Type-Options": "nosniff",
-                "X-XSS-Protection": "1; mode=block",
-                "X-Frame-Options": "DENY",
-            },
         )
         self._add_exception_handlers()
         self._add_logging_middleware()

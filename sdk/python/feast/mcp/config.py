@@ -13,12 +13,16 @@ Example ``feast_mcp.yaml``::
       host: 0.0.0.0
       port: 8000
       workers: 4
+      tls_cert: /certs/tls.crt   # serve HTTPS; needs tls_key too
+      tls_key: /certs/tls.key
 
     features:
-      url: http://localhost:6566
+      url: https://localhost:6566
+      cert: /certs/ca.crt        # CA that signed the feature server's cert
 
     registry:
-      url: http://localhost:6572
+      url: https://localhost:6572
+      cert: /certs/ca.crt
 
     auth:
       mode: oidc              # passthrough | kubernetes | oidc
@@ -45,16 +49,25 @@ class ServerConfig:
     host: str = "0.0.0.0"
     port: int = 8000
     workers: Optional[int] = None
+    #: Certificate and private key that HTTP transports serve HTTPS with.
+    #: Both or neither.
+    tls_cert: Optional[str] = None
+    tls_key: Optional[str] = None
 
 
 @dataclass(frozen=True)
 class FeaturesConfig:
     url: Optional[str] = None
+    #: CA certificate used to verify the feature server, e.g. when its
+    #: certificate is self-signed. Unset means the default trust store.
+    cert: Optional[str] = None
 
 
 @dataclass(frozen=True)
 class RegistryConfig:
     url: Optional[str] = None
+    #: Same as :attr:`FeaturesConfig.cert`, for the registry server.
+    cert: Optional[str] = None
 
 
 AUTH_MODES = ("passthrough", "kubernetes", "oidc")
@@ -144,16 +157,28 @@ def load_config(
             host=cli.get("host") or srv.get("host", "0.0.0.0"),
             port=int(cli.get("port") or srv.get("port", 8000)),
             workers=workers,
+            tls_cert=cli.get("tls_cert")
+            or _env("FEAST_MCP_TLS_CERT")
+            or srv.get("tls_cert"),
+            tls_key=cli.get("tls_key")
+            or _env("FEAST_MCP_TLS_KEY")
+            or srv.get("tls_key"),
         ),
         features=FeaturesConfig(
             url=cli.get("feast_url")
             or _env("FEAST_MCP_FEATURE_SERVER_URL")
             or feat.get("url"),
+            cert=cli.get("feast_cert")
+            or _env("FEAST_MCP_FEATURE_SERVER_CERT")
+            or feat.get("cert"),
         ),
         registry=RegistryConfig(
             url=cli.get("registry_url")
             or _env("FEAST_MCP_REGISTRY_URL")
             or reg.get("url"),
+            cert=cli.get("registry_cert")
+            or _env("FEAST_MCP_REGISTRY_CERT")
+            or reg.get("cert"),
         ),
         auth=AuthConfig(
             mode=cli.get("auth_mode")

@@ -1,5 +1,6 @@
 import hashlib
 import logging
+import re
 from concurrent import futures
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Set, Tuple
@@ -7,7 +8,7 @@ from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Set, 
 import google
 from google.cloud import bigtable
 from google.cloud.bigtable import row_filters
-from pydantic import PositiveInt, StrictStr
+from pydantic import NonNegativeInt, PositiveInt, StrictStr
 
 from feast import Entity, FeatureView, utils
 from feast.feature_view import DUMMY_ENTITY_NAME
@@ -27,6 +28,20 @@ MUTATIONS_PER_OP = 50_000
 # library limits the connection pool size to 10, which bounds the useful concurrency.
 # Overridable via ``BigtableOnlineStoreConfig.write_concurrency``.
 BIGTABLE_CLIENT_CONNECTION_POOL_SIZE = 10
+# Default for ``BigtableOnlineStoreConfig.max_batched_result_rows``: the largest
+# request, measured as entity rows x feature views, whose feature views are read with
+# one ReadRows call per Bigtable table. Past it each view is read on its own, so that
+# the rows of every view are not held at once.
+MAX_BATCHED_RESULT_ROWS = 2048
+# Bigtable rejects a row filter larger than 20 KB
+# (https://cloud.google.com/bigtable/quotas#limits-filters). One batched read carries
+# the row key pattern and the requested features of every view of a table in a single
+# filter, so a request whose filter would pass this size reads one feature view at a
+# time instead.
+MAX_BATCHED_FILTER_BYTES = 16_000
+# Upper bound on what one feature view adds to the serialized filter of a batched read
+# on top of its two regexes: the tags and lengths of its chain and of both conditions.
+BATCHED_FILTER_VIEW_OVERHEAD_BYTES = 32
 
 
 class BigtableOnlineStoreConfig(FeastConfigBaseModel):
@@ -54,6 +69,11 @@ class BigtableOnlineStoreConfig(FeastConfigBaseModel):
     per worker during ``online_write_batch``. Lower values reduce the write load placed
     on the Bigtable instance at the cost of longer materialization. Defaults to 10."""
 
+    max_batched_result_rows: NonNegativeInt = MAX_BATCHED_RESULT_ROWS
+    """(optional) Largest request, as entity rows x feature views, whose feature views
+    are read with one ReadRows call per Bigtable table. Set to 0 to always read one
+    feature view at a time. Defaults to 2048."""
+
 
 class BigtableOnlineStore(OnlineStore):
     _client: Optional[bigtable.Client] = None
@@ -67,14 +87,10 @@ class BigtableOnlineStore(OnlineStore):
         entity_keys: List[EntityKeyProto],
         requested_features: Optional[List[str]] = None,
     ) -> List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]]:
-        # Potential performance improvement opportunity described in
-        # https://github.com/feast-dev/feast/issues/3259
+        # Requests spanning several feature views are batched per Bigtable table by
+        # `_read_features_per_fv`; see https://github.com/feast-dev/feast/issues/3259
         feature_view = table
         bt_table_name = self._get_table_name(config=config, feature_view=feature_view)
-
-        client = self._get_client(online_config=config.online_store)
-        bt_instance = client.instance(instance_id=config.online_store.instance)
-        bt_table = bt_instance.table(bt_table_name)
         row_keys = [
             self._compute_row_key(
                 entity_key=entity_key,
@@ -83,29 +99,214 @@ class BigtableOnlineStore(OnlineStore):
             )
             for entity_key in entity_keys
         ]
+        bt_rows_dict = self._read_rows(
+            config, bt_table_name, row_keys, self._column_filter(requested_features)
+        )
+        return [self._process_bt_row(bt_rows_dict.get(row_key)) for row_key in row_keys]
+
+    def _read_features_per_fv(
+        self,
+        config: RepoConfig,
+        grouped_refs: List,
+        join_key_values: Dict,
+        entity_name_to_join_key_map: Dict,
+        online_features_response,
+        full_feature_names: bool,
+        include_feature_view_version_metadata: bool,
+    ) -> None:
+        """Read every requested feature view with one ReadRows call per Bigtable table.
+
+        Feature views keyed on the same entities share a Bigtable table, and each
+        view's rows are keyed ``{entity_id}#{feature_view_name}``, so the rows of all
+        those views are fetched together instead of one ReadRows call per view. The
+        filter of that call selects, for the rows of each view, the columns requested
+        from that view, so it returns the same cells as the per-view reads.
+        """
+
+        def read_one_view_at_a_time() -> None:
+            super(BigtableOnlineStore, self)._read_features_per_fv(
+                config,
+                grouped_refs,
+                join_key_values,
+                entity_name_to_join_key_map,
+                online_features_response,
+                full_feature_names,
+                include_feature_view_version_metadata,
+            )
+
+        if not self._should_batch(config, grouped_refs, join_key_values):
+            return read_one_view_at_a_time()
+
+        reads = []
+        keys_by_table: Dict[str, Dict[bytes, None]] = {}
+        # Per Bigtable table and feature view: the features requested from the view,
+        # where None stands for every column. One feature view requested under two
+        # aliases reads the same rows, so its row keys are deduplicated and its
+        # requested features merged.
+        views_by_table: Dict[str, Dict[str, Optional[Set[str]]]] = {}
+        for table, requested_features in grouped_refs:
+            table_entity_values, idxs, output_len = utils._get_unique_entities(
+                table, join_key_values, entity_name_to_join_key_map
+            )
+            row_keys = [
+                self._compute_row_key(
+                    entity_key=entity_key, feature_view_name=table.name, config=config
+                )
+                for entity_key in utils._get_entity_key_protos(table_entity_values)
+            ]
+            reads.append((table, requested_features, row_keys, idxs, output_len))
+
+            bt_table_name = self._get_table_name(config=config, feature_view=table)
+            keys_by_table.setdefault(bt_table_name, {}).update(dict.fromkeys(row_keys))
+            views = views_by_table.setdefault(bt_table_name, {})
+            requested = views.get(table.name, set())
+            views[table.name] = (
+                requested | set(requested_features)
+                if requested is not None and requested_features
+                else None
+            )
+
+        filters_by_table: Dict[str, Optional[row_filters.RowFilter]] = {}
+        for bt_table_name, views in views_by_table.items():
+            if not all(name.isascii() and name.isprintable() for name in views):
+                # The row key patterns of the filter are only built for names that
+                # are plain ASCII.
+                return read_one_view_at_a_time()
+            if self._batched_filter_size(views) > MAX_BATCHED_FILTER_BYTES:
+                return read_one_view_at_a_time()
+            filters_by_table[bt_table_name] = self._batched_filter(views)
+
+        # A row key names its feature view, and a feature view lives in one table, so
+        # the rows of every table can be indexed by row key alone. Each row is decoded
+        # once, however many aliases of its view were requested.
+        rows: Dict[
+            bytes, Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]
+        ] = {}
+        for bt_table_name, table_row_keys in keys_by_table.items():
+            bt_rows = self._read_rows(
+                config,
+                bt_table_name,
+                list(table_row_keys),
+                filters_by_table[bt_table_name],
+            )
+            for row_key, row in bt_rows.items():
+                rows[row_key] = self._process_bt_row(row)
+
+        for table, requested_features, row_keys, idxs, output_len in reads:
+            utils._populate_response_from_feature_data(
+                requested_features,
+                [rows.get(row_key, (None, None)) for row_key in row_keys],
+                idxs,
+                online_features_response,
+                full_feature_names,
+                table,
+                output_len,
+                include_feature_view_version_metadata,
+            )
+
+    @staticmethod
+    def _should_batch(
+        config: RepoConfig, grouped_refs: List, join_key_values: Dict
+    ) -> bool:
+        """Whether to read this request's feature views together.
+
+        A single view has nothing to share a ReadRows call with. The number of entity
+        rows in the request bounds the unique keys any one view reads, so the size is
+        estimated from the request shape. See :data:`MAX_BATCHED_RESULT_ROWS`.
+        """
+        if len(grouped_refs) < 2:
+            return False
+        entity_rows = max(
+            (len(values) for values in join_key_values.values()), default=0
+        )
+        return (
+            entity_rows * len(grouped_refs)
+            <= config.online_store.max_batched_result_rows
+        )
+
+    @classmethod
+    def _batched_filter(
+        cls, views: Dict[str, Optional[Set[str]]]
+    ) -> Optional[row_filters.RowFilter]:
+        """The filter of one read of a table's feature views.
+
+        ``views`` maps each feature view to the features requested from it, or to None
+        when it is read without a feature list. A view's rows only pass the columns
+        requested from that view: its condition is tied to its row keys, which end in
+        the view's name. So a column stored under a feature name that was only
+        requested from another view is not read, whether or not the view's current
+        schema still lists it.
+        """
+        if len(views) == 1:
+            return cls._column_filter(cls._sorted(next(iter(views.values()))))
+        per_view: List[row_filters.RowFilter] = []
+        for name, requested in views.items():
+            row_key_filter = row_filters.RowKeyRegexFilter(cls._row_key_regex(name))
+            column_filter = cls._column_filter(cls._sorted(requested))
+            per_view.append(
+                row_filters.RowFilterChain(filters=[row_key_filter, column_filter])
+                if column_filter is not None
+                else row_key_filter
+            )
+        return row_filters.RowFilterUnion(filters=per_view)
+
+    @classmethod
+    def _batched_filter_size(cls, views: Dict[str, Optional[Set[str]]]) -> int:
+        """An upper bound on the serialized size of :meth:`_batched_filter`."""
+        return sum(
+            len(cls._row_key_regex(name))
+            + (len(cls._column_filter_regex(sorted(requested))) if requested else 0)
+            + BATCHED_FILTER_VIEW_OVERHEAD_BYTES
+            for name, requested in views.items()
+        )
+
+    @staticmethod
+    def _row_key_regex(feature_view_name: str) -> bytes:
+        """Matches the row keys of one feature view; see :meth:`_compute_row_key`.
+
+        The entity id is a hex digest, so the first ``#`` of a row key ends it and a
+        row key matches the pattern of exactly one feature view.
+        """
+        return f"^[0-9a-f]+#{re.escape(feature_view_name)}$".encode()
+
+    @staticmethod
+    def _sorted(requested: Optional[Set[str]]) -> Optional[List[str]]:
+        return sorted(requested) if requested is not None else None
+
+    @classmethod
+    def _column_filter(
+        cls, requested_features: Optional[List[str]]
+    ) -> Optional[row_filters.RowFilter]:
+        if not requested_features:
+            return None
+        return row_filters.ColumnQualifierRegexFilter(
+            cls._column_filter_regex(requested_features)
+        )
+
+    @staticmethod
+    def _column_filter_regex(requested_features: List[str]) -> bytes:
+        return f"^({'|'.join(requested_features)}|event_ts)$".encode()
+
+    def _read_rows(
+        self,
+        config: RepoConfig,
+        bt_table_name: str,
+        row_keys: List[bytes],
+        filter_: Optional[row_filters.RowFilter],
+    ) -> Dict[bytes, bigtable.row.PartialRowData]:
+        client = self._get_client(online_config=config.online_store)
+        bt_instance = client.instance(instance_id=config.online_store.instance)
+        bt_table = bt_instance.table(bt_table_name)
 
         row_set = bigtable.row_set.RowSet()
         for row_key in row_keys:
             row_set.add_row_key(row_key)
-        rows = bt_table.read_rows(
-            row_set=row_set,
-            filter_=(
-                row_filters.ColumnQualifierRegexFilter(
-                    f"^({'|'.join(requested_features)}|event_ts)$".encode()
-                )
-                if requested_features
-                else None
-            ),
-        )
+        rows = bt_table.read_rows(row_set=row_set, filter_=filter_)
 
         # The BigTable client library only returns rows for keys that are found. This
         # means that it's our responsibility to match the returned rows to the original
-        # `row_keys` and make sure that we're returning a list of the same length as
-        # `entity_keys`.
-        bt_rows_dict: Dict[bytes, bigtable.row.PartialRowData] = {
-            row.row_key: row for row in rows
-        }
-        return [self._process_bt_row(bt_rows_dict.get(row_key)) for row_key in row_keys]
+        # `row_keys`, so the rows are returned by key.
+        return {row.row_key: row for row in rows}
 
     def _process_bt_row(
         self, row: Optional[bigtable.row.PartialRowData]

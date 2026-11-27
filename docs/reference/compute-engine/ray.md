@@ -35,7 +35,7 @@ The Ray compute engine provides:
 The Ray compute engine follows Feast's DAG-based architecture:
 
 ```
-EntityDF → RayReadNode → RayJoinNode → RayFilterNode → RayAggregationNode → RayTransformationNode → Output
+EntityDF → RayReadNode → RayTransformationNode → RayJoinNode → RayFilterNode → RayAggregationNode → Output
 ```
 
 ### Core Components

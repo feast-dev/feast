@@ -2,7 +2,7 @@
 name: feast-dev
 description: Development guide for contributing to the Feast codebase. Covers environment setup, testing, linting, project structure, and PR workflow for feast-dev/feast.
 license: Apache-2.0
-compatibility: Works with Claude Code, OpenAI Codex, and any Agent Skills compatible tool. Requires Python 3.10+, uv, and git.
+compatibility: Works with Claude Code, OpenAI Codex, and any Agent Skills compatible tool. Requires Python 3.11+, uv, and git.
 metadata:
   author: feast-dev
   version: "1.0"

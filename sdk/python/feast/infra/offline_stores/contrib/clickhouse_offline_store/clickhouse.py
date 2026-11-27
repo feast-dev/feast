@@ -393,6 +393,13 @@ def arrow_to_ch_type(t_str: str, nullable: bool) -> str:
     try:
         if t_str.startswith("timestamp"):
             return _arrow_to_ch_timestamp_type(t_str)
+        if t_str.startswith("date"):
+            # Date only holds 1970-01-01 to 2149-06-06 and clamps other values; Date32
+            # also holds dates outside that range.
+            return "Date32"
+        decimal = re.fullmatch(r"decimal\d+\((\d+), (\d+)\)", t_str)
+        if decimal is not None:
+            return f"Decimal({decimal.group(1)}, {decimal.group(2)})"
         return {
             "bool": "Boolean",
             "int8": "Int8",
@@ -402,10 +409,11 @@ def arrow_to_ch_type(t_str: str, nullable: bool) -> str:
             "uint8": "UInt8",
             "uint16": "UInt16",
             "uint32": "UInt32",
-            "uint64": "Uint64",
+            "uint64": "UInt64",
             "float": "Float32",
             "double": "Float64",
             "string": "String",
+            "large_string": "String",
         }[t_str]
     except KeyError:
         raise ValueError(f"Unsupported type: {t_str}")
@@ -469,7 +477,7 @@ WITH entity_dataframe AS (
             {% if featureview.entities %}
             ,(
                 {% for entity in featureview.entities %}
-                    CAST("{{entity}}" as VARCHAR) ||
+                    CAST(LENGTH(CAST("{{entity}}" AS VARCHAR)) AS VARCHAR) || ':' || CAST("{{entity}}" AS VARCHAR) ||
                 {% endfor %}
                 CAST("{{entity_df_event_timestamp_col}}" AS VARCHAR)
             ) AS "{{featureview.name}}__entity_row_unique_id"
@@ -532,11 +540,15 @@ WITH entity_dataframe AS (
         entity_dataframe.entity_timestamp,
         entity_dataframe."{{featureview.name}}__entity_row_unique_id"
     FROM "{{ featureview.name }}__subquery" AS subquery
+    {% if featureview.entities %}
     INNER JOIN "{{ featureview.name }}__entity_dataframe" AS entity_dataframe
-    ON TRUE
+    ON
         {% for entity in featureview.entities %}
-        AND subquery."{{ entity }}" = entity_dataframe."{{ entity }}"
+        {% if not loop.first %}AND {% endif %}subquery."{{ entity }}" = entity_dataframe."{{ entity }}"
         {% endfor %}
+    {% else %}
+    CROSS JOIN "{{ featureview.name }}__entity_dataframe" AS entity_dataframe
+    {% endif %}
     WHERE TRUE
         AND subquery.event_timestamp <= entity_dataframe.entity_timestamp
 
@@ -625,6 +637,7 @@ LEFT JOIN (
             ,"{% if full_feature_names %}{{ featureview.name }}__{{featureview.field_mapping.get(feature, feature)}}{% else %}{{ featureview.field_mapping.get(feature, feature) }}{% endif %}"
         {% endfor %}
     FROM "{{ featureview.name }}__cleaned"
-) AS "{{featureview.name}}" USING ("{{featureview.name}}__entity_row_unique_id")
+) AS "{{featureview.name}}"
+ON "{{featureview.name}}"."{{featureview.name}}__entity_row_unique_id" = entity_dataframe."{{featureview.name}}__entity_row_unique_id"
 {% endfor %}
 """

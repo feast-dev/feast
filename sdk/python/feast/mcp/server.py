@@ -55,14 +55,18 @@ def _mount_servers(mcp: FastMCP, cfg: Config) -> None:
     if cfg.features.url:
         from feast.mcp.features import create_features_mcp
 
-        client = FeastClient(cfg.features.url, timeout=cfg.timeout)
+        client = FeastClient(
+            cfg.features.url, timeout=cfg.timeout, cert=cfg.features.cert
+        )
         mcp.mount(create_features_mcp(client), namespace="features")
         logger.info("Feature tools mounted from %s", cfg.features.url)
 
     if cfg.registry.url:
         from feast.mcp.registry import create_registry_mcp
 
-        client = FeastClient(cfg.registry.url, timeout=cfg.timeout)
+        client = FeastClient(
+            cfg.registry.url, timeout=cfg.timeout, cert=cfg.registry.cert
+        )
         mcp.mount(create_registry_mcp(client), namespace="registry")
         logger.info("Registry tools mounted from %s", cfg.registry.url)
 
@@ -87,7 +91,8 @@ def _configure_auth(mcp: FastMCP, cfg: Config) -> None:
         logger.info("Kubernetes authentication enabled (Token Access Review)")
         return
 
-    base_url = cfg.auth.base_url or f"http://localhost:{cfg.server.port}"
+    scheme = "https" if cfg.server.tls_cert else "http"
+    base_url = cfg.auth.base_url or f"{scheme}://localhost:{cfg.server.port}"
     mcp.auth = create_oidc_auth(
         discovery_url=cfg.auth.discovery_url,  # type: ignore[arg-type]
         client_id=cfg.auth.client_id,  # type: ignore[arg-type]
@@ -105,19 +110,27 @@ def _build_http_app(mcp: FastMCP, cfg: Config):
     return mcp.http_app(**kwargs)  # type: ignore[arg-type]
 
 
+def _uvicorn_ssl_kwargs(cfg: Config) -> dict:
+    """uvicorn's HTTPS settings, or nothing when TLS is not configured."""
+    if not cfg.server.tls_cert:
+        return {}
+    return {"ssl_certfile": cfg.server.tls_cert, "ssl_keyfile": cfg.server.tls_key}
+
+
 def _run_uvicorn(mcp: FastMCP, cfg: Config) -> None:
     import uvicorn
 
     app = _build_http_app(mcp, cfg)
+    ssl_kwargs = _uvicorn_ssl_kwargs(cfg)
     if cfg.server.host == "::":
         # uvicorn.run(host="::") binds IPv6-only, which drops IPv4 clients
         # (see feast.utils._make_dual_stack_socket).
         from feast.utils import _make_dual_stack_socket
 
         sock = _make_dual_stack_socket(cfg.server.port)
-        uvicorn.Server(uvicorn.Config(app)).run(sockets=[sock])
+        uvicorn.Server(uvicorn.Config(app, **ssl_kwargs)).run(sockets=[sock])
     else:
-        uvicorn.run(app, host=cfg.server.host, port=cfg.server.port)
+        uvicorn.run(app, host=cfg.server.host, port=cfg.server.port, **ssl_kwargs)
 
 
 def _gunicorn_bind(cfg: Config) -> str:
@@ -141,6 +154,10 @@ def _run_gunicorn(mcp: FastMCP, cfg: Config) -> None:
             self.cfg.set("workers", cfg.server.workers)
             self.cfg.set("worker_class", "uvicorn.workers.UvicornWorker")
             self.cfg.set("accesslog", "-")
+            if cfg.server.tls_cert:
+                # UvicornWorker reads these from gunicorn's config.
+                self.cfg.set("certfile", cfg.server.tls_cert)
+                self.cfg.set("keyfile", cfg.server.tls_key)
 
         def load(self):
             return asgi_app
@@ -188,6 +205,12 @@ def run_server(
             "--oidc-discovery-url and --oidc-client-id are required with --auth-mode oidc"
         )
 
+    if bool(cfg.server.tls_cert) != bool(cfg.server.tls_key):
+        raise click.UsageError(
+            "--tls-cert and --tls-key must be set together to serve HTTPS "
+            "(via CLI, env var, or feast_mcp.yaml)"
+        )
+
     if cfg.server.transport == "sse" and cfg.server.workers and cfg.server.workers > 1:
         raise click.UsageError(
             "SSE transport does not support multiple workers. "
@@ -229,6 +252,16 @@ def run_server(
     help="URL of the Feast REST registry server to proxy (mounts the registry tools).",
 )
 @click.option(
+    "--feast-cert",
+    default=None,
+    help="CA certificate to verify the feature server's TLS certificate with.",
+)
+@click.option(
+    "--registry-cert",
+    default=None,
+    help="CA certificate to verify the registry server's TLS certificate with.",
+)
+@click.option(
     "--timeout",
     type=float,
     default=None,
@@ -256,6 +289,16 @@ def run_server(
     type=int,
     default=None,
     help="Run under gunicorn with this many workers (not supported by sse).",
+)
+@click.option(
+    "--tls-cert",
+    default=None,
+    help="TLS certificate to serve HTTP transports over HTTPS. Needs --tls-key.",
+)
+@click.option(
+    "--tls-key",
+    default=None,
+    help="TLS private key for --tls-cert.",
 )
 # --- authentication ---
 @click.option(

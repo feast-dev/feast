@@ -1,5 +1,6 @@
 import logging
-from typing import Any, Dict, Optional
+import ssl
+from typing import Any, Dict, Optional, Union
 from urllib.parse import quote
 
 import httpx
@@ -40,9 +41,16 @@ def path_segment(value: str) -> str:
 class FeastClient:
     """HTTP client that proxies requests to the Feast feature server."""
 
-    def __init__(self, base_url: str, timeout: float = 30.0):
+    def __init__(
+        self, base_url: str, timeout: float = 30.0, cert: Optional[str] = None
+    ):
         self._base_url = base_url.rstrip("/")
         self._timeout = timeout
+        # ``cert`` is a CA bundle to trust (e.g. for a self-signed Feast
+        # server). Loaded once here so a bad path fails at startup.
+        self._verify: Union[bool, ssl.SSLContext] = (
+            ssl.create_default_context(cafile=cert) if cert else True
+        )
 
     def _headers(self, token: Optional[str] = None) -> Dict[str, str]:
         headers: Dict[str, str] = {"Content-Type": "application/json"}
@@ -60,7 +68,9 @@ class FeastClient:
         params: Optional[Dict[str, str]] = None,
     ) -> Any:
         url = f"{self._base_url}{path}"
-        async with httpx.AsyncClient(timeout=self._timeout) as client:
+        async with httpx.AsyncClient(
+            timeout=self._timeout, verify=self._verify
+        ) as client:
             response = await client.request(
                 method,
                 url,

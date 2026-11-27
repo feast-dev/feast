@@ -111,7 +111,7 @@ Feast is a natural fit for this checkpoint layer because it already provides:
 
 ## Prerequisites
 
-- Python 3.10+
+- Python 3.11+
 - Feast with MCP and Milvus support
 - OpenAI API key (for live tool-calling; demo mode works without it)
 

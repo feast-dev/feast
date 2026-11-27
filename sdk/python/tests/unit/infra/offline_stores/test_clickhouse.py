@@ -1,8 +1,11 @@
 import logging
 import threading
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
+import numpy as np
+import pandas as pd
 import pytest
 
 from feast.infra.utils.clickhouse.clickhouse_config import ClickhouseConfig
@@ -240,3 +243,150 @@ class TestNonEntityRetrieval:
         fv = self._make_feature_view("test_fv")
         job = self._call_get_historical_features([fv])
         assert isinstance(job, RetrievalJob)
+
+
+class TestPointInTimeJoinTemplate:
+    """Render the ClickHouse point-in-time join template and check the JOIN syntax.
+
+    ClickHouse's old analyzer (the default before 24.3) rejects ``ON TRUE AND ...``
+    (INVALID_JOIN_ON_EXPRESSION) and more than one ``USING`` join in the same
+    SELECT (Code: 48).
+    """
+
+    @staticmethod
+    def _context(name, entities, created_timestamp_column=None):
+        from feast.infra.offline_stores.offline_utils import FeatureViewQueryContext
+
+        return FeatureViewQueryContext(
+            name=name,
+            ttl=86400,
+            entities=entities,
+            features=[f"{name}_value"],
+            field_mapping={},
+            timestamp_field="event_timestamp",
+            created_timestamp_column=created_timestamp_column,
+            table_subquery=f"{name}_table",
+            entity_selections=[f'"{entity}" AS "{entity}"' for entity in entities],
+            min_event_timestamp="2025-01-01T00:00:00",
+            max_event_timestamp="2025-01-02T00:00:00",
+            date_partition_column=None,
+            timestamp_field_type=None,
+        )
+
+    @staticmethod
+    def _render(contexts):
+        from feast.infra.offline_stores import offline_utils
+        from feast.infra.offline_stores.contrib.clickhouse_offline_store.clickhouse import (
+            MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
+        )
+
+        entity_columns = {
+            "driver_id": None,
+            "customer_id": None,
+            "event_timestamp": None,
+        }
+        query = offline_utils.build_point_in_time_query(
+            contexts,
+            left_table_query_string="entity_df_table",
+            entity_df_event_timestamp_col="event_timestamp",
+            entity_df_columns=entity_columns.keys(),
+            query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
+            full_feature_names=False,
+        )
+        return " ".join(query.split())
+
+    @staticmethod
+    def _final_select(query):
+        # The last statement, after the per-feature-view CTEs.
+        return query[query.index("Joins the outputs of multiple time travel joins") :]
+
+    def test_entity_join_has_no_on_true(self):
+        query = self._render(
+            [
+                self._context("driver_stats", ["driver_id"], "created"),
+                self._context("order_stats", ["driver_id", "customer_id"]),
+            ]
+        )
+        assert "ON TRUE" not in query
+        assert (
+            'AS entity_dataframe ON subquery."driver_id" = entity_dataframe."driver_id" '
+            "WHERE TRUE"
+        ) in query
+        assert (
+            'AS entity_dataframe ON subquery."driver_id" = entity_dataframe."driver_id" '
+            'AND subquery."customer_id" = entity_dataframe."customer_id" WHERE TRUE'
+        ) in query
+
+    def test_feature_views_are_joined_back_with_on_not_using(self):
+        query = self._render(
+            [
+                self._context("driver_stats", ["driver_id"], "created"),
+                self._context("customer_stats", ["customer_id"]),
+            ]
+        )
+        final_select = self._final_select(query)
+        assert "USING" not in final_select
+        assert final_select.count("LEFT JOIN") == 2
+        for name in ("driver_stats", "customer_stats"):
+            assert (
+                f'AS "{name}" ON "{name}"."{name}__entity_row_unique_id" = '
+                f'entity_dataframe."{name}__entity_row_unique_id"'
+            ) in final_select
+
+    def test_feature_view_without_entities_uses_cross_join(self):
+        query = self._render(
+            [
+                self._context("driver_stats", ["driver_id"]),
+                self._context("global_stats", []),
+            ]
+        )
+        assert "ON TRUE" not in query
+        assert (
+            'FROM "global_stats__subquery" AS subquery CROSS JOIN '
+            '"global_stats__entity_dataframe" AS entity_dataframe WHERE TRUE'
+        ) in query
+
+
+@pytest.mark.parametrize(
+    "arrow_type, nullable, expected",
+    [
+        ("uint8", False, "UInt8"),
+        ("uint64", False, "UInt64"),
+        ("uint64", True, "Nullable(UInt64)"),
+        ("date32[day]", True, "Nullable(Date32)"),
+        ("date64[ms]", False, "Date32"),
+        ("decimal128(10, 2)", False, "Decimal(10, 2)"),
+        ("decimal32(7, 2)", False, "Decimal(7, 2)"),
+        ("decimal256(50, 5)", True, "Nullable(Decimal(50, 5))"),
+        ("large_string", False, "String"),
+        ("list<item: uint64>", True, "Array(Nullable(UInt64))"),
+        ("list<item: decimal128(10, 2)>", False, "Array(Decimal(10, 2))"),
+    ],
+)
+def test_arrow_to_ch_type_uses_valid_clickhouse_type_names(
+    arrow_type, nullable, expected
+):
+    from feast.infra.offline_stores.contrib.clickhouse_offline_store.clickhouse import (
+        arrow_to_ch_type,
+    )
+
+    assert arrow_to_ch_type(arrow_type, nullable) == expected
+
+
+def test_entity_dataframe_schema_with_unsigned_date_and_decimal_columns():
+    from feast.infra.offline_stores.contrib.clickhouse_offline_store.clickhouse import (
+        _df_to_create_table_schema,
+    )
+
+    df = pd.DataFrame(
+        {
+            "id": np.array([1, 2], dtype="uint64"),
+            "day": [datetime(2024, 1, 1).date(), datetime(2024, 1, 2).date()],
+            "price": [Decimal("1.50"), Decimal("2.25")],
+            "driver_id": pd.array(["a", "b"], dtype="string[pyarrow]"),
+        }
+    )
+
+    assert _df_to_create_table_schema(df) == (
+        '"id" Nullable(UInt64), "day" Nullable(Date32), "price" Nullable(Decimal(3, 2)), "driver_id" Nullable(String)'
+    )
