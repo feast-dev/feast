@@ -1,0 +1,20 @@
+project: ai_dj
+provider: local
+registry: ../data/registry.db
+
+online_store:
+  type: milvus
+  path: ../data/online_store.db # Milvus Lite: a local file, no server needed
+  vector_enabled: true
+  embedding_dim: 768 # one size for every vector field in the project
+  index_type: FLAT
+  metric_type: COSINE
+  enable_openai_compatible_store: true # store numbers as numbers, so year > 2010 works
+
+offline_store:
+  type: file
+
+entity_key_serialization_version: 3
+
+auth:
+  type: no_auth

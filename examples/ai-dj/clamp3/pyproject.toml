@@ -1,0 +1,26 @@
+[project]
+name = "feast-ai-dj-clamp3"
+version = "0.1.0"
+description = "CLaMP 3 music embeddings for the Feast AI DJ (separate env: CLaMP 3 pins transformers 4.40)"
+requires-python = "==3.11.*"
+dependencies = [
+    "torch==2.5.1",
+    "torchaudio==2.5.1",
+    "transformers==4.40.0",
+    "accelerate==0.34.0",
+    "nnAudio==0.3.3",
+    "numpy==1.26.4",
+    "scikit-learn==1.5.1",
+    "tqdm==4.66.5",
+    "unidecode==1.3.6",
+    "mido==1.3.0",
+    "samplings==0.1.7",
+    "abctoolkit==0.0.4",
+    "soundfile==0.12.1",
+    "pillow==9.5.0",
+    "requests",
+    "pandas==2.2.3",
+    "pyarrow==18.1.0",  # newer pyarrow needs NumPy 2; CLaMP 3 pins 1.26
+    "fastapi",
+    "uvicorn",
+]

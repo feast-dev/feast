@@ -306,7 +306,7 @@ The DJ gives the LLM only two of them, `features_get_online_features` and `featu
 The agent connects to `feast mcp`, hands the two tools to Ollama, and lets `granite4.2:3b` drive:
 
 ```python
-async with streamablehttp_client("http://127.0.0.1:6590/mcp") as (read, write, _), \
+async with streamable_http_client("http://127.0.0.1:6590/mcp") as (read, write), \
         ClientSession(read, write) as mcp:
     await mcp.initialize()
     tools = {t.name: t for t in (await mcp.list_tools()).tools}
@@ -377,36 +377,20 @@ You could glue a vector database, a key-value store and a few scripts together. 
 
 ## Run it yourself
 
-<!-- TODO: link the demo code once it is published -->
-
-You need [uv](https://docs.astral.sh/uv/), [Ollama](https://ollama.com), [Navidrome](https://www.navidrome.org) and ffmpeg. Then:
+The whole demo lives in the Feast repo under [`examples/ai-dj`](https://github.com/feast-dev/feast/tree/master/examples/ai-dj). You need [uv](https://docs.astral.sh/uv/), [Ollama](https://ollama.com), [Navidrome](https://www.navidrome.org), ffmpeg, git and curl. Then:
 
 ```bash
-ollama pull granite4.2:3b
-uv sync
-
-# Music, vectors, Feast
-mkdir -p data/raw && curl -L -o data/raw/fma_metadata.zip https://os.unil.cloud.switch.ch/fma/fma_metadata.zip
-uv run python scripts/prepare_catalog.py
-./clamp3/setup.sh && (cd clamp3 && .venv/bin/python embed_catalog.py)
-uv run python scripts/build_features.py
-(cd feature_repo && uv run feast apply && uv run feast materialize-incremental $(date -u +%Y-%m-%dT%H:%M:%S))
-
-# Five services, each in its own terminal
-# (first run: scripts/setup_navidrome.py, then the README's one-time Navidrome setup)
-navidrome --configfile config/navidrome.toml
-(cd clamp3 && .venv/bin/python server.py)
-uv run python -m dj.server
-uv run feast mcp --config feast_mcp.yaml
-uv run python -m dj.bridge
-
-# Listen, learn, DJ
-uv run python scripts/simulate_plays.py
-uv run python -m dj.taste
-uv run python -m dj.agent "hype me up for a workout" -v
+git clone https://github.com/feast-dev/feast.git
+cd feast/examples/ai-dj
+./setup.sh   # the LLM, CLaMP 3 and 12 songs; embeds them and loads Feast
+./start.sh   # starts the services and opens the UI at http://127.0.0.1:6600
 ```
 
-Open Navidrome at `http://127.0.0.1:4533` and press play on your new playlist.
+`setup.sh` takes 12 songs so the first run is quick. `TRACKS=1000 ./setup.sh` builds the 1,000-song catalog used in this post.
+
+In the UI, press **Simulate a listener**, then **Update taste**, then ask for "hype me up for a workout". You see every MCP call the DJ makes, and the playlist plays right there in the browser. Songs you play to half way, or skip, go back into Feast through Navidrome and the bridge.
+
+The playlist is in Navidrome too, at `http://127.0.0.1:4533`. The example's README lists each step if you would rather run the pieces yourself.
 
 ## Credits
 
