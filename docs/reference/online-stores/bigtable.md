@@ -29,6 +29,10 @@ online_store:
 The full set of configuration options is available in
 [BigtableOnlineStoreConfig](https://rtd.feast.dev/en/latest/#feast.infra.online_stores.bigtable.BigtableOnlineStoreConfig).
 
+## Batched Multi-Feature-View Reads
+
+Feature views keyed on the same entities share one Bigtable table. When a request spans several feature views, the rows of all the views in a table are fetched with a single `ReadRows` call, so a request for 10 feature views on the same entities costs **1** call instead of 10. Requests larger than `max_batched_result_rows` (entity rows × feature views, default 2048) read one feature view at a time instead. The row filter of that call matches each view's rows by row key and selects only the features requested from that view, so a batched read returns the same cells as the per-view reads. Requests whose filter would come close to Bigtable's 20 KB row filter limit, which takes several hundred requested features in one table, read one feature view at a time, and so do requests naming a feature view whose name is not plain ASCII. A single-view request is never batched. Set `max_batched_result_rows: 0` to turn batching off.
+
 ## Functionality Matrix
 
 The set of functionality supported by online stores is described in detail [here](overview.md#functionality).

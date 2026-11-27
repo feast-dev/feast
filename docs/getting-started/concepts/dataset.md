@@ -1,6 +1,6 @@
 # \[Alpha] Saved dataset
 
-Feast datasets allow for conveniently saving dataframes that include both features and entities to be subsequently used for data analysis and model training. Data Quality Monitoring was the original motivation for creating the dataset concept. Note that the Great Expectations-based validation that used saved datasets is now deprecated in favor of Feast's built-in [Feature Quality Monitoring](../../how-to-guides/feature-monitoring.md) system, which does not require saved datasets.
+Feast datasets allow for conveniently saving dataframes that include both features and entities to be subsequently used for data analysis and model training. Data Quality Monitoring was the original motivation for creating the dataset concept.
 
 Dataset's metadata is stored in the Feast registry and raw data (features, entities, additional input keys and timestamp) is stored in the [offline store](../components/offline-store.md).
 
@@ -28,7 +28,7 @@ historical_job = store.get_historical_features(
 dataset = store.create_saved_dataset(
     from_=historical_job,
     name='my_training_dataset',
-    storage=SavedDatasetBigQueryStorage(table_ref='<gcp-project>.<gcp-dataset>.my_training_dataset'),
+    storage=SavedDatasetBigQueryStorage(table='<gcp-project>.<gcp-dataset>.my_training_dataset'),
     tags={'author': 'oleksii'}
 )
 

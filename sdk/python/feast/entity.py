@@ -126,7 +126,7 @@ class Entity:
 
     def __eq__(self, other):
         if not isinstance(other, Entity):
-            raise TypeError("Comparisons should only involve Entity class objects.")
+            return False
 
         if (
             self.name != other.name

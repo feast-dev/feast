@@ -1,6 +1,17 @@
 import { FEAST_FCO_TYPES } from "../parsers/types";
 
 /**
+ * Test if a regex pattern is potentially vulnerable to catastrophic backtracking.
+ * Rejects patterns with nested quantifiers like (a+)+ or (a*)*
+ */
+const isSafePattern = (pattern: string): boolean => {
+  if (pattern.length > 1000) return false;
+  // Reject nested quantifiers: a quantifier applied to a group containing a quantifier
+  if (/(\([^)]*[+*][^)]*\))[+*{]/.test(pattern)) return false;
+  return true;
+};
+
+/**
  * Get permissions for a specific entity
  * @param permissions List of all permissions
  * @param entityType Type of the entity
@@ -42,6 +53,9 @@ export const getEntityPermissions = (
       matchesName = true; // If no name patterns, matches all names
     } else {
       matchesName = permission.spec?.name_patterns?.some((pattern: string) => {
+        if (!pattern || !isSafePattern(pattern)) {
+          return pattern === entityName;
+        }
         try {
           const regex = new RegExp(pattern);
           return regex.test(entityName);

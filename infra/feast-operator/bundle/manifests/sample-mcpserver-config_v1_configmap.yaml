@@ -1,0 +1,20 @@
+apiVersion: v1
+data:
+  feast_mcp.yaml: |
+    server:
+      # host/port are set by the operator on the CLI and override this file;
+      # transport is honored from here.
+      transport: http
+    # The MCP server runs as a container in the same pod as the online and
+    # registry servers, so it reaches them over localhost.
+    features:
+      url: http://localhost:6566
+    registry:
+      url: http://localhost:6572
+    timeout: 30
+    observability:
+      level: INFO
+      format: json
+kind: ConfigMap
+metadata:
+  name: sample-mcpserver-config

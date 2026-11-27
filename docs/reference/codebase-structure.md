@@ -28,7 +28,7 @@ The majority of Feast logic lives in these Python files:
 
 There are also several important submodules:
 * `infra/` contains all the infrastructure components, such as the provider, offline store, online store, batch materialization engine, and registry.
-* `dqm/` covers data quality monitoring. The legacy Great Expectations profiler (`profilers/ge_profiler`) is deprecated; see [`monitoring/`](../../sdk/python/feast/monitoring/) for the current built-in monitoring system.
+* `dqm/` covers data quality monitoring. See [`monitoring/`](../../sdk/python/feast/monitoring/) for the built-in monitoring system.
 * `diff/` covers the logic for determining how to apply infrastructure changes upon feature repo changes (e.g. the output of `feast plan` and `feast apply`).
 * `embedded_go/` covers the Go feature server.
 * `ui/` contains the embedded Web UI, to be launched on the `feast ui` command.

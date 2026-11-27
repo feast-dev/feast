@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import uuid as uuid_module
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, TypeAlias, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 import pandas as pd
 import pyarrow as pa
@@ -25,11 +25,9 @@ from feast.type_map import feast_value_type_to_python_type
 from feast.value_type import ValueType
 
 if TYPE_CHECKING:
-    import torch
-
-    TorchTensor: TypeAlias = torch.Tensor
+    from torch import Tensor as TorchTensor
 else:
-    TorchTensor: TypeAlias = Any
+    TorchTensor = Any
 
 TIMESTAMP_POSTFIX: str = "__ts"
 
@@ -136,8 +134,11 @@ class OnlineResponse:
         tensor_dict: Dict[str, Union[TorchTensor, List[Any]]] = {}
         for key in feature_keys:
             raw_values = feature_dict[key]
+            # Infer the feature type from the retrieved values, not from the
+            # substituted ones: default_value is a stand-in for a missing entity
+            # and says nothing about the feature's actual type.
+            first_valid = next((v for v in raw_values if v is not None), default_value)
             values = [v if v is not None else default_value for v in raw_values]
-            first_valid = next((v for v in values if v is not None), None)
             if isinstance(first_valid, (int, float, bool)):
                 try:
                     device = "cuda" if torch.cuda.is_available() else "cpu"

@@ -221,7 +221,7 @@ class LabelView(BaseFeatureView):
 
     def __eq__(self, other):
         if not isinstance(other, LabelView):
-            raise TypeError("Comparisons should only involve LabelView class objects.")
+            return False
 
         if not super().__eq__(other):
             return False

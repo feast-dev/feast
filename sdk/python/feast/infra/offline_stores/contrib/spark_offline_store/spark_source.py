@@ -5,6 +5,7 @@ from enum import Enum
 from typing import Any, Callable, Dict, Iterable, Optional, Tuple
 
 from feast import flags_helper
+from feast.credentials import ConnectionRef
 from feast.data_source import DataSource
 from feast.errors import DataSourceNoNameException, DataSourceNotFoundException
 from feast.infra.offline_stores.offline_utils import get_temp_entity_table_name
@@ -51,6 +52,7 @@ class SparkSource(DataSource):
         timestamp_field: Optional[str] = None,
         date_partition_column: Optional[str] = None,
         date_partition_column_format: Optional[str] = "%Y-%m-%d",
+        connection_ref: Optional[ConnectionRef] = None,
     ):
         """Creates a SparkSource object.
 
@@ -90,6 +92,7 @@ class SparkSource(DataSource):
             date_partition_column=date_partition_column,
             tags=tags,
             owner=owner,
+            connection_ref=connection_ref,
         )
 
         if not flags_helper.is_test():
@@ -155,6 +158,7 @@ class SparkSource(DataSource):
         assert data_source.HasField("spark_options")
         spark_options = SparkOptions.from_proto(data_source.spark_options)
 
+        tags = dict(data_source.tags)
         return SparkSource(
             name=data_source.name,
             field_mapping=dict(data_source.field_mapping),
@@ -168,8 +172,9 @@ class SparkSource(DataSource):
             timestamp_field=data_source.timestamp_field,
             created_timestamp_column=data_source.created_timestamp_column,
             description=data_source.description,
-            tags=dict(data_source.tags),
+            tags=tags,
             owner=data_source.owner,
+            connection_ref=ConnectionRef.from_tags(tags),
         )
 
     def _to_proto_impl(self) -> DataSourceProto:
@@ -262,8 +267,13 @@ class SparkSource(DataSource):
         return reader.load(self.path)
 
     def __eq__(self, other):
-        base_eq = super().__eq__(other)
-        if not base_eq:
+        # Guard before the spark-specific attribute access below: the base
+        # DataSource.__eq__ accepts any DataSource subclass, so a cross-type
+        # comparison (e.g. against a FileSource with a matching name) would
+        # otherwise raise AttributeError on `other.table` (#6636).
+        if not isinstance(other, SparkSource):
+            return False
+        if not super().__eq__(other):
             return False
         return (
             self.table == other.table
@@ -287,11 +297,17 @@ class SparkOptions:
         date_partition_column_format: Optional[str] = "%Y-%m-%d",
         table_format: Optional[TableFormat] = None,
     ):
-        # Check that only one of the ways to load a spark dataframe can be used. We have
-        # to treat empty string and null the same due to proto (de)serialization.
-        if sum([(not (not arg)) for arg in [table, query, path]]) != 1:
+        # query + path is allowed: query for reads during materialization,
+        # path for offline write-back (offline=True) and get_historical_features.
+        # table must be standalone (cannot combine with query or path).
+        has_table = bool(table)
+        has_query = bool(query)
+        has_path = bool(path)
+        if has_table and (has_query or has_path):
+            raise ValueError("'table' cannot be combined with 'query' or 'path'.")
+        if not (has_table or has_query or has_path):
             raise ValueError(
-                "Exactly one of params(table, query, path) must be specified."
+                "At least one of params(table, query, path) must be specified."
             )
         if path:
             # If table_format is specified, file_format is optional (table format determines the reader)

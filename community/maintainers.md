@@ -11,6 +11,7 @@ In alphabetical order
 | Achal Shah     | `achals`         | achals@gmail.com            | Tecton             |
 | Francisco Javier Arceo   | `franciscojavierarceo`       | arceofrancisco@gmail.com          | Affirm          |
 | Hao Xu   | `HaoXuAI`       | sduxuhao@gmail.com          | JPMorgan          |
+| Nikhil Kathole | `ntkathole` | nikhilkathole2683@gmail.com | Red Hat |
 | Shuchu Han  | `shuchu`       | shuchu.han@gmail.com          | Independent          |
 | Willem Pienaar | `woop`           | will.pienaar@gmail.com      | Cleric             |
 | Zhiling Chen        | `zhilingc`     | chnzhlng@gmail.com        | GetGround         |

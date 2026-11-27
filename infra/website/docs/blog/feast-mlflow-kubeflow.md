@@ -199,10 +199,6 @@ For cross-system lineage that extends beyond Feast into upstream data pipelines 
 
 ### Data quality monitoring
 
-:::note
-The Great Expectations integration described in earlier versions of this post is now **deprecated**. Feast includes a built-in [Feature Quality Monitoring](/docs/how-to-guides/feature-monitoring) system that provides richer metrics, requires no external dependencies, and includes a monitoring UI.
-:::
-
 Feast's native data quality monitoring system automatically computes statistical metrics — null rates, distributions, percentiles, histograms — for every registered feature across both batch data and serving logs. It detects drift by comparing current metrics against baselines computed during `feast apply`.
 
 ```yaml

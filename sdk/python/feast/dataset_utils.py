@@ -22,10 +22,12 @@ def coerce_value(val: str) -> Union[int, float, str]:
     return val
 
 
-def build_saved_dataset_storage(storage_type: str, path: str):
+def build_saved_dataset_storage(
+    storage_type: str, path: str, file_format: Optional[str] = None
+):
     """Build a SavedDatasetStorage object from type string and path/table reference.
 
-    Supports: file (default), bigquery, snowflake, redshift.
+    Supports: file (default), bigquery, snowflake, redshift, spark, trino, athena.
     Unknown types fall back to file storage.
     """
     from feast.infra.offline_stores.file_source import SavedDatasetFileStorage
@@ -47,6 +49,36 @@ def build_saved_dataset_storage(storage_type: str, path: str):
             "SavedDatasetRedshiftStorage",
             "redshift",
         ),
+        (
+            "feast.infra.offline_stores.contrib.spark_offline_store.spark_source",
+            "SavedDatasetSparkStorage",
+            "spark",
+        ),
+        (
+            "feast.infra.offline_stores.contrib.trino_offline_store.trino_source",
+            "SavedDatasetTrinoStorage",
+            "trino",
+        ),
+        (
+            "feast.infra.offline_stores.contrib.athena_offline_store.athena_source",
+            "SavedDatasetAthenaStorage",
+            "athena",
+        ),
+        (
+            "feast.infra.offline_stores.contrib.postgres_offline_store.postgres_source",
+            "SavedDatasetPostgreSQLStorage",
+            "postgres",
+        ),
+        (
+            "feast.infra.offline_stores.contrib.clickhouse_offline_store.clickhouse_source",
+            "SavedDatasetClickhouseStorage",
+            "clickhouse",
+        ),
+        (
+            "feast.infra.offline_stores.contrib.couchbase_offline_store.couchbase_source",
+            "SavedDatasetCouchbaseColumnarStorage",
+            "couchbase",
+        ),
     ]:
         try:
             m = importlib.import_module(mod)
@@ -60,6 +92,26 @@ def build_saved_dataset_storage(storage_type: str, path: str):
         return storage_classes["snowflake"](table_ref=path)
     elif storage_type == "redshift" and "redshift" in storage_classes:
         return storage_classes["redshift"](table_ref=path)
+    elif storage_type == "spark" and "spark" in storage_classes:
+        return storage_classes["spark"](path=path, file_format=file_format or "parquet")
+    elif storage_type == "trino" and "trino" in storage_classes:
+        return storage_classes["trino"](table=path)
+    elif storage_type == "athena" and "athena" in storage_classes:
+        return storage_classes["athena"](table_ref=path)
+    elif storage_type == "postgres" and "postgres" in storage_classes:
+        return storage_classes["postgres"](table_ref=path)
+    elif storage_type == "clickhouse" and "clickhouse" in storage_classes:
+        return storage_classes["clickhouse"](table_ref=path)
+    elif storage_type == "couchbase" and "couchbase" in storage_classes:
+        parts = path.split(".", 2)
+        database_ref = parts[0] if len(parts) > 0 else ""
+        scope_ref = parts[1] if len(parts) > 1 else ""
+        collection_ref = parts[2] if len(parts) > 2 else ""
+        return storage_classes["couchbase"](
+            database_ref=database_ref,
+            scope_ref=scope_ref,
+            collection_ref=collection_ref,
+        )
     else:
         return SavedDatasetFileStorage(path=path)
 

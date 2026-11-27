@@ -116,6 +116,27 @@ class Transformation(ABC):
         raise NotImplementedError
 
 
+def udf_transformation_from_proto(
+    user_defined_function_proto: UserDefinedFunctionProto,
+) -> Transformation:
+    """Rebuild a UDF transformation from its proto, keeping its mode.
+
+    Shared by the ``from_proto`` of modes that need no extra state (SQL, Flink,
+    Spark).
+    """
+    from feast.transformation.udf_rehydrate import resolve_udf
+
+    udf_string = user_defined_function_proto.body_text or ""
+    udf = resolve_udf(
+        udf_string=udf_string,
+        body=user_defined_function_proto.body or None,
+        preferred_name=user_defined_function_proto.name or None,
+    )
+    return Transformation(
+        mode=user_defined_function_proto.mode, udf=udf, udf_string=udf_string
+    )
+
+
 def transformation(
     mode: Union[TransformationMode, str],
     name: Optional[str] = None,

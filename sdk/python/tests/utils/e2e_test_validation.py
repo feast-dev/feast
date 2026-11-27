@@ -1,4 +1,3 @@
-import math
 import os
 import time
 from datetime import datetime, timedelta, timezone
@@ -32,7 +31,8 @@ def validate_offline_online_store_consistency(
 
     # Run materialize()
     # use both tz-naive & tz-aware timestamps to test that they're both correctly handled
-    start_date = (now - timedelta(hours=5)).replace(tzinfo=timezone.utc)
+    # Anchor the range to the fixture so setup crossing an hour cannot exclude rows.
+    start_date = (split_dt - timedelta(hours=4)).astimezone(timezone.utc)
     end_date = split_dt
     fs.materialize(feature_views=[fv.name], start_date=start_date, end_date=end_date)
 
@@ -159,18 +159,16 @@ def _check_offline_and_online_features(
                     < 1e-6
                 )
             else:
-                assert not df.to_dict(orient="list")[f"{fv.name}__value"] or math.isnan(
-                    df.to_dict(orient="list")[f"{fv.name}__value"][0]
-                )
+                val_list = df.to_dict(orient="list")[f"{fv.name}__value"]
+                assert not val_list or pd.isna(val_list[0])
         else:
             if expected_value:
                 assert (
                     abs(df.to_dict(orient="list")["value"][0] - expected_value) < 1e-6
                 )
             else:
-                assert not df.to_dict(orient="list")["value"] or math.isnan(
-                    df.to_dict(orient="list")["value"][0]
-                )
+                val_list = df.to_dict(orient="list")["value"]
+                assert not val_list or pd.isna(val_list[0])
 
 
 def make_feature_store_yaml(

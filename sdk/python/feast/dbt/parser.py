@@ -8,6 +8,7 @@ Uses dbt-artifacts-parser for typed parsing of manifest versions v1-v12 (dbt 0.1
 """
 
 import json
+from copy import deepcopy
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -79,6 +80,34 @@ class DbtManifestParser:
         self._raw_manifest: Optional[Dict[str, Any]] = None
         self._parsed_manifest: Optional[Any] = None
 
+    @staticmethod
+    def _sanitize_supported_languages(manifest: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Remove unsupported macro language values before typed parsing.
+
+        dbt may emit values like "javascript" in `macros.*.supported_languages`,
+        while dbt-artifacts-parser currently accepts only "python" and "sql".
+        Since Feast only needs model metadata, dropping unknown values is safe.
+        """
+        manifest_copy = deepcopy(manifest)
+        macros = manifest_copy.get("macros", {})
+        if not isinstance(macros, dict):
+            return manifest_copy
+
+        for macro in macros.values():
+            if not isinstance(macro, dict):
+                continue
+
+            supported_languages = macro.get("supported_languages")
+            if isinstance(supported_languages, list):
+                macro["supported_languages"] = [
+                    language
+                    for language in supported_languages
+                    if language in {"python", "sql"}
+                ]
+
+        return manifest_copy
+
     def parse(self) -> None:
         """
         Load and parse the manifest.json file using dbt-artifacts-parser.
@@ -108,7 +137,15 @@ class DbtManifestParser:
             from dbt_artifacts_parser.parser import parse_manifest
 
             assert self._raw_manifest is not None
-            self._parsed_manifest = parse_manifest(manifest=self._raw_manifest)
+            try:
+                self._parsed_manifest = parse_manifest(manifest=self._raw_manifest)
+            except Exception as e:
+                if "supported_languages" not in str(e):
+                    raise
+                sanitized_manifest = self._sanitize_supported_languages(
+                    self._raw_manifest
+                )
+                self._parsed_manifest = parse_manifest(manifest=sanitized_manifest)
         except ImportError:
             raise ImportError(
                 "dbt-artifacts-parser is required for dbt integration.\n"

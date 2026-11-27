@@ -275,6 +275,7 @@ class FeastOpenLineageClient:
         inputs: Optional[List[Any]] = None,
         outputs: Optional[List[Any]] = None,
         job_facets: Optional[Dict[str, Any]] = None,
+        namespace: Optional[str] = None,
     ) -> bool:
         """
         Emit a JobEvent for a Feast job definition.
@@ -284,6 +285,7 @@ class FeastOpenLineageClient:
             inputs: List of input datasets
             outputs: List of output datasets
             job_facets: Job facets
+            namespace: Optional namespace for the job (defaults to client namespace)
 
         Returns:
             True if successful, False otherwise
@@ -297,7 +299,7 @@ class FeastOpenLineageClient:
             event = JobEvent(
                 eventTime=datetime.now(timezone.utc).isoformat(),
                 job=Job(
-                    namespace=self.namespace,
+                    namespace=namespace or self.namespace,
                     name=job_name,
                     facets=job_facets or {},
                 ),

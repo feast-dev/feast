@@ -36,10 +36,7 @@ interface LabelViewInterface {
 }
 
 type genericFVType =
-  | regularFVInterface
-  | ODFVInterface
-  | SFVInterface
-  | LabelViewInterface;
+  regularFVInterface | ODFVInterface | SFVInterface | LabelViewInterface;
 
 const mergedFVTypes = (objects: feast.core.Registry) => {
   const mergedFVMap: Record<string, genericFVType> = {};

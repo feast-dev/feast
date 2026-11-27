@@ -9,7 +9,7 @@ We encourage you to ask questions on [GitHub](https://github.com/feast-dev/feast
 ## Getting started
 
 ### Which programming language should I use to run Feast in a microservice architecture?
-[We recommend Python](language.md).
+[We recommend Python](architecture/language.md).
 
 ### Do you have any examples of how Feast should be used?
 
@@ -41,7 +41,7 @@ Yes, this is possible. For example, you can use BigQuery as an offline store and
 
 Feast does support fetching historical features without passing an entity dataframe with the request.
 
-- **Supported offline stores:** Entity-less (entity dataframe–less) retrieval is supported for the **Postgres**, **Dask**, **Spark**, and **Ray** offline stores. Postgres was the first to support it; Dask, Spark, and Ray have followed. Other offline stores may be added based on priority and community demand.
+- **Supported offline stores:** Entity-less (entity dataframe–less) retrieval is supported for the **Postgres**, **Dask**, **Spark**, **Ray**, and **Trino** offline stores. Postgres was the first to support it; Dask, Spark, Ray, and Trino have followed. Other offline stores may be added based on priority and community demand.
 - **Date range:** Retrieval is controlled by the `start_date` and `end_date` parameters. Supported combinations:
   - Both params given → data in the given start-to-end time range.
   - Only `start_date` given → data from the start date to now.

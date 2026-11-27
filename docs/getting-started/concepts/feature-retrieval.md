@@ -15,7 +15,7 @@ Each of these retrieval mechanisms accept:
 * some way of specifying entities (to fetch features for)
 * some way to specify the features to fetch (either via [feature services](feature-retrieval.md#feature-services), which group features needed for a model version, or [feature references](feature-retrieval.md#feature-references))
 
-Before beginning, you need to instantiate a local `FeatureStore` object that knows how to parse the registry (see [more details](https://docs.feast.dev/getting-started/concepts/registry))
+Before beginning, you need to instantiate a local `FeatureStore` object that knows how to parse the registry (see [more details](https://docs.feast.dev/getting-started/components/registry))
 
 For code examples of how the below work, inspect the generated repository from `feast init -t [YOUR TEMPLATE]` (`gcp`, `snowflake`, and `aws` are the most fully fleshed).
 
@@ -175,7 +175,7 @@ training_df = store.get_historical_features(
 If `start_date` is omitted, it defaults to `end_date` minus the feature view TTL. If `end_date` is omitted, it defaults to the current time. Point-in-time correctness is still preserved.
 
 {% hint style="warning" %}
-Entity-less retrieval is currently supported for the **Postgres**, **Dask**, **Spark**, and **Ray** offline stores. You cannot mix `entity_df` with `start_date`/`end_date` in the same call.
+Entity-less retrieval is currently supported for the **Postgres**, **Dask**, **Spark**, **Ray**, and **Trino** offline stores. You cannot mix `entity_df` with `start_date`/`end_date` in the same call.
 {% endhint %}
 
 For more details, see the [FAQ](../faq.md#how-do-i-run-get_historical_features-without-providing-an-entity-dataframe) and [this blog post on entity-less historical feature retrieval](https://feast.dev/blog/entity-less-historical-features-retrieval/).

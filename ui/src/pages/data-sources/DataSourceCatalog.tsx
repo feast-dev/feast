@@ -40,7 +40,6 @@ interface DataSourceTypeInfo {
   icon: React.FC<React.SVGProps<SVGSVGElement>>;
   category: "batch" | "stream" | "on-demand";
   color: string;
-  contrib?: boolean;
 }
 
 const DATA_SOURCE_TYPES: DataSourceTypeInfo[] = [
@@ -115,6 +114,16 @@ const DATA_SOURCE_TYPES: DataSourceTypeInfo[] = [
     color: "#8C4FFF",
   },
   {
+    id: "iceberg",
+    sourceType: String(feast.core.DataSource.SourceType.BATCH_ICEBERG),
+    name: "Iceberg / Unity Catalog",
+    description:
+      "Apache Iceberg REST Catalog source. Connect to Unity Catalog or any Iceberg REST-compatible catalog for governed feature data.",
+    icon: CustomSourceIcon,
+    category: "batch",
+    color: "#3B82F6",
+  },
+  {
     id: "kafka",
     sourceType: String(feast.core.DataSource.SourceType.STREAM_KAFKA),
     name: "Kafka",
@@ -163,7 +172,6 @@ const DATA_SOURCE_TYPES: DataSourceTypeInfo[] = [
     icon: RayIcon,
     category: "batch",
     color: "#00A2E8",
-    contrib: true,
   },
   {
     id: "postgres",
@@ -174,7 +182,6 @@ const DATA_SOURCE_TYPES: DataSourceTypeInfo[] = [
     icon: PostgresIcon,
     category: "batch",
     color: "#336791",
-    contrib: true,
   },
   {
     id: "mongodb",
@@ -185,7 +192,6 @@ const DATA_SOURCE_TYPES: DataSourceTypeInfo[] = [
     icon: MongoDBIcon,
     category: "batch",
     color: "#00684A",
-    contrib: true,
   },
   {
     id: "clickhouse",
@@ -196,7 +202,6 @@ const DATA_SOURCE_TYPES: DataSourceTypeInfo[] = [
     icon: ClickHouseIcon,
     category: "batch",
     color: "#FFCC00",
-    contrib: true,
   },
   {
     id: "mssql",
@@ -207,7 +212,6 @@ const DATA_SOURCE_TYPES: DataSourceTypeInfo[] = [
     icon: SqlServerIcon,
     category: "batch",
     color: "#CC2927",
-    contrib: true,
   },
   {
     id: "oracle",
@@ -218,7 +222,6 @@ const DATA_SOURCE_TYPES: DataSourceTypeInfo[] = [
     icon: OracleIcon,
     category: "batch",
     color: "#F80000",
-    contrib: true,
   },
   {
     id: "couchbase",
@@ -229,7 +232,6 @@ const DATA_SOURCE_TYPES: DataSourceTypeInfo[] = [
     icon: CouchbaseIcon,
     category: "batch",
     color: "#EA2328",
-    contrib: true,
   },
   {
     id: "custom-source",

@@ -255,11 +255,14 @@ def load_artifacts(app: FastAPI):
 
     # Update global references for easy access
     import example_repo
+
     example_repo._sentiment_model = app.state.sentiment_model
     example_repo._lookup_tables = app.state.lookup_tables
 
+
 # example_repo.py - Use pre-loaded artifacts
 _sentiment_model = None  # Set by static_artifacts.py
+
 
 def sentiment_prediction(inputs):
     global _sentiment_model
@@ -296,8 +299,10 @@ def load_custom_embeddings():
     embeddings_file = Path(__file__).parent / "data" / "user_embeddings.npy"
     if embeddings_file.exists():
         import numpy as np
+
         return {"embeddings": np.load(embeddings_file)}
     return None
+
 
 def load_artifacts(app: FastAPI):
     # Load your custom artifacts
@@ -306,6 +311,7 @@ def load_artifacts(app: FastAPI):
 
     # Make them available to feature views
     import example_repo
+
     example_repo._custom_embeddings = app.state.custom_embeddings
 ```
 
@@ -326,11 +332,21 @@ store = FeatureStore(repo_path=".")
 from datetime import datetime
 import pandas as pd
 
-entity_df = pd.DataFrame({
-    "text_id": ["text_0000", "text_0001", "text_0002"],
-    "user_id": ["user_080", "user_091", "user_052"],  # Use actual generated user IDs
-    "event_timestamp": [datetime.now(), datetime.now(), datetime.now()]  # Current timestamps
-})
+entity_df = pd.DataFrame(
+    {
+        "text_id": ["text_0000", "text_0001", "text_0002"],
+        "user_id": [
+            "user_080",
+            "user_091",
+            "user_052",
+        ],  # Use actual generated user IDs
+        "event_timestamp": [
+            datetime.now(),
+            datetime.now(),
+            datetime.now(),
+        ],  # Current timestamps
+    }
+)
 
 training_df = store.get_historical_features(
     entity_df=entity_df,
@@ -352,7 +368,7 @@ print(training_df.head())
 # Get features for online serving (use actual entity combinations)
 entity_rows = [
     {"text_id": "text_0000", "user_id": "user_080"},
-    {"text_id": "text_0001", "user_id": "user_091"}
+    {"text_id": "text_0001", "user_id": "user_091"},
 ]
 
 online_features = store.get_online_features(
@@ -367,10 +383,12 @@ print("Online features:", online_features)
 
 ```python
 # Real-time sentiment analysis
-prediction_rows = [{
-    "input_text": "I love this product!",
-    "model_name": "cardiffnlp/twitter-roberta-base-sentiment-latest"
-}]
+prediction_rows = [
+    {
+        "input_text": "I love this product!",
+        "model_name": "cardiffnlp/twitter-roberta-base-sentiment-latest",
+    }
+]
 
 predictions = store.get_online_features(
     features=[
@@ -473,12 +491,14 @@ curl -X POST \
 
 ### Adding New Features
 
+<!-- fmt:off -->
 ```python
 # In example_repo.py, add to text_features_fv schema:
 Field(name="hashtag_count", dtype=Int64, description="Number of hashtags"),
 Field(name="mention_count", dtype=Int64, description="Number of @mentions"),
 Field(name="url_count", dtype=Int64, description="Number of URLs"),
 ```
+<!-- fmt:on -->
 
 ### Using Different Models
 

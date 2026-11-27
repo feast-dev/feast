@@ -12,6 +12,7 @@ class TestTransformationMode:
             "RAY",
             "SQL",
             "SUBSTRAIT",
+            "TRINO_SQL",
         }
         actual = {m.name for m in TransformationMode}
         assert actual == expected
@@ -25,7 +26,9 @@ class TestTransformationMode:
         assert TransformationMode.RAY.value == "ray"
         assert TransformationMode.SQL.value == "sql"
         assert TransformationMode.SUBSTRAIT.value == "substrait"
+        assert TransformationMode.TRINO_SQL.value == "trino_sql"
 
     def test_mode_from_value(self):
         assert TransformationMode("python") == TransformationMode.PYTHON
         assert TransformationMode("pandas") == TransformationMode.PANDAS
+        assert TransformationMode("trino_sql") == TransformationMode.TRINO_SQL

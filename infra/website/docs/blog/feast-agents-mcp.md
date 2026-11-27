@@ -51,7 +51,7 @@ feature_server:
   mcp_server_version: "1.0.0"
 ```
 
-Once enabled, any MCP-compatible agent -- whether built with LangChain, LlamaIndex, CrewAI, AutoGen, or a custom framework -- can connect to `http://your-feast-server/mcp` and discover available tools like `get-online-features` for entity-based retrieval, `retrieve-online-documents` for vector similarity search, and `write-to-online-store` for persisting agent state.
+Once enabled, any MCP-compatible agent -- whether built with LangChain, LlamaIndex, CrewAI, AutoGen, or a custom framework -- can connect to `http://your-feast-server/mcp` and discover available tools like `get-online-features` for entity-based retrieval, `search` for vector similarity search, `vector_store_search` for OpenAI-compatible text search, and `write-to-online-store` for persisting agent state.
 
 ## A Concrete Example: Customer-Support Agent with Memory
 
@@ -338,7 +338,7 @@ export OPENAI_BASE_URL="http://localhost:11434/v1"
 export LLM_MODEL="llama3.1:8b"
 ./run_demo.sh
 
-# Any OpenAI-compatible provider (Azure, vLLM, LiteLLM, etc.)
+# Any OpenAI-compatible provider (Azure, vLLM, etc.)
 export OPENAI_API_KEY="your-key"  # pragma: allowlist secret
 export OPENAI_BASE_URL="https://your-endpoint/v1"
 export LLM_MODEL="your-model"

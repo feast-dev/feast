@@ -15,6 +15,9 @@ function detectStorageType(dataset: any): string {
   if (storage.snowflakeStorage) return "Snowflake";
   if (storage.redshiftStorage) return "Redshift";
   if (storage.sparkStorage) return "Spark";
+  if (storage.trinoStorage) return "Trino";
+  if (storage.athenaStorage) return "Athena";
+  if (storage.customStorage) return "Custom";
   return "—";
 }
 
@@ -36,6 +39,44 @@ const DatasetsListingTable = ({ datasets }: DatasetsListingTableProps) => {
       },
     },
     {
+      name: "Namespace",
+      render: (item: any) => {
+        const ns = item.spec?.namespace;
+        return ns ? (
+          <EuiBadge color="primary">{ns}</EuiBadge>
+        ) : (
+          <span style={{ color: "#98A2B3" }}>—</span>
+        );
+      },
+      width: "140px",
+    },
+    {
+      name: "Collection",
+      render: (item: any) => {
+        const col = item.spec?.collection;
+        return col ? (
+          <EuiBadge color="accent">{col}</EuiBadge>
+        ) : (
+          <span style={{ color: "#98A2B3" }}>—</span>
+        );
+      },
+      width: "140px",
+    },
+    {
+      name: "Description",
+      render: (item: any) => {
+        const desc = item.spec?.description;
+        return desc ? (
+          <span style={{ fontSize: 13 }}>
+            {desc.length > 50 ? desc.slice(0, 50) + "…" : desc}
+          </span>
+        ) : (
+          <span style={{ color: "#98A2B3" }}>—</span>
+        );
+      },
+      width: "200px",
+    },
+    {
       name: "Features",
       render: (item: any) => (item.spec?.features || []).length,
       width: "90px",
@@ -52,6 +93,26 @@ const DatasetsListingTable = ({ datasets }: DatasetsListingTableProps) => {
         <EuiBadge color="hollow">{detectStorageType(item)}</EuiBadge>
       ),
       width: "120px",
+    },
+    {
+      name: "Data Source",
+      render: (item: any) => {
+        const dsList: string[] = item.spec?.dataSources || [];
+        if (dsList.length === 0) return "—";
+        const itemProject = item.project || item.spec?.project || projectName;
+        return (
+          <>
+            {dsList.map((dsName, idx) => (
+              <span key={dsName}>
+                {idx > 0 && ", "}
+                <EuiCustomLink to={`/p/${itemProject}/data-source/${dsName}`}>
+                  {dsName}
+                </EuiCustomLink>
+              </span>
+            ))}
+          </>
+        );
+      },
     },
     {
       name: "Feature Service",

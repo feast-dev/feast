@@ -88,3 +88,10 @@ def test_entity_with_value_type_no_warning():
         warnings.simplefilter("error")
         entity = Entity(name="my-entity", value_type=ValueType.STRING)
     assert entity.value_type == ValueType.STRING
+
+
+def test_entity_eq_cross_type_returns_false():
+    """Entity compared to a different type returns False, not TypeError."""
+    entity = Entity(name="my-entity", value_type=ValueType.STRING)
+    assert (entity == "not an entity") is False
+    assert (entity == 42) is False

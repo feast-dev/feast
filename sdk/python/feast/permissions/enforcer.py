@@ -23,7 +23,7 @@ def enforce_policy(
     Define the logic to apply the configured permissions when a given action is requested on
     a protected resource.
 
-    If no permissions are defined, the result is to deny the execution.
+    If no permissions are defined, all authenticated users are granted full access.
 
     Args:
         permissions: The configured set of `Permission`.
@@ -40,12 +40,17 @@ def enforce_policy(
         FeastPermissionError: If the current user is not authorized to eecute the requested actions on the given resources (and `filter_only` is `False`).
     """
     if not permissions:
-        # If no permissions are defined, deny access to all resources
-        # This is a security measure to prevent unauthorized access
-        logger.warning("No permissions defined - denying access to all resources")
-        raise FeastPermissionError(
-            "Permissions are not defined - access denied for all resources"
+        if not user.username:
+            raise FeastPermissionError(
+                "No permissions defined and no authenticated user context. "
+                "Access denied."
+            )
+        logger.warning(
+            "No permissions defined in registry. All authenticated users are "
+            "granted full access. Define permissions via permissions.py and "
+            "'feast apply' to enforce fine-grained authorization."
         )
+        return resources
 
     _permitted_resources: list[FeastObject] = []
     for resource in resources:
@@ -72,7 +77,7 @@ def enforce_policy(
                 if evaluator.is_decided():
                     grant, explanations = evaluator.grant()
                     if not grant:
-                        if filter_only and p.name_patterns:
+                        if filter_only and (p.name_patterns or p.required_tags):
                             continue
                         logger.error(f"Permission denied: {','.join(explanations)}")
                         raise FeastPermissionError(",".join(explanations))
@@ -98,13 +103,18 @@ def enforce_policy(
                     message = f"No permissions defined to manage {actions} on {type(resource)}/{resource.name}."
                     logger.exception(f"**PERMISSION NOT GRANTED**: {message}")
                     raise FeastPermissionError(message)
-                elif not any(p.name_patterns for p in resource_type_permissions):
-                    # Permissions exist for this resource type but no name_patterns - should raise error
+                elif not any(
+                    p.name_patterns or p.required_tags
+                    for p in resource_type_permissions
+                ):
+                    # Permissions exist for this resource type but none is scoped by
+                    # name_patterns or required_tags - should raise error
                     message = f"No permissions defined to manage {actions} on {type(resource)}/{resource.name}."
                     logger.exception(f"**PERMISSION NOT GRANTED**: {message}")
                     raise FeastPermissionError(message)
                 else:
-                    # Permissions exist for this resource type with name_patterns - filter out this resource
+                    # Permissions for this resource type are scoped by name_patterns or
+                    # required_tags, so this resource is out of scope - filter it out
                     logger.debug(
                         f"Filtering out {type(resource).__name__}:{resource.name} - no matching permissions"
                     )

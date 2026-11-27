@@ -1,3 +1,4 @@
+from typing import Iterator
 from unittest.mock import MagicMock, Mock
 
 import pytest
@@ -11,6 +12,7 @@ from feast.permissions.permission import AuthzedAction, Permission
 from feast.permissions.policy import RoleBasedPolicy
 from feast.permissions.security_manager import (
     SecurityManager,
+    no_security_manager,
     set_security_manager,
 )
 from feast.permissions.user import User
@@ -63,7 +65,7 @@ def users() -> list[User]:
 
 
 @pytest.fixture
-def security_manager() -> SecurityManager:
+def security_manager() -> Iterator[SecurityManager]:
     permissions = []
     permissions.append(
         Permission(
@@ -111,4 +113,9 @@ def security_manager() -> SecurityManager:
     registry.list_permissions = Mock(return_value=permissions)
     sm = SecurityManager(project="any", registry=registry)
     set_security_manager(sm)
-    return sm
+    yield sm
+    # `set_security_manager` populates a module-level singleton that outlives
+    # this fixture. Reset it, or every later test in the same process that
+    # serves a request (e.g. the feature server tests) runs against this mock
+    # security manager and is rejected with 401 Unauthorized.
+    no_security_manager()

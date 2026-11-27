@@ -1,4 +1,8 @@
+import { useContext } from "react";
 import { useMutation, useQueryClient } from "react-query";
+import { restPost } from "../restApiClient";
+import RegistryPathContext from "../../contexts/RegistryPathContext";
+import { useDataMode } from "../../contexts/DataModeContext";
 
 interface ApplyDataSourcePayload {
   name: string;
@@ -15,6 +19,12 @@ interface ApplyDataSourcePayload {
   redshift_options?: { table: string; database: string; schema_: string };
   kafka_options?: { kafka_bootstrap_servers: string; topic: string };
   spark_options?: { table: string; path: string };
+  custom_options?: {
+    configuration?: string;
+    class_name?: string;
+    config?: string;
+  };
+  data_source_class_type?: string;
 }
 
 interface DeleteDataSourcePayload {
@@ -27,6 +37,23 @@ interface MutationResult {
   project: string;
   status: string;
 }
+
+interface ValidateDataSourcePayload {
+  name: string;
+  project: string;
+}
+
+interface ValidateDataSourceResult {
+  name: string;
+  project: string;
+  status: "success" | "failed" | "not_applicable" | "unavailable";
+  message: string;
+  testedAt: string;
+  columns?: { name: string; type: string }[];
+}
+
+const validatePath = (payload: ValidateDataSourcePayload): string =>
+  `/data_sources/${encodeURIComponent(payload.name)}/validate?project=${encodeURIComponent(payload.project)}`;
 
 const API_BASE = "/api/v1";
 
@@ -95,5 +122,24 @@ const useDeleteDataSource = () => {
   });
 };
 
-export { useApplyDataSource, useDeleteDataSource };
-export type { ApplyDataSourcePayload, DeleteDataSourcePayload };
+const useValidateDataSource = () => {
+  const registryUrl = useContext(RegistryPathContext);
+  const { fetchOptions } = useDataMode();
+
+  return useMutation((payload: ValidateDataSourcePayload) =>
+    restPost<ValidateDataSourceResult>(
+      registryUrl,
+      validatePath(payload),
+      {},
+      fetchOptions,
+    ),
+  );
+};
+
+export { useApplyDataSource, useDeleteDataSource, useValidateDataSource };
+export type {
+  ApplyDataSourcePayload,
+  DeleteDataSourcePayload,
+  ValidateDataSourcePayload,
+  ValidateDataSourceResult,
+};

@@ -1,3 +1,6 @@
+from typing import Dict
+from unittest.mock import MagicMock
+
 import pytest
 from kubernetes import client
 
@@ -60,6 +63,22 @@ def oidc_config() -> OidcAuthConfig:
         client_id=_CLIENT_ID,
         type="oidc",
     )
+
+
+@pytest.fixture
+def discovery_data() -> Dict[str, str]:
+    return {
+        "authorization_endpoint": "https://localhost:8080/realms/master/protocol/openid-connect/auth",
+        "token_endpoint": "https://localhost:8080/realms/master/protocol/openid-connect/token",
+        "jwks_uri": "https://localhost:8080/realms/master/protocol/openid-connect/certs",
+    }
+
+
+@pytest.fixture
+def signing_key() -> MagicMock:
+    key = MagicMock()
+    key.key = "a-key"
+    return key
 
 
 @pytest.fixture(

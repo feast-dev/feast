@@ -1,0 +1,61 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: lineage-consumer-secret
+  namespace: feast
+stringData:
+  api_key: "consumer-api-key-for-producers"  #pragma: allowlist secret
+---
+apiVersion: feast.dev/v1
+kind: FeatureStore
+metadata:
+  name: sample-lineage-server
+  namespace: feast
+spec:
+  feastProject: my_project
+  services:
+    registry:
+      local:
+        persistence:
+          store:
+            type: sql
+            secretRef:
+              name: registry-db-secret
+  openlineage:
+    enabled: true
+    # Producer transport is auto-configured when lineageServer is set.
+    # No need to specify transportUrl/transportEndpoint — the operator
+    # automatically points the producer to the lineage Service.
+    extraConfig:
+      namespace: "my_project"
+      producer: "feast-operator"
+      emit_on_apply: "true"
+      emit_on_materialize: "true"
+    consumer:
+      enabled: true
+      storeType: sql
+      # Optional: separate database for lineage storage.
+      # If omitted, reuses the SQL registry database.
+      # connectionStringSecretRef:
+      #   name: lineage-db-secret
+      apiKeySecretRef:
+        name: lineage-consumer-secret
+      namespaceMapping:
+        airflow_production: my_project
+        spark_etl: my_project
+      retentionDays: 30
+      retentionCheckIntervalHours: 6
+      # lineageServer creates a separate Deployment for the consumer.
+      # The main Feast Deployment only runs the producer.
+      lineageServer:
+        replicas: 2
+        # Optional: override image, resources, etc.
+        # server:
+        #   image: "quay.io/feast/feast:latest"
+        #   resources:
+        #     requests:
+        #       cpu: "250m"
+        #       memory: "256Mi"
+        #     limits:
+        #       cpu: "500m"
+        #       memory: "512Mi"

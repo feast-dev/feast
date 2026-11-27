@@ -51,6 +51,9 @@ BATCH_ENGINE_CLASS_FOR_TYPE = {
     "spark.engine": "feast.infra.compute_engines.spark.compute.SparkComputeEngine",
     "ray.engine": "feast.infra.compute_engines.ray.compute.RayComputeEngine",
     "flink.engine": "feast.infra.compute_engines.flink.compute.FlinkComputeEngine",
+    "spark_application": "feast.infra.compute_engines.spark_application.compute.SparkApplicationComputeEngine",
+    "trino.engine": "feast.infra.compute_engines.trino.compute.TrinoComputeEngine",
+    "trino": "feast.infra.compute_engines.trino.compute.TrinoComputeEngine",
 }
 
 LEGACY_ONLINE_STORE_CLASS_FOR_TYPE = {
@@ -66,6 +69,7 @@ LEGACY_ONLINE_STORE_CLASS_FOR_TYPE = {
 }
 
 ONLINE_STORE_CLASS_FOR_TYPE = {
+    "aerospike": "feast.infra.online_stores.aerospike_online_store.AerospikeOnlineStore",
     "sqlite": "feast.infra.online_stores.sqlite.SqliteOnlineStore",
     "datastore": "feast.infra.online_stores.datastore.DatastoreOnlineStore",
     "redis": "feast.infra.online_stores.redis.RedisOnlineStore",
@@ -75,6 +79,7 @@ ONLINE_STORE_CLASS_FOR_TYPE = {
     "postgres": "feast.infra.online_stores.postgres_online_store.postgres.PostgreSQLOnlineStore",
     "hbase": "feast.infra.online_stores.hbase_online_store.hbase.HbaseOnlineStore",
     "cassandra": "feast.infra.online_stores.cassandra_online_store.cassandra_online_store.CassandraOnlineStore",
+    "scylladb": "feast.infra.online_stores.scylladb_online_store.scylladb.ScyllaDBOnlineStore",
     "mysql": "feast.infra.online_stores.mysql_online_store.mysql.MySQLOnlineStore",
     "hazelcast": "feast.infra.online_stores.hazelcast_online_store.hazelcast_online_store.HazelcastOnlineStore",
     "elasticsearch": "feast.infra.online_stores.elasticsearch_online_store.elasticsearch.ElasticSearchOnlineStore",
@@ -83,8 +88,10 @@ ONLINE_STORE_CLASS_FOR_TYPE = {
     "qdrant": "feast.infra.online_stores.qdrant_online_store.qdrant.QdrantOnlineStore",
     "couchbase.online": "feast.infra.online_stores.couchbase_online_store.couchbase.CouchbaseOnlineStore",
     "milvus": "feast.infra.online_stores.milvus_online_store.milvus.MilvusOnlineStore",
+    "pinecone": "feast.infra.online_stores.pinecone_online_store.pinecone.PineconeOnlineStore",
     "mongodb": "feast.infra.online_stores.mongodb_online_store.MongoDBOnlineStore",
     "hybrid": "feast.infra.online_stores.hybrid_online_store.hybrid_online_store.HybridOnlineStore",
+    "chronon": "feast.infra.online_stores.chronon_online_store.chronon.ChrononOnlineStore",
     **LEGACY_ONLINE_STORE_CLASS_FOR_TYPE,
 }
 
@@ -105,6 +112,8 @@ OFFLINE_STORE_CLASS_FOR_TYPE = {
     "clickhouse": "feast.infra.offline_stores.contrib.clickhouse_offline_store.clickhouse.ClickhouseOfflineStore",
     "ray": "feast.infra.offline_stores.contrib.ray_offline_store.ray.RayOfflineStore",
     "oracle": "feast.infra.offline_stores.contrib.oracle_offline_store.oracle.OracleOfflineStore",
+    "chronon": "feast.infra.offline_stores.contrib.chronon_offline_store.chronon.ChrononOfflineStore",
+    "hybrid": "feast.infra.offline_stores.hybrid_offline_store.HybridOfflineStore",
 }
 
 FEATURE_SERVER_CONFIG_CLASS_FOR_TYPE = {
@@ -180,10 +189,12 @@ class RegistryConfig(FeastBaseModel):
      expire. Users can manually refresh the cache by calling feature_store.refresh_registry() """
 
     cache_mode: StrictStr = "sync"
-    """str: Cache mode type. Possible options are 'sync' (immediate refresh after each write operation) and
-     'thread' (asynchronous background refresh at cache_ttl_seconds intervals). In 'sync' mode, registry changes
-     are immediately visible. In 'thread' mode, changes may take up to
-     cache_ttl_seconds to be visible."""
+    """str: Cache mode type. Possible options are 'sync' (immediate refresh after each write operation),
+     'thread' (asynchronous background refresh at cache_ttl_seconds intervals) and 'none' (no in-memory cache).
+     In 'sync' mode, registry changes are immediately visible. In 'thread' mode, changes may take up to
+     cache_ttl_seconds to be visible. In 'none' mode, the registry is not loaded into memory at startup and every
+     read, including reads that allow the cache, queries the registry backend directly; this is only supported by
+     the 'sql' registry."""
 
     s3_additional_kwargs: Optional[Dict[str, str]] = None
     """ Dict[str, str]: Extra arguments to pass to boto3 when writing the registry file to S3. """
@@ -194,28 +205,94 @@ class RegistryConfig(FeastBaseModel):
         only reset the project but not all the projects"""
 
     enable_online_feature_view_versioning: StrictBool = False
-    """ bool: Enable versioned online store tables and version-qualified reads
-        (e.g., 'fv@v2:feature'). When True, each schema version gets its own
-        online store table and can be queried independently. Version history
-        tracking in the registry is always active regardless of this setting. """
+    """ bool: Enable versioned resolution of version-qualified feature references
+        (e.g., 'fv@v2:feature'). Despite the 'online' in its name, this flag gates
+        both online and offline (get_historical_features) versioned reads, which
+        share the same resolution path; when True, each schema version also gets
+        its own online store table and can be queried independently. Version
+        history tracking in the registry is always active regardless of this
+        setting. """
+
+    serve_features_while_materializing: StrictBool = False
+    """ bool: Allow online serving to continue for a feature view while it is in
+        the ``MATERIALIZING`` state. When ``feature_store.materialize()`` runs against
+        a shared registry it transitions the feature view to ``MATERIALIZING`` and
+        commits that state, which otherwise causes concurrent feature servers to
+        reject requests until materialization completes. When True, feature views in
+        the ``MATERIALIZING`` state keep serving their last-materialized values.
+        Truly-unavailable states (e.g. ``CREATED``, ``GENERATED``) remain gated. """
 
     mcp: Optional[McpRegistryConfig] = None
     """ McpRegistryConfig: MCP (Model Context Protocol) configuration for the registry REST server. """
 
+    @staticmethod
+    def _normalize_postgres_scheme(value: str, field_name: str) -> str:
+        """Rewrite a bare ``postgresql://`` URL to the psycopg3 driver, with a warning.
+
+        SQLAlchemy resolves a bare ``postgresql://`` to the psycopg2 driver, while
+        feast standardizes on psycopg3 (``postgresql+psycopg``). Pass an explicit
+        ``postgresql+psycopg2`` to keep psycopg2. Shared by the ``path`` and
+        ``read_path`` validators so both endpoints normalize identically.
+        """
+        if value.startswith("postgresql://"):
+            _logger.warning(
+                f"The `{field_name}` of the `RegistryConfig` starts with a plain "
+                "`postgresql` string. We are updating this to `postgresql+psycopg` "
+                "to ensure that the `psycopg3` driver is used by `sqlalchemy`. If "
+                f"you want to use `psycopg2` pass `postgresql+psycopg2` explicitly "
+                f"to `{field_name}`. To silence this warning, pass `postgresql+psycopg` "
+                f"explicitly to `{field_name}`."
+            )
+            # Rewrite only the leading scheme, not any later occurrence (e.g.
+            # inside credentials or a query string).
+            return "postgresql+psycopg://" + value[len("postgresql://") :]
+        return value
+
     @field_validator("path")
     def validate_path(cls, path: str, values: ValidationInfo) -> str:
         if values.data.get("registry_type") == "sql":
-            if path.startswith("postgresql://"):
-                _logger.warning(
-                    "The `path` of the `RegistryConfig` starts with a plain "
-                    "`postgresql` string. We are updating this to `postgresql+psycopg` "
-                    "to ensure that the `psycopg3` driver is used by `sqlalchemy`. If "
-                    "you want to use `psycopg2` pass `postgresql+psycopg2` explicitely "
-                    "to `path`. To silence this warning, pass `postgresql+psycopg` "
-                    "explicitely to `path`."
-                )
-                return path.replace("postgresql://", "postgresql+psycopg://")
+            return cls._normalize_postgres_scheme(path, "path")
         return path
+
+    @model_validator(mode="after")
+    def _warn_on_unsafe_serve_while_materializing(self) -> "RegistryConfig":
+        """Warn when ``serve_features_while_materializing`` is combined with a
+        registry configuration where it is a no-op or where its guarantees may
+        not hold. These are advisory warnings only, never hard failures.
+        """
+        if self.serve_features_while_materializing:
+            if self.registry_type != "sql":
+                _logger.warning(
+                    "`serve_features_while_materializing` is enabled but "
+                    f"`registry_type` is '{self.registry_type}'. The flag targets "
+                    "the serving interruption caused by concurrent servers sharing "
+                    "a `sql` registry that materialization flips to `MATERIALIZING`; "
+                    "on other registry types it typically has no effect."
+                )
+            if self.cache_mode == "thread":
+                _logger.warning(
+                    "`serve_features_while_materializing` is enabled together with "
+                    "`cache_mode='thread'`. In thread mode the registry cache may lag "
+                    "by up to `cache_ttl_seconds`, so feature-view state transitions "
+                    "(including the exit from `MATERIALIZING`) may be observed stale."
+                )
+        return self
+
+    @model_validator(mode="after")
+    def _warn_on_unsupported_cache_mode_none(self) -> "RegistryConfig":
+        """Warn when ``cache_mode='none'`` is set on a registry that ignores it.
+
+        Only the ``sql`` registry can serve every read from its backend; other
+        registries keep their in-memory cache. This is an advisory warning only.
+        """
+        if self.cache_mode == "none" and self.registry_type != "sql":
+            _logger.warning(
+                "`cache_mode='none'` is set but `registry_type` is "
+                f"'{self.registry_type}'. Only the `sql` registry supports "
+                "disabling the registry cache, so this registry keeps its "
+                "in-memory cache."
+            )
+        return self
 
 
 class MaterializationConfig(BaseModel):
@@ -255,7 +332,21 @@ class OpenLineageConsumerConfig(FeastBaseModel):
     """ str: API key for authenticating producers sending events. """
 
     namespace_mapping: Optional[Dict[str, str]] = None
-    """ dict: Map of OL namespace -> Feast project for RBAC scoping. """
+    """ dict: Read-side RBAC bridge mapping external OL namespaces to Feast project
+    names. Users who can DESCRIBE a project also see lineage from mapped namespaces.
+    Example: {"spark://ml-team": "ml_team", "airflow://prod-cluster": "ml_team"} """
+
+    retention_days: int = 30
+    """ int: Number of days to retain OpenLineage events and runs. Set to 0 to
+    disable automatic pruning. Default: 30 days. """
+
+    retention_check_interval_hours: int = 6
+    """ int: How often the background pruning task runs, in hours. Default: 6. """
+
+    standalone_server: StrictBool = False
+    """ bool: When true, the retention background task is delegated to the
+    standalone lineage server. All consumer API endpoints remain available
+    on both servers. """
 
 
 class OpenLineageConfig(FeastBaseModel):
@@ -318,6 +409,9 @@ class OpenLineageConfig(FeastBaseModel):
                 connection_string=self.consumer.connection_string,
                 api_key=self.consumer.api_key,
                 namespace_mapping=self.consumer.namespace_mapping or {},
+                retention_days=self.consumer.retention_days,
+                retention_check_interval_hours=self.consumer.retention_check_interval_hours,
+                standalone_server=self.consumer.standalone_server,
             )
 
         return OLConfig(
@@ -332,6 +426,39 @@ class OpenLineageConfig(FeastBaseModel):
             emit_on_materialize=self.emit_on_materialize,
             consumer=consumer or OLConsumerConfig(),
         )
+
+
+class EmbeddingModelConfig(FeastConfigBaseModel):
+    """Configuration for the query-time embedding model used by the feature server.
+
+    Required when using ``openai_search`` or the
+    ``/v1/vector_stores/{vector_store_id}/search`` endpoint.
+
+    **Sentence Transformers** (default) — runs locally, no API key required.
+    Ideal for air-gapped or cost-sensitive deployments.  Requires the
+    ``sentence-transformers`` package (``pip install sentence-transformers``).
+
+    Example in ``feature_store.yaml``::
+
+        embedding_model:
+          provider: sentence_transformers   # default; can be omitted
+          model: all-MiniLM-L6-v2
+
+    Custom providers can be plugged in by implementing the
+    :class:`~feast.embedder.EmbeddingProvider` protocol and passing an
+    instance to :class:`~feast.feature_store.FeatureStore`.
+    """
+
+    provider: str = "sentence_transformers"
+    """Embedding backend to use.  Supported values:
+    ``'sentence_transformers'`` (default)."""
+
+    model: str
+    """Model identifier.
+
+    Any HuggingFace model name compatible with ``SentenceTransformer``,
+    e.g. ``'all-MiniLM-L6-v2'``, ``'BAAI/bge-small-en-v1.5'``.
+    """
 
 
 class RepoConfig(FeastBaseModel):
@@ -372,6 +499,13 @@ class RepoConfig(FeastBaseModel):
 
     feature_server: Optional[Any] = None
     """ FeatureServerConfig: Feature server configuration (optional depending on provider) """
+
+    embedding_model: Optional[EmbeddingModelConfig] = Field(
+        None, alias="embedding_model"
+    )
+    """ EmbeddingModelConfig: Embedding model configuration.
+    Required when using openai_search or the
+    OpenAI-compatible vector store search endpoint. """
 
     flags: Any = None
     """ Flags (deprecated field): Feature flags for experimental features """

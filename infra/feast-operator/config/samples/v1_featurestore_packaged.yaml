@@ -1,0 +1,10 @@
+apiVersion: feast.dev/v1
+kind: FeatureStore
+metadata:
+  name: sample-packaged
+spec:
+  feastProject: sample_packaged
+  feastProjectDir:
+    packaged:
+      image: registry.example.com/feature-server@sha256:0123456789abcdef
+      featureRepoPath: /opt/feast/feature_repo

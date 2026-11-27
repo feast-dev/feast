@@ -80,9 +80,7 @@ class RoleBasedPolicy(Policy):
 
     def __eq__(self, other):
         if not isinstance(other, RoleBasedPolicy):
-            raise TypeError(
-                "Comparisons should only involve RoleBasedPolicy class objects."
-            )
+            return False
 
         if sorted(self.roles) != sorted(other.roles):
             return False
@@ -148,9 +146,7 @@ class GroupBasedPolicy(Policy):
 
     def __eq__(self, other):
         if not isinstance(other, GroupBasedPolicy):
-            raise TypeError(
-                "Comparisons should only involve GroupBasedPolicy class objects."
-            )
+            return False
 
         if sorted(self.groups) != sorted(other.groups):
             return False
@@ -206,9 +202,7 @@ class NamespaceBasedPolicy(Policy):
 
     def __eq__(self, other):
         if not isinstance(other, NamespaceBasedPolicy):
-            raise TypeError(
-                "Comparisons should only involve NamespaceBasedPolicy class objects."
-            )
+            return False
 
         if sorted(self.namespaces) != sorted(other.namespaces):
             return False
@@ -270,9 +264,7 @@ class CombinedGroupNamespacePolicy(Policy):
 
     def __eq__(self, other):
         if not isinstance(other, CombinedGroupNamespacePolicy):
-            raise TypeError(
-                "Comparisons should only involve CombinedGroupNamespacePolicy class objects."
-            )
+            return False
 
         if sorted(self.groups) != sorted(other.groups) or sorted(
             self.namespaces

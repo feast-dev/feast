@@ -1,179 +1,136 @@
+import React from "react";
 import {
   EuiFlexGroup,
+  EuiFlexItem,
   EuiHorizontalRule,
   EuiLoadingSpinner,
   EuiText,
   EuiTitle,
-  EuiButtonEmpty,
-  EuiCallOut,
-} from "@elastic/eui";
-import {
   EuiPanel,
-  EuiFlexItem,
   EuiDescriptionList,
   EuiDescriptionListTitle,
   EuiDescriptionListDescription,
   EuiSpacer,
+  EuiBadge,
+  EuiCallOut,
+  EuiCodeBlock,
+  EuiToolTip,
+  EuiIcon,
 } from "@elastic/eui";
-import React, { useState } from "react";
 import { useParams } from "react-router-dom";
-import DataSourceFormModal, {
-  DataSourceFormData,
-} from "../../components/DataSourceFormModal";
-import { feast } from "../../protos";
-import { useApplyDataSource } from "../../queries/mutations/useDataSourceMutations";
-import BatchSourcePropertiesView from "./BatchSourcePropertiesView";
 import FeatureViewEdgesList from "../entities/FeatureViewEdgesList";
 import RequestDataSourceSchemaTable from "./RequestDataSourceSchemaTable";
 import useLoadDataSource from "./useLoadDataSource";
+import ConnectionStatusPanel from "./ConnectionStatusPanel";
+import { toDate } from "../../utils/timestamp";
+import {
+  getDataSourceTypeMeta,
+  getRelativeTime,
+  CATEGORY_META,
+  getTagBadge,
+} from "./dataSourceTypeUtils";
 
-const buildEditFormData = (ds: any): DataSourceFormData => {
-  const spec = ds.spec || ds;
-  const tags = spec.tags
-    ? Object.entries(spec.tags).map(([key, value]) => ({
-        key,
-        value: value as string,
-      }))
-    : [];
+/* ────── connection configuration rows ────── */
 
-  return {
-    name: spec.name || ds.name || "",
-    description: spec.description || ds.description || "",
-    owner: spec.owner || ds.owner || "",
-    sourceType: String(spec.type ?? ds.type ?? 0),
-    timestampField: spec.timestampField || ds.timestampField || "",
-    createdTimestampColumn:
-      spec.createdTimestampColumn || ds.createdTimestampColumn || "",
-    tags,
-    fileUri: spec.fileOptions?.uri || ds.fileOptions?.uri || "",
-    bigqueryTable:
-      spec.bigqueryOptions?.table || ds.bigqueryOptions?.table || "",
-    bigqueryQuery:
-      spec.bigqueryOptions?.query || ds.bigqueryOptions?.query || "",
-    snowflakeTable:
-      spec.snowflakeOptions?.table || ds.snowflakeOptions?.table || "",
-    snowflakeDatabase:
-      spec.snowflakeOptions?.database || ds.snowflakeOptions?.database || "",
-    snowflakeSchema:
-      spec.snowflakeOptions?.schema || ds.snowflakeOptions?.schema || "",
-    redshiftTable:
-      spec.redshiftOptions?.table || ds.redshiftOptions?.table || "",
-    redshiftDatabase:
-      spec.redshiftOptions?.database || ds.redshiftOptions?.database || "",
-    redshiftSchema:
-      spec.redshiftOptions?.schema || ds.redshiftOptions?.schema || "",
-    kafkaBootstrapServers:
-      spec.kafkaOptions?.kafkaBootstrapServers ||
-      ds.kafkaOptions?.kafkaBootstrapServers ||
-      "",
-    kafkaTopic: spec.kafkaOptions?.topic || ds.kafkaOptions?.topic || "",
-    sparkTable: spec.sparkOptions?.table || ds.sparkOptions?.table || "",
-    sparkPath: spec.sparkOptions?.path || ds.sparkOptions?.path || "",
-    kinesisRegion:
-      spec.kinesisOptions?.region || ds.kinesisOptions?.region || "",
-    kinesisStreamName:
-      spec.kinesisOptions?.streamName || ds.kinesisOptions?.streamName || "",
-    trinoTable: spec.trinoOptions?.table || ds.trinoOptions?.table || "",
-    trinoQuery: spec.trinoOptions?.query || ds.trinoOptions?.query || "",
-    athenaTable: spec.athenaOptions?.table || ds.athenaOptions?.table || "",
-    athenaQuery: spec.athenaOptions?.query || ds.athenaOptions?.query || "",
-    athenaDatabase:
-      spec.athenaOptions?.database || ds.athenaOptions?.database || "",
-    athenaDataSource:
-      spec.athenaOptions?.dataSource || ds.athenaOptions?.dataSource || "",
-    customSourceClassName:
-      spec.customOptions?.className || ds.customOptions?.className || "",
-    customSourceConfig:
-      spec.customOptions?.config || ds.customOptions?.config || "",
-    rayReaderType: "",
-    rayPath: "",
-    rayReaderOptions: "",
-    postgresTable: "",
-    postgresQuery: "",
-    mongodbCollection: "",
-    clickhouseTable: "",
-    clickhouseQuery: "",
-    mssqlTable: "",
-    mssqlConnectionStr: "",
-    oracleTable: "",
-    oracleConnectionStr: "",
-    couchbaseDatabase: "",
-    couchbaseScope: "",
-    couchbaseCollection: "",
-    couchbaseQuery: "",
-  };
-};
+interface ConfigRow {
+  title: string;
+  value: string;
+  code?: boolean;
+  codeLang?: string;
+}
 
-const formDataToPayload = (formData: DataSourceFormData, project: string) => {
-  const payload: Record<string, any> = {
-    name: formData.name,
-    project,
-    type: parseInt(formData.sourceType, 10),
-    timestamp_field: formData.timestampField,
-    created_timestamp_column: formData.createdTimestampColumn,
-    description: formData.description,
-    owner: formData.owner,
-    tags: Object.fromEntries(
-      formData.tags.filter((t) => t.key.trim()).map((t) => [t.key, t.value]),
-    ),
+export function formatOneofLabel(fmt: any): string | null {
+  if (fmt === null || fmt === undefined) return null;
+  if (typeof fmt === "string") return fmt;
+  if (typeof fmt !== "object") return String(fmt);
+  const key = Object.keys(fmt).find((k) => fmt[k] !== undefined);
+  if (!key) return null;
+  const base = key.replace(/Format$/i, "").toLowerCase();
+  const delimiter = fmt[key]?.delimiter;
+  if (key === "delimitedFormat" && delimiter) {
+    return `${base} (${delimiter})`;
+  }
+  return base;
+}
+
+function parseIceberg(ds: any): ConfigRow[] {
+  try {
+    const cfg = JSON.parse(ds.customOptions?.configuration || "{}");
+    const rows: ConfigRow[] = [
+      { title: "Catalog Type", value: cfg.catalog_type || "rest" },
+    ];
+    if (cfg.endpoint) rows.push({ title: "Endpoint", value: cfg.endpoint });
+    if (cfg.warehouse) rows.push({ title: "Warehouse", value: cfg.warehouse });
+    if (cfg.namespace) rows.push({ title: "Namespace", value: cfg.namespace });
+    if (cfg.table) rows.push({ title: "Table", value: cfg.table });
+    if (cfg.token_env_var)
+      rows.push({ title: "Token Env Variable", value: cfg.token_env_var });
+    return rows;
+  } catch {
+    return [];
+  }
+}
+
+export function getConnectionRows(ds: any): ConfigRow[] {
+  const rows: ConfigRow[] = [];
+  const push = (
+    title: string,
+    value?: string | null,
+    opts?: Partial<ConfigRow>,
+  ) => {
+    if (value) rows.push({ title, value, ...opts });
   };
 
-  const st = formData.sourceType;
-  if (st === String(feast.core.DataSource.SourceType.BATCH_FILE)) {
-    payload.file_options = { uri: formData.fileUri };
-  } else if (st === String(feast.core.DataSource.SourceType.BATCH_BIGQUERY)) {
-    payload.bigquery_options = {
-      table: formData.bigqueryTable,
-      query: formData.bigqueryQuery,
-    };
-  } else if (st === String(feast.core.DataSource.SourceType.BATCH_SNOWFLAKE)) {
-    payload.snowflake_options = {
-      table: formData.snowflakeTable,
-      database: formData.snowflakeDatabase,
-      schema_: formData.snowflakeSchema,
-    };
-  } else if (st === String(feast.core.DataSource.SourceType.BATCH_REDSHIFT)) {
-    payload.redshift_options = {
-      table: formData.redshiftTable,
-      database: formData.redshiftDatabase,
-      schema_: formData.redshiftSchema,
-    };
-  } else if (st === String(feast.core.DataSource.SourceType.STREAM_KAFKA)) {
-    payload.kafka_options = {
-      kafka_bootstrap_servers: formData.kafkaBootstrapServers,
-      topic: formData.kafkaTopic,
-    };
-  } else if (st === String(feast.core.DataSource.SourceType.BATCH_SPARK)) {
-    payload.spark_options = {
-      table: formData.sparkTable,
-      path: formData.sparkPath,
-    };
-  } else if (st === String(feast.core.DataSource.SourceType.BATCH_TRINO)) {
-    payload.trino_options = {
-      table: formData.trinoTable,
-      query: formData.trinoQuery,
-    };
-  } else if (st === String(feast.core.DataSource.SourceType.BATCH_ATHENA)) {
-    payload.athena_options = {
-      table: formData.athenaTable,
-      query: formData.athenaQuery,
-      database: formData.athenaDatabase,
-      data_source: formData.athenaDataSource,
-    };
-  } else if (st === String(feast.core.DataSource.SourceType.STREAM_KINESIS)) {
-    payload.kinesis_options = {
-      region: formData.kinesisRegion,
-      stream_name: formData.kinesisStreamName,
-    };
-  } else if (st === String(feast.core.DataSource.SourceType.CUSTOM_SOURCE)) {
-    payload.custom_options = {
-      class_name: formData.customSourceClassName,
-      config: formData.customSourceConfig,
-    };
+  if (ds.fileOptions) {
+    push("File URI", ds.fileOptions.uri);
+    push("File Format", formatOneofLabel(ds.fileOptions.fileFormat));
+    push("S3 Endpoint Override", ds.fileOptions.s3EndpointOverride);
+  } else if (ds.bigqueryOptions) {
+    push("Table", ds.bigqueryOptions.table);
+    push("Query", ds.bigqueryOptions.query, { code: true, codeLang: "sql" });
+  } else if (ds.snowflakeOptions) {
+    push("Database", ds.snowflakeOptions.database);
+    push("Schema", ds.snowflakeOptions.schema);
+    push("Table", ds.snowflakeOptions.table);
+    push("Warehouse", ds.snowflakeOptions.warehouse);
+    push("Query", ds.snowflakeOptions.query, { code: true, codeLang: "sql" });
+  } else if (ds.redshiftOptions) {
+    push("Database", ds.redshiftOptions.database);
+    push("Schema", ds.redshiftOptions.schema);
+    push("Table", ds.redshiftOptions.table);
+    push("Query", ds.redshiftOptions.query, { code: true, codeLang: "sql" });
+  } else if (ds.sparkOptions) {
+    push("Table", ds.sparkOptions.table);
+    push("Path", ds.sparkOptions.path);
+    push("File Format", ds.sparkOptions.fileFormat);
+    push("Query", ds.sparkOptions.query, { code: true, codeLang: "sql" });
+  } else if (ds.trinoOptions) {
+    push("Table", ds.trinoOptions.table);
+    push("Query", ds.trinoOptions.query, { code: true, codeLang: "sql" });
+  } else if (ds.athenaOptions) {
+    push("Database", ds.athenaOptions.database);
+    push("Data Source", ds.athenaOptions.dataSource);
+    push("Table", ds.athenaOptions.table);
+    push("Query", ds.athenaOptions.query, { code: true, codeLang: "sql" });
+  } else if (ds.kafkaOptions) {
+    push("Bootstrap Servers", ds.kafkaOptions.kafkaBootstrapServers);
+    push("Topic", ds.kafkaOptions.topic);
+    push("Message Format", formatOneofLabel(ds.kafkaOptions.messageFormat));
+    push("Watermark Delay", ds.kafkaOptions.watermarkDelayThreshold);
+  } else if (ds.kinesisOptions) {
+    push("Region", ds.kinesisOptions.region);
+    push("Stream Name", ds.kinesisOptions.streamName);
+  } else if (ds.customOptions?.configuration) {
+    return parseIceberg(ds);
+  } else if (ds.customOptions) {
+    push("Class Name", ds.customOptions.className);
+    push("Config", ds.customOptions.config, { code: true, codeLang: "json" });
   }
 
-  return payload;
-};
+  return rows;
+}
+
+/* ────── main ────── */
 
 const DataSourceOverviewTab = () => {
   const { dataSourceName, projectName } = useParams();
@@ -192,168 +149,328 @@ const DataSourceOverviewTab = () => {
         }, {})
       : undefined;
 
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const applyDataSource = useApplyDataSource();
+  if (isLoading) {
+    return (
+      <>
+        <EuiLoadingSpinner size="m" /> Loading
+      </>
+    );
+  }
+  if (isEmpty) {
+    return <p>No data source with name: {dataSourceName}</p>;
+  }
+  if (isError) {
+    return (
+      <EuiCallOut
+        title="Error loading data source"
+        color="danger"
+        iconType="alert"
+      >
+        <p>Could not load data source {dataSourceName}.</p>
+      </EuiCallOut>
+    );
+  }
+  if (!isSuccess || !data) return null;
 
-  const handleEditSubmit = (formData: DataSourceFormData) => {
-    const payload = formDataToPayload(formData, projectName || "");
-    applyDataSource.mutate(payload as any, {
-      onSuccess: () => {
-        setIsEditModalOpen(false);
-        setErrorMessage(null);
-        setSuccessMessage(
-          `Data source "${formData.name}" updated successfully.`,
-        );
-        setTimeout(() => setSuccessMessage(null), 5000);
-      },
-      onError: (err: unknown) => {
-        // Error shown inside the modal via submitError prop
-        const message =
-          err instanceof Error ? err.message : "An unexpected error occurred.";
-        setErrorMessage(message);
-      },
-    });
+  const spec = data.spec || data;
+  const meta = getDataSourceTypeMeta(data);
+  const categoryInfo = CATEGORY_META[meta.category];
+  const Icon = meta.icon;
+  const description = spec.description || "";
+  const owner = spec.owner || "";
+  const timestampField = spec.timestampField || spec.timestamp_field || "";
+  const createdTsCol =
+    spec.createdTimestampColumn || spec.created_timestamp_column || "";
+  const tags: Record<string, string> = spec.tags || {};
+  const connectionRows = getConnectionRows(spec);
+
+  const latestEvent = spec.meta?.latestEventTimestamp;
+  const earliestEvent = spec.meta?.earliestEventTimestamp;
+  const createdTs = data.meta?.createdTimestamp || data.meta?.created_timestamp;
+  const lastUpdatedTs =
+    data.meta?.lastUpdatedTimestamp || data.meta?.last_updated_timestamp;
+
+  const fmtDate = (ts: any) => {
+    try {
+      return toDate(ts).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+    } catch {
+      return "—";
+    }
   };
 
-  const spec = data?.spec || data;
-  const sourceType = spec?.type;
-
   return (
-    <React.Fragment>
-      {isLoading && (
-        <React.Fragment>
-          <EuiLoadingSpinner size="m" /> Loading
-        </React.Fragment>
-      )}
-      {isEmpty && <p>No data source with name: {dataSourceName}</p>}
-      {isError && <p>Error loading data source: {dataSourceName}</p>}
-      {isSuccess && data && (
-        <React.Fragment>
-          {successMessage && (
-            <>
-              <EuiCallOut
-                title={successMessage}
-                color="success"
-                iconType="check"
-                size="s"
-              />
-              <EuiSpacer size="m" />
-            </>
-          )}
-          {errorMessage && (
-            <>
-              <EuiCallOut
-                title={errorMessage}
-                color="danger"
-                iconType="alert"
-                size="s"
-              />
-              <EuiSpacer size="m" />
-            </>
-          )}
-          <EuiFlexGroup justifyContent="flexEnd">
-            <EuiFlexItem grow={false}>
-              <EuiButtonEmpty
-                iconType="pencil"
-                onClick={() => setIsEditModalOpen(true)}
-              >
-                Edit Data Source
-              </EuiButtonEmpty>
-            </EuiFlexItem>
-          </EuiFlexGroup>
-          <EuiSpacer size="s" />
-          <EuiFlexGroup>
-            <EuiFlexItem>
-              <EuiFlexGroup>
-                <EuiFlexItem>
-                  <EuiPanel hasBorder={true} hasShadow={false}>
-                    <EuiTitle size="xs">
-                      <h2>Properties</h2>
-                    </EuiTitle>
-                    <EuiHorizontalRule margin="xs" />
-                    {spec?.fileOptions || spec?.bigqueryOptions ? (
-                      <BatchSourcePropertiesView batchSource={spec} />
-                    ) : sourceType ? (
-                      <React.Fragment>
-                        <EuiDescriptionList>
-                          <EuiDescriptionListTitle>
-                            Source Type
-                          </EuiDescriptionListTitle>
-                          <EuiDescriptionListDescription>
-                            {sourceType}
-                          </EuiDescriptionListDescription>
-                        </EuiDescriptionList>
-                      </React.Fragment>
-                    ) : (
-                      ""
-                    )}
-                  </EuiPanel>
-                </EuiFlexItem>
-              </EuiFlexGroup>
-              <EuiSpacer size="m" />
-              <EuiFlexGroup>
-                <EuiFlexItem>
-                  {spec?.requestDataOptions ? (
-                    <EuiPanel hasBorder={true}>
-                      <EuiTitle size="xs">
-                        <h2>Request Source Schema</h2>
-                      </EuiTitle>
-                      <EuiHorizontalRule margin="xs"></EuiHorizontalRule>
-                      <RequestDataSourceSchemaTable
-                        fields={
-                          data?.requestDataOptions?.schema!.map((obj: any) => {
-                            return {
-                              fieldName: obj.name!,
-                              valueType: obj.valueType!,
-                            };
-                          })!
-                        }
-                      />
-                    </EuiPanel>
-                  ) : (
-                    ""
-                  )}
-                </EuiFlexItem>
-              </EuiFlexGroup>
-            </EuiFlexItem>
-            <EuiFlexItem>
-              <EuiPanel hasBorder={true}>
+    <>
+      {/* Hero header */}
+      <EuiPanel hasBorder style={{ borderLeft: `4px solid ${meta.color}` }}>
+        <EuiFlexGroup alignItems="center" gutterSize="m" responsive={false}>
+          <EuiFlexItem grow={false}>
+            <div
+              style={{
+                width: 56,
+                height: 56,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                borderRadius: 10,
+                backgroundColor: `${meta.color}14`,
+              }}
+            >
+              <Icon width={36} height={36} />
+            </div>
+          </EuiFlexItem>
+          <EuiFlexItem>
+            <EuiFlexGroup
+              gutterSize="s"
+              alignItems="center"
+              responsive={false}
+              wrap
+            >
+              <EuiFlexItem grow={false}>
                 <EuiTitle size="xs">
-                  <h2>Consuming Views</h2>
+                  <h2 style={{ margin: 0 }}>{meta.label}</h2>
                 </EuiTitle>
-                <EuiHorizontalRule margin="xs"></EuiHorizontalRule>
-                {consumingFeatureViews && consumingFeatureViews.length > 0 ? (
-                  <FeatureViewEdgesList
-                    fvNames={consumingFeatureViews.map((f: any) => {
-                      return f.target.name;
-                    })}
-                    viewTypes={viewTypesForDs}
-                  />
-                ) : (
-                  <EuiText>No consuming views</EuiText>
-                )}
-              </EuiPanel>
-            </EuiFlexItem>
-          </EuiFlexGroup>
-        </React.Fragment>
-      )}
+              </EuiFlexItem>
+              <EuiFlexItem grow={false}>
+                <EuiBadge color={categoryInfo.color as any}>
+                  {categoryInfo.label}
+                </EuiBadge>
+              </EuiFlexItem>
+            </EuiFlexGroup>
+            <EuiText size="s" color="subdued">
+              <p style={{ margin: "4px 0 0" }}>
+                {description || meta.description}
+              </p>
+            </EuiText>
+          </EuiFlexItem>
+        </EuiFlexGroup>
+      </EuiPanel>
 
-      {isEditModalOpen && data && (
-        <DataSourceFormModal
-          onClose={() => {
-            setIsEditModalOpen(false);
-            setErrorMessage(null);
-          }}
-          onSubmit={handleEditSubmit}
-          initialData={buildEditFormData(data)}
-          isEdit
-          isSubmitting={applyDataSource.isLoading}
-          submitError={errorMessage}
-        />
-      )}
-    </React.Fragment>
+      <EuiSpacer size="m" />
+
+      <EuiFlexGroup gutterSize="l">
+        {/* Left: connection config + test + schema */}
+        <EuiFlexItem grow={1}>
+          <EuiPanel hasBorder>
+            <EuiTitle size="xs">
+              <h2>Connection</h2>
+            </EuiTitle>
+            <EuiHorizontalRule margin="xs" />
+            {connectionRows.length > 0 ? (
+              <EuiDescriptionList
+                type="column"
+                compressed
+                columnWidths={[1, 2]}
+              >
+                {connectionRows.map((row) => (
+                  <React.Fragment key={row.title}>
+                    <EuiDescriptionListTitle>
+                      {row.title}
+                    </EuiDescriptionListTitle>
+                    <EuiDescriptionListDescription>
+                      {row.code ? (
+                        <EuiCodeBlock
+                          language={row.codeLang || "text"}
+                          paddingSize="s"
+                          fontSize="s"
+                          isCopyable
+                        >
+                          {row.value}
+                        </EuiCodeBlock>
+                      ) : (
+                        <code style={{ fontSize: 12, wordBreak: "break-all" }}>
+                          {row.value}
+                        </code>
+                      )}
+                    </EuiDescriptionListDescription>
+                  </React.Fragment>
+                ))}
+              </EuiDescriptionList>
+            ) : (
+              <EuiText size="s" color="subdued">
+                No connection configuration available for this source.
+              </EuiText>
+            )}
+          </EuiPanel>
+
+          <EuiSpacer size="m" />
+          <ConnectionStatusPanel
+            dataSourceName={dsName}
+            projectName={projectName || ""}
+          />
+
+          {spec.requestDataOptions && (
+            <>
+              <EuiSpacer size="m" />
+              <EuiPanel hasBorder>
+                <EuiTitle size="xs">
+                  <h2>Request Source Schema</h2>
+                </EuiTitle>
+                <EuiHorizontalRule margin="xs" />
+                <RequestDataSourceSchemaTable
+                  fields={(spec.requestDataOptions?.schema || []).map(
+                    (obj: any) => ({
+                      fieldName: obj.name!,
+                      valueType: obj.valueType!,
+                    }),
+                  )}
+                />
+              </EuiPanel>
+            </>
+          )}
+        </EuiFlexItem>
+
+        {/* Right: metadata + consuming views */}
+        <EuiFlexItem grow={1}>
+          <EuiPanel hasBorder grow={false}>
+            <EuiTitle size="xs">
+              <h3>Properties</h3>
+            </EuiTitle>
+            <EuiHorizontalRule margin="xs" />
+            <EuiDescriptionList compressed>
+              <EuiDescriptionListTitle>Type</EuiDescriptionListTitle>
+              <EuiDescriptionListDescription>
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                >
+                  <Icon width={16} height={16} /> {meta.label}
+                </span>
+              </EuiDescriptionListDescription>
+
+              <EuiDescriptionListTitle>Category</EuiDescriptionListTitle>
+              <EuiDescriptionListDescription>
+                <EuiBadge color={categoryInfo.color as any}>
+                  {categoryInfo.label}
+                </EuiBadge>
+              </EuiDescriptionListDescription>
+
+              {owner && (
+                <>
+                  <EuiDescriptionListTitle>Owner</EuiDescriptionListTitle>
+                  <EuiDescriptionListDescription>
+                    {owner}
+                  </EuiDescriptionListDescription>
+                </>
+              )}
+
+              {timestampField && (
+                <>
+                  <EuiDescriptionListTitle>
+                    Event Timestamp Column
+                  </EuiDescriptionListTitle>
+                  <EuiDescriptionListDescription>
+                    <code>{timestampField}</code>
+                  </EuiDescriptionListDescription>
+                </>
+              )}
+
+              {createdTsCol && (
+                <>
+                  <EuiDescriptionListTitle>
+                    Created Timestamp Column
+                  </EuiDescriptionListTitle>
+                  <EuiDescriptionListDescription>
+                    <code>{createdTsCol}</code>
+                  </EuiDescriptionListDescription>
+                </>
+              )}
+
+              {(earliestEvent || latestEvent) && (
+                <>
+                  <EuiDescriptionListTitle>
+                    Event Time Range
+                  </EuiDescriptionListTitle>
+                  <EuiDescriptionListDescription>
+                    {earliestEvent ? fmtDate(earliestEvent) : "—"} →{" "}
+                    {latestEvent ? fmtDate(latestEvent) : "—"}
+                  </EuiDescriptionListDescription>
+                </>
+              )}
+
+              {createdTs && (
+                <>
+                  <EuiDescriptionListTitle>Created</EuiDescriptionListTitle>
+                  <EuiDescriptionListDescription>
+                    <EuiToolTip content={fmtDate(createdTs)}>
+                      <span>
+                        <EuiIcon type="clock" size="s" />{" "}
+                        {getRelativeTime(toDate(createdTs))}
+                      </span>
+                    </EuiToolTip>
+                  </EuiDescriptionListDescription>
+                </>
+              )}
+
+              {lastUpdatedTs && (
+                <>
+                  <EuiDescriptionListTitle>
+                    Last Updated
+                  </EuiDescriptionListTitle>
+                  <EuiDescriptionListDescription>
+                    <EuiToolTip content={fmtDate(lastUpdatedTs)}>
+                      <span>
+                        <EuiIcon type="clock" size="s" />{" "}
+                        {getRelativeTime(toDate(lastUpdatedTs))}
+                      </span>
+                    </EuiToolTip>
+                  </EuiDescriptionListDescription>
+                </>
+              )}
+            </EuiDescriptionList>
+          </EuiPanel>
+
+          {Object.keys(tags).length > 0 && (
+            <>
+              <EuiSpacer size="m" />
+              <EuiPanel hasBorder grow={false}>
+                <EuiTitle size="xs">
+                  <h3>Tags</h3>
+                </EuiTitle>
+                <EuiHorizontalRule margin="xs" />
+                <EuiFlexGroup gutterSize="xs" wrap responsive={false}>
+                  {Object.entries(tags).map(([key, value]) => {
+                    const badge = getTagBadge(key, value as string);
+                    return (
+                      <EuiFlexItem grow={false} key={key}>
+                        <EuiBadge color={badge.color as any}>
+                          {badge.label}
+                        </EuiBadge>
+                      </EuiFlexItem>
+                    );
+                  })}
+                </EuiFlexGroup>
+              </EuiPanel>
+            </>
+          )}
+
+          <EuiSpacer size="m" />
+          <EuiPanel hasBorder grow={false}>
+            <EuiTitle size="xs">
+              <h3>Consuming Views ({consumingFeatureViews?.length || 0})</h3>
+            </EuiTitle>
+            <EuiHorizontalRule margin="xs" />
+            {consumingFeatureViews && consumingFeatureViews.length > 0 ? (
+              <FeatureViewEdgesList
+                fvNames={consumingFeatureViews.map((f: any) => f.target.name)}
+                viewTypes={viewTypesForDs}
+              />
+            ) : (
+              <EuiText size="s" color="subdued">
+                No feature or label views consume this data source yet.
+              </EuiText>
+            )}
+          </EuiPanel>
+        </EuiFlexItem>
+      </EuiFlexGroup>
+    </>
   );
 };
+
 export default DataSourceOverviewTab;

@@ -2,7 +2,7 @@
 
 ## Links & Resources
 
-* [Come say hi on Slack!](https://communityinviter.com/apps/feastopensource/feast-the-open-source-feature-store)
+* [Come say hi on Slack!](https://slack.feast.dev/)
   * As a part of the Linux Foundation, we ask community members to adhere to the [Linux Foundation Code of Conduct](https://events.linuxfoundation.org/about/code-of-conduct/)
 * [GitHub Repository](https://github.com/feast-dev/feast/): Find the complete Feast codebase on GitHub.
   * [Community Governance Doc](https://github.com/feast-dev/feast/blob/master/community): See the governance model of Feast, including who the maintainers are and how decisions are made.

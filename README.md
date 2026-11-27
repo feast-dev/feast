@@ -19,7 +19,7 @@
 
 
 ## Join us on Slack!
-👋👋👋 [Come say hi on Slack!](https://communityinviter.com/apps/feastopensource/feast-the-open-source-feature-store)
+👋👋👋 [Come say hi on Slack!](https://slack.feast.dev/)
 
 [Check out our DeepWiki!](https://deepwiki.com/feast-dev/feast)
 
@@ -127,7 +127,7 @@ feast materialize 2021-04-12T00:00:00 $CURRENT_TIME
 feast materialize --disable-event-timestamp
 ```
 
-The `--disable-event-timestamp` flag allows you to materialize all available feature data using the current datetime as the event timestamp, without needing to specify start and end timestamps. This is useful when your source data lacks proper event timestamp columns.
+The `--disable-event-timestamp` flag allows you to materialize all available data (from 1970-01-01 up to the current UTC time) without specifying start and end timestamps. Rows keep the event timestamps from the source.
 
 ```commandline
 Materializing feature view driver_hourly_stats from 2021-04-14 to 2021-04-15 done!
@@ -173,6 +173,7 @@ The list below contains the functionality that contributors are planning to deve
   * [x] Vector Search (Alpha release. See [RFC](https://docs.google.com/document/d/18IWzLEA9i2lDWnbfbwXnMCg3StlqaLVI-uRpQjr_Vos/edit#heading=h.9gaqqtox9jg6))
   * [ ] [Enhanced Feature Server and SDK for native support for NLP](https://github.com/feast-dev/feast/issues/4964)
 * **Data Sources**
+  * [x] [Chronon source (contrib)](https://docs.feast.dev/reference/data-sources/chronon)
   * [x] [Snowflake source](https://docs.feast.dev/reference/data-sources/snowflake)
   * [x] [Redshift source](https://docs.feast.dev/reference/data-sources/redshift)
   * [x] [BigQuery source](https://docs.feast.dev/reference/data-sources/bigquery)
@@ -189,6 +190,7 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [Ray source (contrib plugin)](https://docs.feast.dev/reference/data-sources/ray)
   * [x] Kafka / Kinesis sources (via [push support into the online store](https://docs.feast.dev/reference/data-sources/push))
 * **Offline Stores**
+  * [x] [Chronon (contrib)](https://docs.feast.dev/reference/offline-stores/chronon)
   * [x] [Snowflake](https://docs.feast.dev/reference/offline-stores/snowflake)
   * [x] [Redshift](https://docs.feast.dev/reference/offline-stores/redshift)
   * [x] [BigQuery](https://docs.feast.dev/reference/offline-stores/bigquery)
@@ -209,6 +211,7 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [Hybrid](https://docs.feast.dev/reference/offline-stores/hybrid)
   * [x] [Custom offline store support](https://docs.feast.dev/how-to-guides/customizing-feast/adding-a-new-offline-store)
 * **Online Stores**
+  * [x] [Chronon](https://docs.feast.dev/reference/online-stores/chronon)
   * [x] [Snowflake](https://docs.feast.dev/reference/online-stores/snowflake)
   * [x] [DynamoDB](https://docs.feast.dev/reference/online-stores/dynamodb)
   * [x] [Redis](https://docs.feast.dev/reference/online-stores/redis)
@@ -227,6 +230,7 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [SingleStore](https://docs.feast.dev/reference/online-stores/singlestore)
   * [x] [Couchbase](https://docs.feast.dev/reference/online-stores/couchbase)
   * [x] [MongoDB](https://docs.feast.dev/reference/online-stores/mongodb)
+  * [x] [Aerospike](https://docs.feast.dev/reference/online-stores/aerospike)
   * [x] [Qdrant (vector store)](https://docs.feast.dev/reference/online-stores/qdrant)
   * [x] [Milvus (vector store)](https://docs.feast.dev/reference/online-stores/milvus)
   * [x] [Faiss (vector store)](https://docs.feast.dev/reference/online-stores/faiss)
@@ -254,7 +258,6 @@ The list below contains the functionality that contributors are planning to deve
   * [x] [Offline Feature Server (alpha)](https://docs.feast.dev/reference/feature-servers/offline-feature-server)
   * [x] [Registry server (alpha)](https://github.com/feast-dev/feast/blob/master/docs/reference/feature-servers/registry-server.md)
 * **Data Quality Management (See [RFC](https://docs.google.com/document/d/110F72d4NTv80p35wDSONxhhPBqWRwbZXG4f9mNEMd98/edit))**
-  * [x] ~~Data profiling and validation (Great Expectations)~~ (deprecated)
   * [x] [Feature Quality Monitoring](https://docs.feast.dev/how-to-guides/feature-monitoring) — built-in metrics, drift detection, serving log monitoring, and UI dashboard
 * **Feature Discovery and Governance**
   * [x] Python SDK for browsing feature registry

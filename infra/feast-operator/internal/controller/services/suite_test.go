@@ -92,3 +92,7 @@ func testSetIsOpenShift() {
 func testSetHasServiceMonitorCRD(val bool) {
 	hasServiceMonitorCRD = val
 }
+
+func testSetHasMlflowCRD(val bool) {
+	hasMlflowCRD = val
+}

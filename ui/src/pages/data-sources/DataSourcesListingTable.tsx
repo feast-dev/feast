@@ -1,43 +1,138 @@
 import React from "react";
-import { EuiBasicTable } from "@elastic/eui";
+import { EuiInMemoryTable, EuiBadge, EuiText, EuiToolTip } from "@elastic/eui";
 import EuiCustomLink from "../../components/EuiCustomLink";
 import { useParams } from "react-router-dom";
-import { feast } from "../../protos";
+import {
+  getDataSourceTypeMeta,
+  getConnectionTarget,
+  truncateMiddle,
+  getRelativeTime,
+  formatAbsoluteDate,
+  CATEGORY_META,
+} from "./dataSourceTypeUtils";
 
-interface DatasourcesListingTableProps {
-  dataSources: feast.core.IDataSource[];
+interface DataSourcesListingTableProps {
+  dataSources: any[];
 }
 
-const DatasourcesListingTable = ({
+function createdTsNum(item: any): number {
+  const ts =
+    item.meta?.createdTimestamp ||
+    item.meta?.created_timestamp ||
+    item.spec?.meta?.createdTimestamp;
+  if (!ts) return 0;
+  const n = new Date(ts).getTime();
+  return Number.isNaN(n) ? 0 : n;
+}
+
+const DataSourcesListingTable = ({
   dataSources,
-}: DatasourcesListingTableProps) => {
+}: DataSourcesListingTableProps) => {
   const { projectName } = useParams();
 
-  const columns = [
+  const columns: any[] = [
     {
       name: "Name",
       field: "name",
-      sortable: true,
-      render: (name: string, item: feast.core.IDataSource) => {
-        // For "All Projects" view, link to the specific project
-        const itemProject = item?.project || projectName;
+      sortable: (item: any) => item.name || item.spec?.name || "",
+      render: (_name: string, item: any) => {
+        const ds = item.spec || item;
+        const name = ds.name || item.name;
+        const itemProject = item.project || ds.project || projectName;
+        const description = ds.description;
         return (
-          <EuiCustomLink to={`/p/${itemProject}/data-source/${name}`}>
-            {name}
-          </EuiCustomLink>
+          <div>
+            <EuiCustomLink to={`/p/${itemProject}/data-source/${name}`}>
+              <strong>{name}</strong>
+            </EuiCustomLink>
+            {description && (
+              <EuiText size="xs" color="subdued">
+                <span
+                  style={{
+                    display: "-webkit-box",
+                    WebkitLineClamp: 1,
+                    WebkitBoxOrient: "vertical",
+                    overflow: "hidden",
+                  }}
+                >
+                  {description}
+                </span>
+              </EuiText>
+            )}
+          </div>
         );
       },
     },
     {
       name: "Type",
       field: "type",
-      sortable: true,
-      render: (valueType: feast.core.DataSource.SourceType | string) => {
-        if (typeof valueType === "string") {
-          return valueType;
-        }
-        return feast.core.DataSource.SourceType[valueType] || String(valueType);
+      sortable: (item: any) => getDataSourceTypeMeta(item).label,
+      render: (_type: any, item: any) => {
+        const meta = getDataSourceTypeMeta(item);
+        const Icon = meta.icon;
+        return (
+          <span
+            style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+          >
+            <Icon width={16} height={16} />
+            {meta.label}
+          </span>
+        );
       },
+    },
+    {
+      name: "Category",
+      sortable: (item: any) => getDataSourceTypeMeta(item).category,
+      render: (item: any) => {
+        const meta = getDataSourceTypeMeta(item);
+        const cat = CATEGORY_META[meta.category];
+        return <EuiBadge color={cat.color as any}>{cat.label}</EuiBadge>;
+      },
+      width: "120px",
+    },
+    {
+      name: "Connection",
+      render: (item: any) => {
+        const target = getConnectionTarget(item);
+        if (!target) return <span style={{ color: "#98A2B3" }}>—</span>;
+        return (
+          <EuiToolTip content={`${target.label}: ${target.value}`}>
+            <EuiText size="xs">
+              <span style={{ color: "#69707D" }}>{target.label}:</span>{" "}
+              <code style={{ fontSize: 11 }}>
+                {truncateMiddle(target.value, 36)}
+              </code>
+            </EuiText>
+          </EuiToolTip>
+        );
+      },
+    },
+    {
+      name: "Owner",
+      sortable: (item: any) => (item.spec || item).owner || "",
+      render: (item: any) => {
+        const owner = (item.spec || item).owner;
+        return owner ? (
+          <EuiText size="xs">{owner}</EuiText>
+        ) : (
+          <span style={{ color: "#98A2B3" }}>—</span>
+        );
+      },
+      width: "150px",
+    },
+    {
+      name: "Created",
+      sortable: (item: any) => createdTsNum(item),
+      render: (item: any) => {
+        const ts = createdTsNum(item);
+        if (!ts) return <span style={{ color: "#98A2B3" }}>—</span>;
+        return (
+          <EuiToolTip content={formatAbsoluteDate(ts)}>
+            <EuiText size="xs">{getRelativeTime(new Date(ts))}</EuiText>
+          </EuiToolTip>
+        );
+      },
+      width: "130px",
     },
   ];
 
@@ -47,25 +142,27 @@ const DatasourcesListingTable = ({
       name: "Project",
       field: "project",
       sortable: true,
-      render: (project: string) => {
-        return <span>{project || "Unknown"}</span>;
-      },
+      render: (project: string) => <span>{project || "Unknown"}</span>,
+      width: "140px",
     });
   }
 
-  const getRowProps = (item: feast.core.IDataSource) => {
-    return {
-      "data-test-subj": `row-${item.name}`,
-    };
-  };
+  const getRowProps = (item: any) => ({
+    "data-test-subj": `row-${item.name || item.spec?.name}`,
+  });
 
   return (
-    <EuiBasicTable
+    <EuiInMemoryTable
       columns={columns}
       items={dataSources}
       rowProps={getRowProps}
+      sorting={true}
+      pagination={{
+        initialPageSize: 10,
+        pageSizeOptions: [10, 25, 50],
+      }}
     />
   );
 };
 
-export default DatasourcesListingTable;
+export default DataSourcesListingTable;

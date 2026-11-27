@@ -52,7 +52,17 @@ const {
     <link rel="icon" href="/images/feast_icon-black.png" sizes="192x192">
     <link rel="apple-touch-icon" href="/images/feast_icon-black.png">
   </head>
-  <body class="bg-white">
+  <script is:inline>
+    (function() {
+      const saved = localStorage.getItem('theme');
+      if (saved) {
+        document.documentElement.setAttribute('data-theme', saved);
+      } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    })();
+  </script>
+  <body>
     <slot name="header" />
     <main>
       <slot />

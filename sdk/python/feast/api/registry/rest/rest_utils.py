@@ -9,6 +9,7 @@ from feast.errors import (
     FeastPermissionError,
     PushSourceNotFoundException,
 )
+from feast.permissions.security_manager import get_security_manager
 from feast.protos.feast.registry import RegistryServer_pb2
 
 logger = logging.getLogger(__name__)
@@ -23,7 +24,17 @@ MATCH_SCORE_TAGS = 60
 def grpc_call(handler_fn, request):
     """
     Wrapper to invoke gRPC method with context=None and handle common errors.
+
+    Sets SecurityManager's current project from ``request.project`` so REST
+    handlers (which call RegistryServer methods in-process, not through the
+    gRPC AuthInterceptor) authorize against the target project's permissions.
     """
+    sm = get_security_manager()
+    project_token = None
+    if sm is not None:
+        project_token = sm.set_current_project(
+            getattr(request, "project", None) or None
+        )
     try:
         response = handler_fn(request, context=None)
         return MessageToDict(response)
@@ -35,6 +46,9 @@ def grpc_call(handler_fn, request):
         raise
     except Exception as e:
         raise e
+    finally:
+        if sm is not None and project_token is not None:
+            sm.reset_current_project(project_token)
 
 
 def get_object_relationships(
@@ -554,8 +568,8 @@ def get_all_project_resources(
         err_msg = f"Error getting resources for project '{project}'"
         errors.append(err_msg)
         logger.error(f"{err_msg}: {e}")
-    finally:
-        return resources, pagination, errors
+
+    return resources, pagination, errors
 
 
 def filter_search_results_and_match_score(
@@ -685,8 +699,8 @@ def list_entities(
     except Exception as e:
         err_msg = f"Error searching entities in project '{project}'"
         logger.error(f"{err_msg}: {e}")
-    finally:
-        return entities, pagination, err_msg
+
+    return entities, pagination, err_msg
 
 
 def list_feature_views(
@@ -731,8 +745,8 @@ def list_feature_views(
     except Exception as e:
         err_msg = f"Error searching feature views in project '{project}'"
         logger.error(f"{err_msg}: {e}")
-    finally:
-        return feature_views, pagination, err_msg
+
+    return feature_views, pagination, err_msg
 
 
 def list_feature_services(
@@ -776,8 +790,8 @@ def list_feature_services(
     except Exception as e:
         err_msg = f"Error searching feature services in project '{project}'"
         logger.error(f"{err_msg}: {e}")
-    finally:
-        return feature_services, pagination, err_msg
+
+    return feature_services, pagination, err_msg
 
 
 def list_data_sources(
@@ -821,8 +835,8 @@ def list_data_sources(
     except Exception as e:
         err_msg = f"Error searching data sources in project '{project}'"
         logger.error(f"{err_msg}: {e}")
-    finally:
-        return data_sources, pagination, err_msg
+
+    return data_sources, pagination, err_msg
 
 
 def list_saved_datasets(
@@ -866,8 +880,8 @@ def list_saved_datasets(
     except Exception as e:
         err_msg = f"Error searching saved datasets in project '{project}'"
         logger.error(f"{err_msg}: {e}")
-    finally:
-        return saved_datasets, pagination, err_msg
+
+    return saved_datasets, pagination, err_msg
 
 
 def list_features(
@@ -907,8 +921,8 @@ def list_features(
     except Exception as e:
         err_msg = f"Error searching features in project '{project}'"
         logger.error(f"{err_msg}: {e}")
-    finally:
-        return features, pagination, err_msg
+
+    return features, pagination, err_msg
 
 
 def list_label_views(
@@ -948,8 +962,8 @@ def list_label_views(
     except Exception as e:
         err_msg = f"Error searching label views in project '{project}'"
         logger.error(f"{err_msg}: {e}")
-    finally:
-        return label_views, pagination, err_msg
+
+    return label_views, pagination, err_msg
 
 
 def list_labels(
@@ -988,8 +1002,8 @@ def list_labels(
     except Exception as e:
         err_msg = f"Error searching labels in project '{project}'"
         logger.error(f"{err_msg}: {e}")
-    finally:
-        return labels, pagination, err_msg
+
+    return labels, pagination, err_msg
 
 
 def list_all_projects(
@@ -1029,5 +1043,5 @@ def list_all_projects(
     except Exception as e:
         err_msg = "Error searching all projects"
         logger.error(f"{err_msg}: {e}")
-    finally:
-        return projects, pagination, err_msg
+
+    return projects, pagination, err_msg

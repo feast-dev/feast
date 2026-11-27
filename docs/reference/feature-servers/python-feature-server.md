@@ -30,6 +30,7 @@ Key performance options:
 - `--max-requests-jitter`: Jitter to prevent thundering herd on worker restart (default: 50)
 - `--registry_ttl_sec, -r`: Registry refresh interval in seconds. Higher values reduce overhead but increase staleness (default: 60)
 - `--keep-alive-timeout`: Keep-alive connection timeout in seconds (default: 30)
+- `--gc-freeze`: Run `gc.freeze()` after startup to shorten full garbage collection pauses. See [Garbage collection pauses](../../how-to-guides/online-server-performance-tuning.md#garbage-collection-pauses) (default: off)
 
 ### Performance Best Practices
 
@@ -286,7 +287,7 @@ curl -X POST "http://localhost:6566/materialize" -d '{
 }' | jq
 ```
 
-When `disable_event_timestamp` is set to `true`, the `start_ts` and `end_ts` parameters are not required, and all available data is materialized using the current datetime as the event timestamp. This is useful when your source data lacks proper event timestamp columns.
+When `disable_event_timestamp` is set to `true`, the `start_ts` and `end_ts` parameters are not required, and all available data (from 1970-01-01 up to the current UTC time) is materialized. Rows keep the event timestamps from the source.
 
 Or from Python:
 ```python
@@ -367,8 +368,8 @@ thread from starting). All categories default to `true` except
 |--------|------|--------|----------|-------------|
 | `feast_feature_server_cpu_usage` | Gauge | — | `resource` | Process CPU usage % |
 | `feast_feature_server_memory_usage` | Gauge | — | `resource` | Process memory usage % |
-| `feast_feature_server_request_total` | Counter | `endpoint`, `status` | `request` | Total requests per endpoint |
-| `feast_feature_server_request_latency_seconds` | Histogram | `endpoint`, `feature_count`, `feature_view_count` | `request` | Request latency with p50/p95/p99 support |
+| `feast_feature_server_request_total` | Counter | `endpoint`, `status`, `status_class` | `request` | Total requests per endpoint and response status (see below) |
+| `feast_feature_server_request_latency_seconds` | Histogram | `endpoint`, `feature_count`, `feature_view_count` | `request` | Request latency with p50/p95/p99 support (`feature_count` is bucketed, see below) |
 | `feast_online_features_request_total` | Counter | — | `online_features` | Total online feature retrieval requests |
 | `feast_online_features_entity_count` | Histogram | — | `online_features` | Entity rows per online feature request |
 | `feast_feature_server_online_store_read_duration_seconds` | Histogram | — | `online_features` | Online store read phase duration (sync and async) |
@@ -381,6 +382,47 @@ thread from starting). All categories default to `true` except
 | `feast_offline_store_request_total` | Counter | `method`, `status` | `offline_features` | Total offline store retrieval requests |
 | `feast_offline_store_request_latency_seconds` | Histogram | `method` | `offline_features` | Latency of offline store retrieval operations |
 | `feast_offline_store_row_count` | Histogram | `method` | `offline_features` | Rows returned by offline store retrieval |
+
+### Feature count bucketing
+
+The `feature_count` label on `feast_feature_server_request_latency_seconds`
+is bucketed rather than exact, to keep cardinality bounded for feature
+services that vary widely in how many features they request. By default,
+counts are grouped into `0`, `1-10`, `11-50`, `51-200`, and `201+`.
+
+Customize the bucket boundaries with `feature_count_bins` in the `metrics`
+block:
+
+```yaml
+feature_server:
+  type: local
+  metrics:
+    enabled: true
+    feature_count_bins: [5, 20]
+```
+
+This produces the labels `0`, `1-5`, `6-20`, and `21+`. Note that this only
+affects the Prometheus label; the `feature_count` field in audit logs (see
+below) always reports the exact count.
+
+### Request status labels
+
+`feast_feature_server_request_total` carries two status labels derived from
+the HTTP status code the server responds with:
+
+- `status_class` is the status code class: `2xx`, `4xx` or `5xx`. Use it to
+  tell client errors (an unknown feature view or feature service, a denied
+  permission, a materialization that is already running) apart from server
+  errors.
+- `status` is `success` for status codes below 400 and `error` otherwise.
+
+For example, the server-side error rate per endpoint, excluding client
+errors:
+
+```
+sum by (endpoint) (rate(feast_feature_server_request_total{status_class="5xx"}[5m]))
+  / sum by (endpoint) (rate(feast_feature_server_request_total[5m]))
+```
 
 ### Per-ODFV transformation metrics
 
@@ -527,6 +569,42 @@ Prometheus adds an `instance` label per pod, so there is no
 duplication.  Use `sum(rate(...))` or `histogram_quantile(...)` across
 instances as usual.
 
+## Vector Search (`POST /search`)
+
+The feature server exposes `POST /search` for vector similarity search against online document embeddings. Pass a pre-computed embedding in `query`, or use `api_version: 2` with `query_string` for text-based search when the online store supports it.
+
+`POST /retrieve-online-documents` is a deprecated alias with the same request body and response; new integrations should use `/search`.
+
+## [Alpha] OpenAI-Compatible Vector Store API
+
+{% hint style="warning" %}
+**Alpha feature.** This API surface is functional and tested, but may change in future releases.
+{% endhint %}
+
+The feature server exposes OpenAI-compatible vector store endpoints. This allows clients (including LLM agents and tool-calling frameworks) to discover and search vector data with plain text queries, without computing embeddings client-side.
+
+Each feature view with vector-indexed fields gets a deterministic `vs_{hash}` identifier derived from `SHA-256(project + ":" + feature_view_name)`. These IDs are stable across server restarts.
+
+### Endpoints
+
+| Method | Path | RBAC | Description |
+|---|---|---|---|
+| `GET` | `/v1/vector_stores` | `DESCRIBE` | List all vector stores (filtered by caller permissions) |
+| `GET` | `/v1/vector_stores/{vector_store_id}` | `DESCRIBE` | Get metadata for a single vector store |
+| `POST` | `/v1/vector_stores/{vector_store_id}/search` | `READ_ONLINE` | Search a vector store with server-side embedding |
+
+### Configuration
+
+Add an `embedding_model` section to your `feature_store.yaml`:
+
+```yaml
+embedding_model:
+  provider: sentence_transformers   # default; can be omitted
+  model: all-MiniLM-L6-v2
+```
+
+Feast uses **Sentence Transformers** (default) for local embedding inference — no external API key required. Custom embedding providers can be plugged in by implementing the `EmbeddingProvider` protocol. See [\[Alpha\] Vector Database](../alpha-vector-database.md#alpha-openai-compatible-vector-store-api) for full configuration, custom providers, filter details, and SDK usage.
+
 ## Starting the feature server in TLS(SSL) mode
 
 Enabling TLS mode ensures that data between the Feast client and server is transmitted securely. For an ideal production environment, it is recommended to start the feature server in TLS mode.
@@ -598,7 +676,11 @@ The [PyTorch NLP template](https://github.com/feast-dev/feast/tree/main/sdk/pyth
 | Endpoint                   | Resource Type                   | Permission                                            | Description                                                    |
 |----------------------------|---------------------------------|-------------------------------------------------------|----------------------------------------------------------------|
 | /get-online-features       | FeatureView,OnDemandFeatureView | Read Online                                           | Get online features from the feature store                     |
-| /retrieve-online-documents | FeatureView                     | Read Online                                           | Retrieve online documents from the feature store for RAG       |
+| /search | FeatureView                     | Read Online                                           | Vector similarity search for RAG (embedding vector or text query) |
+| /retrieve-online-documents | FeatureView              | Read Online                                           | **Deprecated.** Use `/search` instead.                           |
+| /v1/vector_stores | FeatureView                  | Describe                                              | [Alpha] List all vector stores                                 |
+| /v1/vector_stores/{id} | FeatureView                  | Describe                                              | [Alpha] Get a single vector store                              |
+| /v1/vector_stores/{id}/search | FeatureView                  | Read Online                                           | [Alpha] OpenAI-compatible vector search with server-side embedding |
 | /push                      | FeatureView                     | Write Online, Write Offline, Write Online and Offline | Push features to the feature store (online, offline, or both)  |
 | /write-to-online-store     | FeatureView                     | Write Online                                          | Write features to the online store                             |
 | /materialize               | FeatureView                     | Write Online                                          | Materialize features within a specified time range             |

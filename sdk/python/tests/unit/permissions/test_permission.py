@@ -11,9 +11,11 @@ from feast.feature_service import FeatureService
 from feast.feature_view import FeatureView
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.action import ALL_ACTIONS, AuthzedAction
+from feast.permissions.enforcer import enforce_policy
 from feast.permissions.matcher import _resource_name_matches_name_patterns
 from feast.permissions.permission import Permission, _normalize_name_patterns
-from feast.permissions.policy import AllowAll, Policy
+from feast.permissions.policy import AllowAll, Policy, RoleBasedPolicy
+from feast.permissions.user import User
 from feast.saved_dataset import ValidationReference
 from feast.stream_feature_view import StreamFeatureView
 
@@ -221,8 +223,40 @@ def test_resource_match_with_tags(required_tags, tags, result):
     for t in ALL_RESOURCE_TYPES:
         resource = Mock(spec=t)
         resource.name = "test"
-        resource.required_tags = tags
+        resource.tags = tags
         assertpy.assert_that(p.match_resource(resource)).is_equal_to(result)
+
+    # Real objects keep their tags in `tags`, so match them too.
+    entity = Entity(name="test", join_keys=["id"], tags=tags)
+    assertpy.assert_that(p.match_resource(entity)).is_equal_to(result)
+
+
+def test_list_filtering_with_required_tags_keeps_only_own_team():
+    # Team separation by tag, as in the production deployment guide: listing
+    # resources must drop other teams' (and untagged) resources, not fail.
+    team_a = Entity(name="a", join_keys=["id"], tags={"team": "team-a"})
+    team_b = Entity(name="b", join_keys=["id"], tags={"team": "team-b"})
+    untagged = Entity(name="c", join_keys=["id"])
+    permissions = [
+        Permission(
+            name=f"{team}-describe",
+            types=[Entity],
+            required_tags={"team": team},
+            policy=RoleBasedPolicy(roles=[team]),
+            actions=[AuthzedAction.DESCRIBE],
+        )
+        for team in ("team-a", "team-b")
+    ]
+
+    permitted = enforce_policy(
+        permissions,
+        User(username="alice", roles=["team-a"]),
+        [team_a, team_b, untagged],
+        [AuthzedAction.DESCRIBE],
+        filter_only=True,
+    )
+
+    assertpy.assert_that(permitted).is_equal_to([team_a])
 
 
 @pytest.mark.parametrize(

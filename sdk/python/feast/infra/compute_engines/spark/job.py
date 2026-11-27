@@ -51,7 +51,7 @@ class SparkDAGRetrievalJob(SparkRetrievalJob):
             result = self._plan.execute(self._context)
             self._spark_df = result.data
 
-    def to_spark_df(self) -> pyspark.sql.DataFrame:
+    def _to_spark_df_internal(self) -> pyspark.sql.DataFrame:
         self._ensure_executed()
         assert self._spark_df is not None, "Execution plan did not produce a DataFrame"
         return self._spark_df

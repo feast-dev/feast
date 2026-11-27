@@ -135,3 +135,69 @@ class TestFileRegistryStorePathHandling:
 
         joined = Path("/app").joinpath(s3_path)
         assert str(joined).startswith("/app/s3:")
+
+
+class TestServeWhileMaterializingWarnings:
+    """`serve_features_while_materializing` emits advisory warnings when combined
+    with a registry configuration where the flag is a no-op or where its
+    guarantees may not hold. These are warnings only, never hard failures."""
+
+    def test_no_warning_when_flag_disabled(self, caplog):
+        with caplog.at_level("WARNING", logger="feast.repo_config"):
+            RegistryConfig(registry_type="sql")
+        assert "serve_features_while_materializing" not in caplog.text
+
+    def test_no_warning_for_safe_sql_sync_config(self, caplog):
+        with caplog.at_level("WARNING", logger="feast.repo_config"):
+            RegistryConfig(registry_type="sql", serve_features_while_materializing=True)
+        assert "serve_features_while_materializing" not in caplog.text
+
+    def test_warns_on_non_sql_registry(self, caplog):
+        with caplog.at_level("WARNING", logger="feast.repo_config"):
+            RegistryConfig(
+                registry_type="file", serve_features_while_materializing=True
+            )
+        assert "registry_type" in caplog.text
+        assert "cache_mode" not in caplog.text
+
+    def test_warns_on_thread_cache_mode(self, caplog):
+        with caplog.at_level("WARNING", logger="feast.repo_config"):
+            RegistryConfig(
+                registry_type="sql",
+                cache_mode="thread",
+                serve_features_while_materializing=True,
+            )
+        assert "cache_mode='thread'" in caplog.text
+        assert "registry_type" not in caplog.text
+
+    def test_warns_on_both_when_both_incompatible(self, caplog):
+        with caplog.at_level("WARNING", logger="feast.repo_config"):
+            RegistryConfig(
+                registry_type="file",
+                cache_mode="thread",
+                serve_features_while_materializing=True,
+            )
+        assert "registry_type" in caplog.text
+        assert "cache_mode='thread'" in caplog.text
+
+
+class TestCacheModeNoneWarning:
+    """`cache_mode='none'` is only honoured by the SQL registry; other
+    registries warn that they keep their in-memory cache."""
+
+    def test_no_warning_for_sql_registry(self, caplog):
+        with caplog.at_level("WARNING", logger="feast.repo_config"):
+            RegistryConfig(registry_type="sql", cache_mode="none")
+        assert "cache_mode='none'" not in caplog.text
+
+    @pytest.mark.parametrize("registry_type", ["file", "remote", "snowflake.registry"])
+    def test_warns_for_other_registries(self, caplog, registry_type):
+        with caplog.at_level("WARNING", logger="feast.repo_config"):
+            RegistryConfig(registry_type=registry_type, cache_mode="none")
+        assert "cache_mode='none'" in caplog.text
+        assert registry_type in caplog.text
+
+    def test_no_warning_for_default_cache_mode(self, caplog):
+        with caplog.at_level("WARNING", logger="feast.repo_config"):
+            RegistryConfig(registry_type="file")
+        assert "cache_mode='none'" not in caplog.text

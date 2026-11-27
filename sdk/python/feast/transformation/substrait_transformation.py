@@ -133,9 +133,7 @@ class SubstraitTransformation(Transformation):
 
     def __eq__(self, other):
         if not isinstance(other, SubstraitTransformation):
-            raise TypeError(
-                "Comparisons should only involve SubstraitTransformation class objects."
-            )
+            return False
 
         return (
             self.substrait_plan == other.substrait_plan

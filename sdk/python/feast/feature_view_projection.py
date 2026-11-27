@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Dict, List, Optional
 
-from attr import dataclass
+from attr import dataclass, field
 
 from feast.data_source import DataSource
 from feast.field import Field
@@ -42,7 +42,7 @@ class FeatureViewProjection:
     name_alias: Optional[str]
     desired_features: List[str]
     features: List[Field]
-    join_key_map: Dict[str, str] = {}
+    join_key_map: Dict[str, str] = field(factory=dict)
     timestamp_field: Optional[str] = None
     date_partition_column: Optional[str] = None
     created_timestamp_column: Optional[str] = None

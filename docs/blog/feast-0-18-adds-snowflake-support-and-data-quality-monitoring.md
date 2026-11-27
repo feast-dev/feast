@@ -6,7 +6,7 @@ We are delighted to announce the release of Feast [0.18](https://github.com/feas
 
 * Snowflake offline store, which allows you to define and use features stored in Snowflake.
 * [Experimental] Saved Datasets, which allow training datasets to be persisted in an offline store.
-* [Experimental] Data quality monitoring, which allows you to validate your training data with Great Expectations. Future work will allow you to detect issues with upstream data pipelines and check for training-serving skew.
+* [Experimental] Data quality monitoring, which allows you to validate your training data. This has since been superseded by Feast's native [Feature Quality Monitoring](../how-to-guides/feature-monitoring.md) system.
 * Python feature server graduation from alpha status.
 * Performance improvements to on demand feature views, protobuf serialization and deserialization, and the Python feature server.
 
@@ -22,7 +22,7 @@ Training datasets generated via `get_historical_features` can now be persisted i
 
 ### [Experimental] Data quality monitoring
 
-Feast 0.18 includes the first milestone of our data quality monitoring work. Many users have requested ways to validate their training and serving data, as well as monitor for training-serving skew. Feast 0.18 allows users to validate their training data through an integration with [Great Expectations](https://greatexpectations.io/). Users can declare one of the previously generated training datasets as a reference for this validation by persisting it as a "saved dataset" (see previous section). More details about future milestones of data quality monitoring can be found [here](https://docs.feastsite.wpenginepowered.com/v/master/reference/data-quality). There's also a [tutorial on validating historical features](https://docs.feastsite.wpenginepowered.com/v/master/how-to-guides/validation/validating-historical-features) that demonstrates all new concepts in action.
+Feast 0.18 includes the first milestone of our data quality monitoring work. Many users have requested ways to validate their training and serving data, as well as monitor for training-serving skew. Feast 0.18 allows users to validate their training data by declaring previously generated training datasets as a reference for validation, persisted as "saved datasets" (see previous section). This initial integration has since been superseded by Feast's native [Feature Quality Monitoring](../how-to-guides/feature-monitoring.md) system, which provides built-in metrics computation, drift detection, serving log monitoring, and a UI dashboard.
 
 ### Performance improvements
 

@@ -8,9 +8,10 @@ import {
   EuiEmptyPrompt,
   EuiBadge,
   EuiFieldSearch,
+  EuiSelect,
+  EuiFormRow,
   EuiFlexGroup,
   EuiFlexItem,
-  EuiSelect,
   EuiFlyout,
   EuiFlyoutHeader,
   EuiFlyoutBody,
@@ -18,7 +19,10 @@ import {
   EuiButtonEmpty,
 } from "@elastic/eui";
 import type { OpenLineageEvent } from "../queries/useLoadOpenLineageGraph";
-import { useLoadOpenLineageEvents } from "../queries/useLoadOpenLineageGraph";
+import {
+  useLoadOpenLineageEvents,
+  useLoadNamespaces,
+} from "../queries/useLoadOpenLineageGraph";
 
 const eventTypeColor = (eventType: string) => {
   switch (eventType) {
@@ -30,6 +34,10 @@ const eventTypeColor = (eventType: string) => {
       return "danger";
     case "ABORT":
       return "warning";
+    case "DATASET":
+      return "accent";
+    case "JOB":
+      return "hollow";
     default:
       return "default";
   }
@@ -47,6 +55,9 @@ const LineageEventsList: React.FC = () => {
   const [selectedEvent, setSelectedEvent] = useState<OpenLineageEvent | null>(
     null,
   );
+
+  const { data: nsData } = useLoadNamespaces();
+  const namespaces = nsData?.namespaces || [];
 
   const { data, isLoading, isError } = useLoadOpenLineageEvents(
     namespace || undefined,
@@ -76,7 +87,7 @@ const LineageEventsList: React.FC = () => {
     },
     {
       field: "job_name",
-      name: "Job",
+      name: "Job / Dataset",
       width: "250px",
     },
     {
@@ -143,12 +154,17 @@ const LineageEventsList: React.FC = () => {
 
       <EuiFlexGroup gutterSize="m">
         <EuiFlexItem grow={false} style={{ width: 250 }}>
-          <EuiFieldSearch
-            placeholder="Filter by namespace..."
-            value={namespace}
-            onChange={(e) => setNamespace(e.target.value)}
-            aria-label="Filter by namespace"
-          />
+          <EuiFormRow label="Namespace">
+            <EuiSelect
+              options={[
+                { value: "", text: "All namespaces" },
+                ...namespaces.map((ns) => ({ value: ns, text: ns })),
+              ]}
+              value={namespace}
+              onChange={(e) => setNamespace(e.target.value)}
+              aria-label="Filter by namespace"
+            />
+          </EuiFormRow>
         </EuiFlexItem>
         <EuiFlexItem grow={false} style={{ width: 250 }}>
           <EuiFieldSearch

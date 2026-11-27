@@ -1,7 +1,6 @@
 from types import FunctionType
 from typing import Any, Dict, Optional, cast
 
-import dill
 import pyarrow
 
 from feast.field import Field, from_value_type
@@ -89,6 +88,19 @@ class PythonTransformation(Transformation):
         return {**input_dict, **output_dict}
 
     def transform_singleton(self, input_dict: dict) -> dict:
+        # Each value in input_dict is a list with one entry per entity row.
+        # A singleton UDF takes a single row, so with more than one row it is
+        # called once per row and the results are collected back into lists.
+        if any(len(v) > 1 for v in input_dict.values()):
+            num_rows = max(len(v) for v in input_dict.values())
+            results = []
+            for i in range(num_rows):
+                row = {k: v[i] for k, v in input_dict.items()}
+                output_row = self.udf.__call__(row)
+                results.append({**row, **output_row})
+            columns = dict.fromkeys(k for result in results for k in result)
+            return {k: [result.get(k) for result in results] for k in columns}
+
         # This flattens the list of elements to extract the first one
         # in the case of a singleton element, it takes the value directly
         # in the case of a list of lists, it takes the first list
@@ -143,17 +155,18 @@ class PythonTransformation(Transformation):
 
     def __eq__(self, other):
         if not isinstance(other, PythonTransformation):
-            raise TypeError(
-                "Comparisons should only involve PythonTransformation class objects."
-            )
-
-        if (
-            self.udf_string != other.udf_string
-            or self.udf.__code__.co_code != other.udf.__code__.co_code
-        ):
             return False
 
-        return True
+        # udf_string is the canonical diff identity. Source-first from_proto
+        # rebuilds a new callable (strip+exec) whose bytecode differs from the
+        # live repo function even when the source is unchanged — do not require
+        # co_code equality when both sides have source text.
+        left = self.udf_string or ""
+        right = other.udf_string or ""
+        if left and right:
+            return left == right
+
+        return self.udf.__code__.co_code == other.udf.__code__.co_code
 
     def __reduce__(self):
         """Support for pickle/dill serialization."""
@@ -164,7 +177,15 @@ class PythonTransformation(Transformation):
 
     @classmethod
     def from_proto(cls, user_defined_function_proto: UserDefinedFunctionProto):
+        from feast.transformation.udf_rehydrate import resolve_udf
+
+        udf_string = user_defined_function_proto.body_text or ""
+        udf = resolve_udf(
+            udf_string=udf_string,
+            body=user_defined_function_proto.body or None,
+            preferred_name=user_defined_function_proto.name or None,
+        )
         return PythonTransformation(
-            udf=dill.loads(user_defined_function_proto.body),
-            udf_string=user_defined_function_proto.body_text,
+            udf=cast(FunctionType, udf),
+            udf_string=udf_string,
         )

@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 
 import pandas as pd
 import pyarrow as pa
+import pytest
 
 from feast.infra.compute_engines.backends.pandas_backend import PandasBackend
 from feast.infra.compute_engines.dag.context import ColumnInfo, ExecutionContext
@@ -15,6 +16,7 @@ from feast.infra.compute_engines.local.nodes import (
     LocalOutputNode,
     LocalTransformationNode,
 )
+from feast.infra.compute_engines.utils import ENTITY_TS_ALIAS
 from feast.repo_config import MaterializationConfig
 
 backend = PandasBackend()
@@ -77,6 +79,55 @@ def test_local_filter_node():
     assert result.data.num_rows == 3
 
 
+@pytest.mark.parametrize("backend_name", ["pandas", "polars"])
+@pytest.mark.parametrize(
+    "ttl, expected_values",
+    [(None, [20, 30, 40]), (timedelta(minutes=2), [20, 30])],
+)
+def test_local_filter_node_point_in_time(backend_name, ttl, expected_values):
+    if backend_name == "polars":
+        pytest.importorskip("polars")
+    from feast.infra.compute_engines.backends.factory import BackendFactory
+
+    # Rows as they look after the join with the entity dataframe: one row is
+    # newer than the entity timestamp and one is older than the 2 minute TTL.
+    joined_df = pd.DataFrame(
+        {
+            "entity_id": [1, 1, 2, 2],
+            "value": [10, 20, 30, 40],
+            "event_timestamp": [
+                now + timedelta(minutes=1),
+                now - timedelta(minutes=1),
+                now,
+                now - timedelta(minutes=5),
+            ],
+            ENTITY_TS_ALIAS: [now] * 4,
+        }
+    )
+    context = create_context(
+        node_outputs={"source": ArrowTableValue(pa.Table.from_pandas(joined_df))}
+    )
+
+    filter_node = LocalFilterNode(
+        name="filter",
+        backend=BackendFactory.from_name(backend_name),
+        ttl=ttl,
+        column_info=ColumnInfo(
+            join_keys=["entity_id"],
+            feature_cols=["value"],
+            ts_col="event_timestamp",
+            created_ts_col=None,
+        ),
+    )
+    filter_node.add_input(MagicMock())
+    filter_node.inputs[0].name = "source"
+
+    result = filter_node.execute(context)
+    assert isinstance(result, ArrowTableValue)
+    assert set(joined_df.columns) <= set(result.data.column_names)
+    assert result.data.column("value").to_pylist() == expected_values
+
+
 def test_local_aggregation_node():
     context = create_context(
         node_outputs={"source": ArrowTableValue(pa.Table.from_pandas(sample_df))}
@@ -102,6 +153,34 @@ def test_local_aggregation_node():
     result_df = result.data.to_pandas()
     assert result_df["sum_value"].iloc[0] == 30
     assert result_df["sum_value"].iloc[1] == 70
+
+
+def test_local_aggregation_node_polars_backend():
+    pytest.importorskip("polars")
+    from feast.infra.compute_engines.backends.polars_backend import PolarsBackend
+
+    context = create_context(
+        node_outputs={"source": ArrowTableValue(pa.Table.from_pandas(sample_df))}
+    )
+
+    agg_ops = {
+        "sum_value": ("sum", "value"),
+        "unique_value": ("nunique", "value"),
+    }
+    agg_node = LocalAggregationNode(
+        name="agg",
+        backend=PolarsBackend(),
+        group_keys=["entity_id"],
+        agg_ops=agg_ops,
+    )
+    agg_node.add_input(MagicMock())
+    agg_node.inputs[0].name = "source"
+
+    result = agg_node.execute(context)
+    assert isinstance(result, ArrowTableValue)
+    result_df = result.data.to_pandas().sort_values("entity_id")
+    assert result_df["sum_value"].tolist() == [30, 70]
+    assert result_df["unique_value"].tolist() == [2, 2]
 
 
 def test_local_join_node():

@@ -26,6 +26,7 @@ import {
   CategoricalHistogramChart,
 } from "./components/HistogramChart";
 import StatsPanel from "./components/StatsPanel";
+import { isBaselineMetricRow } from "./components/histogramUtils";
 import TimeSeriesAnalysis from "./components/TimeSeriesAnalysis";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 
@@ -39,6 +40,16 @@ const GRANULARITY_LABELS: Record<string, string> = {
   quarterly: "Quarterly",
   [BASELINE_KEY]: "Baseline",
 };
+
+// Window lengths the time series can plot, shortest first. The baseline
+// covers all data at once, so it is never a point on the line.
+const SERIES_GRANULARITIES = [
+  "daily",
+  "weekly",
+  "biweekly",
+  "monthly",
+  "quarterly",
+];
 
 const FeatureMetricsDetail = () => {
   const { projectName, featureViewName, featureName } = useParams();
@@ -70,7 +81,10 @@ const FeatureMetricsDetail = () => {
     const granularities = new Set<string>();
     if (metrics) {
       for (const m of metrics) {
-        if (m.row_count > 0) granularities.add(m.granularity);
+        // The baseline is not a window length; it has its own View option.
+        if (m.row_count > 0 && !isBaselineMetricRow(m)) {
+          granularities.add(m.granularity);
+        }
       }
     }
     return Array.from(granularities).sort();
@@ -100,18 +114,36 @@ const FeatureMetricsDetail = () => {
       return baselineMetric;
     }
     if (!metrics || metrics.length === 0) return null;
-    const matching = metrics.filter(
+    const windows = metrics.filter((m) => !isBaselineMetricRow(m));
+    const matching = windows.filter(
       (m) => m.granularity === effectiveGranularity && m.row_count > 0,
     );
     if (matching.length === 0) {
-      const withData = metrics.filter((m) => m.row_count > 0);
-      const candidates = withData.length > 0 ? withData : metrics;
+      const withData = windows.filter((m) => m.row_count > 0);
+      const candidates = withData.length > 0 ? withData : windows;
+      if (candidates.length === 0) return null;
       return candidates.reduce((a, b) =>
         a.metric_date > b.metric_date ? a : b,
       );
     }
     return matching.reduce((a, b) => (a.metric_date > b.metric_date ? a : b));
   }, [metrics, effectiveGranularity, baselineMetric]);
+
+  // Plot one window length at a time: the one picked in View, or the
+  // shortest one with data when View is the baseline.
+  const seriesGranularity =
+    SERIES_GRANULARITIES.includes(effectiveGranularity) &&
+    availableGranularities.includes(effectiveGranularity)
+      ? effectiveGranularity
+      : SERIES_GRANULARITIES.find((g) => availableGranularities.includes(g));
+
+  const seriesMetrics = useMemo(
+    () =>
+      (metrics ?? []).filter(
+        (m) => !isBaselineMetricRow(m) && m.granularity === seriesGranularity,
+      ),
+    [metrics, seriesGranularity],
+  );
 
   const breadcrumbs = [
     {
@@ -242,12 +274,13 @@ const FeatureMetricsDetail = () => {
           </EuiFlexItem>
         </EuiFlexGroup>
 
-        {metrics && metrics.length > 1 && (
+        {seriesGranularity && seriesMetrics.length > 0 && (
           <>
             <EuiSpacer size="xl" />
             <TimeSeriesAnalysis
-              metrics={metrics}
+              metrics={seriesMetrics}
               featureType={activeMetric.feature_type}
+              granularityLabel={GRANULARITY_LABELS[seriesGranularity]}
             />
           </>
         )}

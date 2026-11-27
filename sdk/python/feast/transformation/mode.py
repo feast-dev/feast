@@ -9,4 +9,5 @@ class TransformationMode(Enum):
     FLINK = "flink"
     RAY = "ray"
     SQL = "sql"
+    TRINO_SQL = "trino_sql"
     SUBSTRAIT = "substrait"

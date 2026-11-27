@@ -12,17 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import json
+import sys
 import time
 from collections import Counter
+from datetime import timedelta
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
+from feast import Entity, FeatureView, Field, FileSource, PushSource
 from feast.data_source import PushMode
 from feast.errors import PushSourceNotFoundException
 from feast.feature_server import get_app
+from feast.feature_store import FeatureStore
+from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from feast.online_response import OnlineResponse
 from feast.protos.feast.serving.ServingService_pb2 import (
     FeatureList,
@@ -31,9 +36,53 @@ from feast.protos.feast.serving.ServingService_pb2 import (
     GetOnlineFeaturesResponseMetadata,
 )
 from feast.protos.feast.types.Value_pb2 import Value
+from feast.repo_config import RepoConfig
+from feast.types import Float32, Int64, String, ValueType
 from feast.utils import _utc_now
 from tests.foo_provider import FooProvider
-from tests.utils.cli_repo_creator import CliRunner, get_example_repo
+
+
+def _build_push_feature_store(tmp_path) -> FeatureStore:
+    """In-process store with a pushable online FeatureView.
+
+    Avoids CliRunner.local_repo()'s ``feast apply`` subprocess, which is a known
+    source of macOS CI flakes (cold-start import timeouts under pytest-xdist).
+    """
+    # Pass repo_path explicitly: FeatureStore(config=...) otherwise falls back to
+    # cwd, and get_app()'s lifespan looks for static_artifacts.py under repo_path.
+    store = FeatureStore(
+        repo_path=str(tmp_path),
+        config=RepoConfig(
+            project="test_feature_server",
+            registry=str(tmp_path / "registry.db"),
+            provider="local",
+            online_store=SqliteOnlineStoreConfig(path=str(tmp_path / "online.db")),
+            entity_key_serialization_version=3,
+        ),
+    )
+    driver = Entity(name="driver", join_keys=["driver_id"], value_type=ValueType.INT64)
+    push_source = PushSource(
+        name="driver_locations_push",
+        batch_source=FileSource(
+            path=str(tmp_path / "driver_locations.parquet"),
+            timestamp_field="event_timestamp",
+            created_timestamp_column="created_timestamp",
+        ),
+    )
+    pushed_driver_locations = FeatureView(
+        name="pushed_driver_locations",
+        entities=[driver],
+        ttl=timedelta(days=1),
+        schema=[
+            Field(name="driver_lat", dtype=Float32),
+            Field(name="driver_long", dtype=String),
+            Field(name="driver_id", dtype=Int64),
+        ],
+        online=True,
+        source=push_source,
+    )
+    store.apply([driver, pushed_driver_locations])
+    return store
 
 
 @pytest.fixture
@@ -53,12 +102,12 @@ def mock_fs_factory():
 
 
 @pytest.fixture
-def test_client():
-    runner = CliRunner()
-    with runner.local_repo(
-        get_example_repo("example_feature_repo_1.py"), "file"
-    ) as store:
+def test_client(tmp_path):
+    store = _build_push_feature_store(tmp_path)
+    try:
         yield TestClient(get_app(store))
+    finally:
+        store.teardown()
 
 
 def get_online_features_body():
@@ -229,6 +278,22 @@ def test_materialize_request_model():
     assert req2.disable_event_timestamp is False
     assert req2.start_ts == "2021-01-01T00:00:00"
     assert req2.end_ts == "2021-01-02T00:00:00"
+
+
+def test_parse_materialize_timestamps_disable_event_timestamp_uses_utc():
+    """The full-window bounds must be tz-aware UTC, not naive local time."""
+    from datetime import datetime, timedelta, timezone
+
+    from feast.feature_server import MaterializeRequest, _parse_materialize_timestamps
+
+    req = MaterializeRequest(feature_views=["test"], disable_event_timestamp=True)
+    before = datetime.now(timezone.utc)
+    start_date, end_date = _parse_materialize_timestamps(req)
+    after = datetime.now(timezone.utc)
+
+    assert start_date == datetime(1970, 1, 1, tzinfo=timezone.utc)
+    assert end_date.utcoffset() == timedelta(0)
+    assert before <= end_date <= after
 
 
 def _enable_offline_batching_config(
@@ -749,3 +814,88 @@ def test_metadata_model_accepts_raw_proto_dict():
     )
     assert full.metadata is not None
     assert full.metadata.feature_names == ["x", "y"]
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="Gunicorn is not used on Windows")
+def test_gunicorn_post_worker_init_starts_resource_and_freshness_monitoring():
+    from feast.feature_server import _gunicorn_post_worker_init
+
+    mock_store = MagicMock()
+    with (
+        patch("feast.feature_server.feast_metrics") as mock_fm,
+    ):
+        _gunicorn_post_worker_init(mock_store, worker=MagicMock())
+
+    mock_fm.init_worker_monitoring.assert_called_once()
+    mock_fm.init_worker_freshness_monitoring.assert_called_once_with(mock_store)
+
+
+def test_get_online_features_returns_feature_view_version_metadata(test_client):
+    """``include_feature_view_version_metadata=True`` must surface the
+    ``feature_view_metadata`` block over REST, like it does on the proto."""
+    push_response = test_client.post("/push", json=push_body())
+    assert push_response.status_code == 200
+
+    request_payload = get_online_features_body()
+    request_payload["include_feature_view_version_metadata"] = True
+    response = test_client.post("/get-online-features", json=request_payload)
+    assert response.status_code == 200
+
+    metadata = response.json()["metadata"]
+    assert "feature_view_metadata" in metadata, metadata
+    assert [m["name"] for m in metadata["feature_view_metadata"]] == [
+        "pushed_driver_locations"
+    ]
+
+
+@pytest.fixture
+def store_and_client(tmp_path):
+    store = _build_push_feature_store(tmp_path)
+    try:
+        # raise_server_exceptions=False so the app's own exception handler
+        # answers the request, exactly as a real client would observe it.
+        yield store, TestClient(get_app(store), raise_server_exceptions=False)
+    finally:
+        store.teardown()
+
+
+@pytest.mark.parametrize("non_finite", [float("inf"), float("-inf")])
+def test_get_online_features_serves_non_finite_float(store_and_client, non_finite):
+    """A stored +/-inf float value must not turn the whole REST response into a 500.
+
+    ``write_to_online_store`` accepts the value and the SDK path returns it,
+    so the REST feature server must answer the same request with HTTP 200.
+    """
+    import pandas as pd
+
+    store, client = store_and_client
+    now = _utc_now()
+    store.write_to_online_store(
+        "pushed_driver_locations",
+        pd.DataFrame(
+            {
+                "driver_id": [123],
+                "driver_lat": [non_finite],
+                "driver_long": ["42.0"],
+                "event_timestamp": [now],
+                "created_timestamp": [now],
+            }
+        ),
+    )
+
+    # Precondition: the Python SDK serves the value without complaint.
+    sdk_resp = store.get_online_features(
+        features=["pushed_driver_locations:driver_lat"],
+        entity_rows=[{"driver_id": 123}],
+    ).to_dict()
+    assert sdk_resp["driver_lat"] == [non_finite]
+
+    response = client.post("/get-online-features", json=get_online_features_body())
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    ix = body["metadata"]["feature_names"].index("driver_lat")
+    assert body["results"][ix]["statuses"] == ["PRESENT"]
+    assert body["results"][ix]["values"] == [
+        "Infinity" if non_finite > 0 else "-Infinity"
+    ]

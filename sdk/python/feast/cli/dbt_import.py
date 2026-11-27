@@ -44,6 +44,12 @@ def dbt_cmd():
     help="Type of data source to create",
 )
 @click.option(
+    "--file-path-template",
+    default=None,
+    help="Path template for file sources; {model} is the model name. "
+    "Defaults to /data/{model}.parquet.",
+)
+@click.option(
     "--timestamp-field",
     "-t",
     default="event_timestamp",
@@ -100,6 +106,7 @@ def import_command(
     dry_run: bool,
     exclude_columns: Optional[str],
     output: Optional[str],
+    file_path_template: Optional[str] = None,
 ):
     """
     Import dbt models as Feast FeatureViews.
@@ -121,8 +128,25 @@ def import_command(
         # Generate Python file instead of applying to registry
         feast dbt import -m target/manifest.json -e driver_id --tag feast --output features.py
     """
-    from feast.dbt.mapper import DbtToFeastMapper
-    from feast.dbt.parser import DbtManifestParser
+    from feast.dbt.mapper import (
+        DbtToFeastMapper,
+        _validate_file_path_template,
+        map_dbt_type_to_feast_type,
+    )
+    from feast.dbt.parser import DbtManifestParser, DbtModel
+    from feast.types import (
+        Array,
+        Int32,
+        Int64,
+        String,
+        UnixTimestamp,
+        ZonedTimestamp,
+    )
+
+    try:
+        _validate_file_path_template(file_path_template, data_source_type)
+    except ValueError as e:
+        raise click.BadParameter(str(e), param_hint="--file-path-template") from e
 
     # Parse manifest
     click.echo(f"{Fore.CYAN}Parsing dbt manifest: {manifest_path}{Style.RESET_ALL}")
@@ -130,10 +154,7 @@ def import_command(
     try:
         parser = DbtManifestParser(manifest_path)
         parser.parse()
-    except FileNotFoundError as e:
-        click.echo(f"{Fore.RED}Error: {e}{Style.RESET_ALL}", err=True)
-        raise SystemExit(1)
-    except ValueError as e:
+    except (FileNotFoundError, ValueError, ImportError) as e:
         click.echo(f"{Fore.RED}Error: {e}{Style.RESET_ALL}", err=True)
         raise SystemExit(1)
 
@@ -194,6 +215,7 @@ def import_command(
         data_source_type=data_source_type,
         timestamp_field=timestamp_field,
         ttl_days=ttl_days,
+        file_path_template=file_path_template,
     )
 
     # Generate Feast objects
@@ -201,6 +223,7 @@ def import_command(
 
     all_objects: List[Any] = []
     entities_created: Dict[str, Any] = {}
+    valid_models: List[DbtModel] = []
 
     for model in models:
         # Validate timestamp field exists
@@ -212,6 +235,20 @@ def import_command(
             )
             continue
 
+        # The parser reports STRING for columns with no declared data_type.
+        timestamp_column = next(c for c in model.columns if c.name == timestamp_field)
+        if map_dbt_type_to_feast_type(timestamp_column.data_type) not in (
+            UnixTimestamp,
+            ZonedTimestamp,
+        ):
+            click.echo(
+                f"{Fore.YELLOW}Warning: Model '{model.name}' timestamp field "
+                f"'{timestamp_field}' has type '{timestamp_column.data_type}', "
+                f"which does not map to a timestamp type. Importing anyway. "
+                f"Declare it as a timestamp type in schema.yml if this is wrong."
+                f"{Style.RESET_ALL}"
+            )
+
         # Validate ALL entity columns exist
         missing_entities = [e for e in entity_cols if e not in column_names]
         if missing_entities:
@@ -220,6 +257,32 @@ def import_command(
                 f"column(s): {', '.join(missing_entities)}. Skipping.{Style.RESET_ALL}"
             )
             continue
+
+        # Validate entity column types: arrays cannot be entity keys, and
+        # types other than strings and integers make poor join keys
+        columns_by_name = {c.name: c for c in model.columns}
+        entity_types = {
+            e: map_dbt_type_to_feast_type(columns_by_name[e].data_type)
+            for e in entity_cols
+        }
+        array_entities = [e for e, t in entity_types.items() if isinstance(t, Array)]
+        if array_entities:
+            click.echo(
+                f"{Fore.YELLOW}Warning: Model '{model.name}' has array entity "
+                f"column(s): {', '.join(array_entities)}. Skipping.{Style.RESET_ALL}"
+            )
+            continue
+
+        for entity_col, feast_type in entity_types.items():
+            if feast_type not in (String, Int32, Int64):
+                click.echo(
+                    f"{Fore.YELLOW}Warning: Model '{model.name}' entity column "
+                    f"'{entity_col}' has type "
+                    f"'{columns_by_name[entity_col].data_type}' (Feast type "
+                    f"{feast_type}), which may not be suitable as an entity key. "
+                    f"Recommended types: STRING, INT64. Importing anyway."
+                    f"{Style.RESET_ALL}"
+                )
 
         # Create or reuse entities (one per entity column)
         model_entities: List[Any] = []
@@ -256,6 +319,7 @@ def import_command(
             exclude_columns=excluded,
         )
         all_objects.append(feature_view)
+        valid_models.append(model)
 
         click.echo(
             f"  {Fore.GREEN}✓{Style.RESET_ALL} {model.name}: "
@@ -267,14 +331,6 @@ def import_command(
             f"{Fore.YELLOW}No valid models to import (check warnings above).{Style.RESET_ALL}"
         )
         raise SystemExit(0)
-
-    # Filter models that were actually processed (have valid columns)
-    valid_models = [
-        m
-        for m in models
-        if timestamp_field in [c.name for c in m.columns]
-        and all(e in [c.name for c in m.columns] for e in entity_cols)
-    ]
 
     # Summary
     click.echo(f"\n{Fore.CYAN}Summary:{Style.RESET_ALL}")
@@ -296,6 +352,7 @@ def import_command(
             project_name=parser.project_name or "",
             exclude_columns=excluded,
             online=True,
+            file_path_template=file_path_template,
         )
 
         with open(output, "w") as f:
@@ -374,7 +431,7 @@ def list_command(
     try:
         parser = DbtManifestParser(manifest_path)
         parser.parse()
-    except (FileNotFoundError, ValueError) as e:
+    except (FileNotFoundError, ValueError, ImportError) as e:
         click.echo(f"{Fore.RED}Error: {e}{Style.RESET_ALL}", err=True)
         raise SystemExit(1)
 

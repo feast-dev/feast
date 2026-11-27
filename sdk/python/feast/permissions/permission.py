@@ -84,7 +84,7 @@ class Permission(ABC):
 
     def __eq__(self, other):
         if not isinstance(other, Permission):
-            raise TypeError("Comparisons should only involve Permission class objects.")
+            return False
 
         if (
             self.name != other.name

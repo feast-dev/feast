@@ -6,20 +6,38 @@ which converts raw online_read rows into protobuf FeatureVectors and
 populates the GetOnlineFeaturesResponse.
 """
 
-from datetime import datetime, timezone
-from unittest.mock import MagicMock
+import http.client
+import socket
+import threading
+import time
+from datetime import datetime, timedelta, timezone
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 from feast.protos.feast.serving.ServingService_pb2 import (
     FieldStatus,
     GetOnlineFeaturesResponse,
 )
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
-from feast.utils import _populate_response_from_feature_data
+from feast.utils import _make_dual_stack_socket, _populate_response_from_feature_data
 
 
-def _make_table(name="test_fv"):
+def _can_bind_ipv6_loopback() -> bool:
+    """Independent of `_ipv6_available` so a mutant in that function can't
+    also disable this skip guard and hide a killed mutant as a skip."""
+    try:
+        with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as sock:
+            sock.bind(("::1", 0))
+        return True
+    except OSError:
+        return False
+
+
+def _make_table(name="test_fv", ttl=None):
     """Create a minimal mock FeatureView for testing."""
     table = MagicMock()
+    table.ttl = ttl
     table.projection.name_to_use.return_value = name
     table.projection.name_alias = None
     table.projection.name = name
@@ -266,3 +284,298 @@ class TestPopulateResponseFromFeatureData:
                 assert ts.seconds == expected_ts
             for status in fv.statuses:
                 assert status == FieldStatus.PRESENT
+
+    def test_ttl_marks_stale_values_outside_max_age(self):
+        """Values older than the feature view ttl are still returned but
+        marked OUTSIDE_MAX_AGE; rows without a timestamp are never expired."""
+        now = datetime.now(timezone.utc)
+        stale_val = ValueProto(float_val=2.0)
+        read_rows = [
+            (now - timedelta(minutes=10), {"feature_1": ValueProto(float_val=1.0)}),
+            (now - timedelta(hours=2), {"feature_1": stale_val}),
+            (None, {"feature_1": ValueProto(float_val=3.0)}),
+        ]
+        response = GetOnlineFeaturesResponse(results=[])
+
+        _populate_response_from_feature_data(
+            requested_features=["feature_1"],
+            read_rows=read_rows,
+            indexes=([0], [1], [2]),
+            online_features_response=response,
+            full_feature_names=False,
+            table=_make_table(ttl=timedelta(hours=1)),
+            output_len=3,
+        )
+
+        assert list(response.results[0].statuses) == [
+            FieldStatus.PRESENT,
+            FieldStatus.OUTSIDE_MAX_AGE,
+            FieldStatus.PRESENT,
+        ]
+        assert response.results[0].values[1] == stale_val
+
+
+class TestGetFeatureViewsToUseSharedSource:
+    def _build_store(self, data_dir):
+        import os
+        from datetime import timedelta
+
+        import pandas as pd
+
+        from feast import Entity, FeatureStore, FeatureView, Field, FileSource
+        from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
+        from feast.on_demand_feature_view import on_demand_feature_view
+        from feast.repo_config import RepoConfig
+        from feast.types import Float64
+
+        driver = Entity(name="driver", join_keys=["driver_id"])
+
+        df = pd.DataFrame(
+            {
+                "driver_id": [1001, 1002],
+                "event_timestamp": [
+                    datetime(2024, 1, 1, 10, 0, 0, tzinfo=timezone.utc),
+                    datetime(2024, 1, 1, 11, 0, 0, tzinfo=timezone.utc),
+                ],
+                "created": [
+                    datetime(2024, 1, 1, 10, 0, 0, tzinfo=timezone.utc),
+                    datetime(2024, 1, 1, 11, 0, 0, tzinfo=timezone.utc),
+                ],
+                "a": [1.0, 2.0],
+                "b": [10.0, 20.0],
+            }
+        )
+        src_path = os.path.join(data_dir, "src.parquet")
+        df.to_parquet(path=src_path, allow_truncated_timestamps=True)
+
+        src = FileSource(
+            name="src_source",
+            path=src_path,
+            timestamp_field="event_timestamp",
+            created_timestamp_column="created",
+        )
+
+        src_fv = FeatureView(
+            name="src_fv",
+            entities=[driver],
+            ttl=timedelta(days=0),
+            schema=[
+                Field(name="a", dtype=Float64),
+                Field(name="b", dtype=Float64),
+            ],
+            online=True,
+            source=src,
+        )
+
+        @on_demand_feature_view(
+            sources=[src_fv[["a"]]],
+            schema=[Field(name="a_out", dtype=Float64)],
+            mode="pandas",
+        )
+        def odfv_a(inputs):
+            return pd.DataFrame({"a_out": inputs["a"] + 1})
+
+        @on_demand_feature_view(
+            sources=[src_fv[["b"]]],
+            schema=[Field(name="b_out", dtype=Float64)],
+            mode="pandas",
+        )
+        def odfv_b(inputs):
+            return pd.DataFrame({"b_out": inputs["b"] + 100})
+
+        store = FeatureStore(
+            config=RepoConfig(
+                project="test_shared_source",
+                registry=os.path.join(data_dir, "registry.db"),
+                provider="local",
+                entity_key_serialization_version=3,
+                online_store=SqliteOnlineStoreConfig(
+                    path=os.path.join(data_dir, "online.db")
+                ),
+            )
+        )
+        store.apply([driver, src, src_fv, odfv_a, odfv_b])
+        return store
+
+    def test_shared_source_projections_are_merged(self):
+        import tempfile
+
+        from feast.utils import _get_feature_views_to_use
+
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as data_dir:
+            store = self._build_store(data_dir)
+
+            fvs, odfvs = _get_feature_views_to_use(
+                store.registry,
+                store.project,
+                ["odfv_a:a_out", "odfv_b:b_out"],
+            )
+
+            src_entries = [fv for fv in fvs if fv.projection.name_to_use() == "src_fv"]
+            assert len(src_entries) == 1
+            projected = sorted(
+                feature.name for feature in src_entries[0].projection.features
+            )
+            assert projected == ["a", "b"]
+            assert {odfv.name for odfv in odfvs} == {"odfv_a", "odfv_b"}
+
+    def test_regular_fv_and_odfv_source_are_merged(self):
+        # Regression: a regular FeatureView requested alongside an ODFV that
+        # sources it must resolve to a single, merged src_fv entry. Previously
+        # the regular FV was appended but not indexed in fvs_by_projection_key,
+        # so the ODFV source appended a second partial src_fv projection and a
+        # later lookup raised "KeyError: Feature a not found in projection
+        # src_fv".
+        import tempfile
+
+        from feast.utils import _get_feature_views_to_use
+
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as data_dir:
+            store = self._build_store(data_dir)
+
+            fvs, odfvs = _get_feature_views_to_use(
+                store.registry,
+                store.project,
+                ["src_fv:a", "odfv_b:b_out"],
+            )
+
+            src_entries = [fv for fv in fvs if fv.projection.name_to_use() == "src_fv"]
+            assert len(src_entries) == 1
+            projected = sorted(
+                feature.name for feature in src_entries[0].projection.features
+            )
+            assert projected == ["a", "b"]
+            assert {odfv.name for odfv in odfvs} == {"odfv_b"}
+
+    def test_regular_fv_and_odfv_source_merge_order_independent(self):
+        import tempfile
+
+        from feast.utils import _get_feature_views_to_use
+
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as data_dir:
+            store = self._build_store(data_dir)
+
+            fvs, _ = _get_feature_views_to_use(
+                store.registry,
+                store.project,
+                ["odfv_b:b_out", "src_fv:a"],
+            )
+
+            src_entries = [fv for fv in fvs if fv.projection.name_to_use() == "src_fv"]
+            assert len(src_entries) == 1
+            projected = sorted(
+                feature.name for feature in src_entries[0].projection.features
+            )
+            assert projected == ["a", "b"]
+
+    def test_shared_source_ref_order_independent(self):
+        import tempfile
+
+        from feast.utils import _get_feature_views_to_use
+
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as data_dir:
+            store = self._build_store(data_dir)
+
+            fvs, _ = _get_feature_views_to_use(
+                store.registry,
+                store.project,
+                ["odfv_b:b_out", "odfv_a:a_out"],
+            )
+            src_entries = [fv for fv in fvs if fv.projection.name_to_use() == "src_fv"]
+            assert len(src_entries) == 1
+            projected = sorted(
+                feature.name for feature in src_entries[0].projection.features
+            )
+            assert projected == ["a", "b"]
+
+
+def test_make_dual_stack_socket_binds_dual_stack_when_ipv6_available():
+    mock_sock = MagicMock()
+    with patch("feast.utils._ipv6_available", return_value=True):
+        with patch("socket.socket", return_value=mock_sock) as mock_socket_cls:
+            result = _make_dual_stack_socket(6580)
+
+    mock_socket_cls.assert_called_once_with(socket.AF_INET6, socket.SOCK_STREAM)
+    mock_sock.setsockopt.assert_any_call(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+    mock_sock.setsockopt.assert_any_call(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    mock_sock.bind.assert_called_once_with(("::", 6580))
+    mock_sock.listen.assert_called_once_with(socket.SOMAXCONN)
+    mock_sock.setblocking.assert_called_once_with(False)
+    assert result is mock_sock
+
+
+def test_make_dual_stack_socket_falls_back_to_ipv4():
+    mock_sock = MagicMock()
+    with patch("feast.utils._ipv6_available", return_value=False):
+        with patch("socket.socket", return_value=mock_sock) as mock_socket_cls:
+            _make_dual_stack_socket(6580)
+
+    mock_socket_cls.assert_called_once_with(socket.AF_INET, socket.SOCK_STREAM)
+    mock_sock.bind.assert_called_once_with(("0.0.0.0", 6580))
+
+
+def test_make_dual_stack_socket_blocking_true_is_passed_through():
+    mock_sock = MagicMock()
+    with patch("feast.utils._ipv6_available", return_value=True):
+        with patch("socket.socket", return_value=mock_sock):
+            _make_dual_stack_socket(6580, blocking=True)
+
+    mock_sock.setblocking.assert_called_once_with(True)
+
+
+@pytest.mark.parametrize("ipv6_available", [True, False])
+def test_make_dual_stack_socket_closes_on_bind_failure(ipv6_available):
+    mock_sock = MagicMock()
+    mock_sock.bind.side_effect = OSError("address in use")
+    with patch("feast.utils._ipv6_available", return_value=ipv6_available):
+        with patch("socket.socket", return_value=mock_sock):
+            with pytest.raises(OSError):
+                _make_dual_stack_socket(6580)
+
+    mock_sock.close.assert_called_once()
+
+
+def test_make_dual_stack_socket_is_reachable_on_both_families():
+    # Regression test: a framework's own host="::" (uvicorn.run,
+    # asyncio.loop.create_server) binds IPv6-only, because IPV6_V6ONLY=1
+    # gets set on any socket it creates itself from a host string.
+    # _make_dual_stack_socket must hand back a pre-bound, dual-stack socket
+    # instead -- this exercises the one real socket every dual-stack
+    # consumer (REST registry, ui, lineage) shares.
+    if not _can_bind_ipv6_loopback():
+        pytest.skip("no IPv6 loopback on this host")
+
+    import uvicorn
+    from fastapi import FastAPI
+
+    sock = _make_dual_stack_socket(0)
+    port = sock.getsockname()[1]
+
+    app = FastAPI()
+
+    @app.get("/health")
+    def health():
+        return {"ok": True}
+
+    server = uvicorn.Server(uvicorn.Config(app, log_level="critical"))
+    thread = threading.Thread(target=server.run, kwargs={"sockets": [sock]})
+    thread.daemon = True
+    thread.start()
+    try:
+        for _ in range(200):
+            if server.started:
+                break
+            time.sleep(0.01)
+        assert server.started, "uvicorn server did not start in time"
+
+        for host in ("127.0.0.1", "::1"):
+            conn = http.client.HTTPConnection(host, port, timeout=5)
+            try:
+                conn.request("GET", "/health")
+                resp = conn.getresponse()
+                assert resp.status == 200
+            finally:
+                conn.close()
+    finally:
+        server.should_exit = True
+        thread.join(timeout=5)

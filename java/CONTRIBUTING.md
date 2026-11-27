@@ -80,7 +80,7 @@ make build-docker REGISTRY=gcr.io/kf-feast VERSION=develop
 ### IDE Setup
 If you're using IntelliJ, some additional steps may be needed to make sure IntelliJ autocomplete works as expected.
 Specifically, proto-generated code is not indexed by IntelliJ. To fix this, navigate to the following window in IntelliJ:
-`Project Structure > Modules > datatypes-java`, and mark the following folders as `Source` directorys:
+`Project Structure > Modules > datatypes-java`, and mark the following folders as `Source` directories:
 - target/generated-sources/protobuf/grpc-java
 - target/generated-sources/protobuf/java
 - target/generated-sources/annotations

@@ -2,7 +2,7 @@
 name: feast-dev
 description: Development guide for contributing to the Feast codebase. Covers environment setup, testing, linting, project structure, and PR workflow for feast-dev/feast.
 license: Apache-2.0
-compatibility: Works with Claude Code, OpenAI Codex, and any Agent Skills compatible tool. Requires Python 3.10+, uv, and git.
+compatibility: Works with Claude Code, OpenAI Codex, and any Agent Skills compatible tool. Requires Python 3.11+, uv, and git.
 metadata:
   author: feast-dev
   version: "1.0"
@@ -70,6 +70,9 @@ uv run bash -c "cd sdk/python && mypy feast/path/to/file.py"
 - Use type hints on all function signatures
 - Use `from __future__ import annotations` at the top of new files
 - Follow existing patterns in the module you are modifying
+- Do not put `pip install` commands in docstrings or code comments. Security scanners flag them as runtime
+  package installs, which fail in air-gapped or mirror-only environments. Name the extra instead
+  (e.g. "Requires the ``glide`` extra (``feast[glide]``).") and keep install commands in `docs/`.
 - PR titles must follow semantic conventions: `feat:`, `fix:`, `ci:`, `chore:`, `docs:`
 - Add a GitHub label to PRs (e.g. `kind/bug`, `kind/feature`, `kind/housekeeping`)
 - Sign off commits with `git commit -s` (DCO requirement)

@@ -34,9 +34,13 @@ export interface RegisterDatasetPayload {
   join_keys: string[];
   storage_path: string;
   storage_type: string;
+  storage_file_format?: string;
   tags: Record<string, string>;
   full_feature_names: boolean;
   feature_service_name?: string;
+  namespace?: string;
+  collection?: string;
+  description?: string;
 }
 
 interface RegisterDatasetModalProps {
@@ -116,6 +120,33 @@ const ALL_STORAGE_TYPES: StorageTypeDefinition[] = [
     sourceTypeMatch: ["BATCH_ATHENA"],
   },
   {
+    value: "postgres",
+    label: "PostgreSQL",
+    description: "PostgreSQL table reference",
+    placeholder: "schema.table_name",
+    helpText:
+      "PostgreSQL table reference. Data is read via the PostgreSQL offline store.",
+    sourceTypeMatch: ["CUSTOM_SOURCE"],
+  },
+  {
+    value: "clickhouse",
+    label: "ClickHouse",
+    description: "ClickHouse table reference",
+    placeholder: "database.table_name",
+    helpText:
+      "ClickHouse table reference. Data is read via the ClickHouse offline store.",
+    sourceTypeMatch: ["CUSTOM_SOURCE"],
+  },
+  {
+    value: "couchbase",
+    label: "Couchbase Columnar",
+    description: "Couchbase Columnar collection reference",
+    placeholder: "database.scope.collection",
+    helpText:
+      "Couchbase Columnar reference in format: database.scope.collection",
+    sourceTypeMatch: ["CUSTOM_SOURCE"],
+  },
+  {
     value: "custom",
     label: "Custom",
     description: "Custom storage configuration",
@@ -144,6 +175,11 @@ function detectDataSourceTypes(dataSources: any[]): Set<string> {
     if (ds.spec?.trinoOptions || ds.trinoOptions) types.add("BATCH_TRINO");
     if (ds.spec?.athenaOptions || ds.athenaOptions) types.add("BATCH_ATHENA");
     if (ds.spec?.customOptions || ds.customOptions) types.add("CUSTOM_SOURCE");
+    const classType =
+      ds.spec?.dataSourceClassType || ds.dataSourceClassType || "";
+    if (classType.includes("postgres")) types.add("CUSTOM_SOURCE");
+    if (classType.includes("clickhouse")) types.add("CUSTOM_SOURCE");
+    if (classType.includes("couchbase")) types.add("CUSTOM_SOURCE");
   }
   return types;
 }
@@ -241,8 +277,12 @@ const RegisterDatasetModal = ({
 
   // Form state
   const [name, setName] = useState("");
+  const [namespace, setNamespace] = useState("");
+  const [collection, setCollection] = useState("");
+  const [description, setDescription] = useState("");
   const [storagePath, setStoragePath] = useState("");
   const [storageType, setStorageType] = useState("file");
+  const [storageFileFormat, setStorageFileFormat] = useState("parquet");
   const [featuresInput, setFeaturesInput] = useState<EuiComboBoxOptionOption[]>(
     [],
   );
@@ -336,9 +376,14 @@ const RegisterDatasetModal = ({
       join_keys: joinKeysInput.map((o) => o.label),
       storage_path: storagePath.trim(),
       storage_type: storageType,
+      storage_file_format:
+        storageType === "spark" ? storageFileFormat : undefined,
       tags: tagsObj,
       full_feature_names: fullFeatureNames,
       feature_service_name: featureServiceName || undefined,
+      namespace: namespace.trim() || undefined,
+      collection: collection.trim() || undefined,
+      description: description.trim() || undefined,
     };
     await onSubmit(payload);
   };
@@ -397,6 +442,18 @@ const RegisterDatasetModal = ({
         </EuiFlexItem>
         <EuiFlexItem>
           <EuiFormRow
+            label="Description"
+            helpText="Brief description of this dataset."
+          >
+            <EuiFieldText
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="e.g. Training data for driver fraud model"
+            />
+          </EuiFormRow>
+        </EuiFlexItem>
+        <EuiFlexItem>
+          <EuiFormRow
             label="Feature Service (optional)"
             helpText="Associate with a feature service for lineage."
           >
@@ -414,6 +471,49 @@ const RegisterDatasetModal = ({
               onCreateOption={(val) => setFeatureServiceName(val)}
               placeholder="Select or type..."
               isClearable
+            />
+          </EuiFormRow>
+        </EuiFlexItem>
+      </EuiFlexGroup>
+
+      <EuiSpacer size="m" />
+
+      {/* Section: Organization */}
+      <EuiTitle size="xxs">
+        <h4>Organization (optional)</h4>
+      </EuiTitle>
+      <EuiSpacer size="s" />
+
+      <EuiPanel color="subdued" paddingSize="s" hasBorder={false}>
+        <EuiText size="xs" color="subdued">
+          Group datasets into namespaces and collections for hierarchical
+          organization. Leave empty to keep the dataset at the top level.
+        </EuiText>
+      </EuiPanel>
+      <EuiSpacer size="s" />
+
+      <EuiFlexGroup gutterSize="m">
+        <EuiFlexItem>
+          <EuiFormRow
+            label="Namespace"
+            helpText="Top-level grouping (e.g. fraud, underwriting, analytics)."
+          >
+            <EuiFieldText
+              value={namespace}
+              onChange={(e) => setNamespace(e.target.value)}
+              placeholder="e.g. fraud"
+            />
+          </EuiFormRow>
+        </EuiFlexItem>
+        <EuiFlexItem>
+          <EuiFormRow
+            label="Collection"
+            helpText="Sub-grouping within the namespace (e.g. raw, curated, training)."
+          >
+            <EuiFieldText
+              value={collection}
+              onChange={(e) => setCollection(e.target.value)}
+              placeholder="e.g. training"
             />
           </EuiFormRow>
         </EuiFlexItem>
@@ -463,6 +563,41 @@ const RegisterDatasetModal = ({
           fullWidth
         />
       </EuiFormRow>
+
+      {storageType === "spark" && (
+        <EuiFormRow
+          label="File Format"
+          helpText="Required for Spark path-based storage. Specifies the data file format."
+        >
+          <EuiSuperSelect
+            options={[
+              {
+                value: "parquet",
+                inputDisplay: "Parquet",
+                dropdownDisplay: <strong>Parquet</strong>,
+              },
+              {
+                value: "avro",
+                inputDisplay: "Avro",
+                dropdownDisplay: <strong>Avro</strong>,
+              },
+              {
+                value: "csv",
+                inputDisplay: "CSV",
+                dropdownDisplay: <strong>CSV</strong>,
+              },
+              {
+                value: "json",
+                inputDisplay: "JSON",
+                dropdownDisplay: <strong>JSON</strong>,
+              },
+            ]}
+            valueOfSelected={storageFileFormat}
+            onChange={setStorageFileFormat}
+            fullWidth
+          />
+        </EuiFormRow>
+      )}
 
       <EuiSpacer size="m" />
       <EuiHorizontalRule margin="s" />

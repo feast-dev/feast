@@ -42,6 +42,10 @@ Please see [Data Source](../../getting-started/concepts/data-ingestion.md) for a
 [spark.md](spark.md)
 {% endcontent-ref %}
 
+{% content-ref url="iceberg.md" %}
+[iceberg.md](iceberg.md)
+{% endcontent-ref %}
+
 {% content-ref url="postgres.md" %}
 [postgres.md](postgres.md)
 {% endcontent-ref %}

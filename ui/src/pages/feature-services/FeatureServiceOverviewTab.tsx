@@ -39,11 +39,12 @@ const FeatureServiceOverviewTab = () => {
   const labelProjections: any[] = [];
   if (data) {
     data?.spec?.features?.forEach((featureView: any) => {
+      const columnCount = (featureView?.featureColumns || []).length;
       if (featureView.viewType === "labelView") {
-        numLabels += featureView?.featureColumns!.length;
+        numLabels += columnCount;
         labelProjections.push(featureView);
       } else {
-        numFeatures += featureView?.featureColumns!.length;
+        numFeatures += columnCount;
         featureProjections.push(featureView);
       }
     });
@@ -194,11 +195,9 @@ const FeatureServiceOverviewTab = () => {
                 <EuiHorizontalRule margin="xs" />
                 {data?.spec?.features?.length! > 0 ? (
                   <FeatureViewEdgesList
-                    fvNames={
-                      data?.spec?.features?.map((f: any) => {
-                        return f.featureViewName!;
-                      })!
-                    }
+                    fvNames={data?.spec?.features?.map((f: any) => {
+                      return f.featureViewName!;
+                    })!}
                     viewTypes={
                       data?.spec?.features?.reduce(
                         (acc: Record<string, string>, f: any) => {

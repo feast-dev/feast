@@ -23,6 +23,7 @@ from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
 from feast.entity import Entity
 from feast.feature_view import FeatureView
+from feast.filter_models import ComparisonFilter, CompoundFilter
 from feast.importer import import_class
 from feast.infra.infra_object import Infra
 from feast.infra.offline_stores.offline_store import OfflineStore, RetrievalJob
@@ -43,6 +44,9 @@ PROVIDERS_CLASS_FOR_TYPE = {
     "aws": "feast.infra.passthrough_provider.PassthroughProvider",
     "local": "feast.infra.passthrough_provider.PassthroughProvider",
     "azure": "feast.infra.passthrough_provider.PassthroughProvider",
+    "chronon": "feast.infra.chronon_provider.ChrononProvider",
+    "unity_catalog": "feast.infra.data_sources.contrib.iceberg_catalog.uc_provider.UnityCatalogProvider",
+    "polaris": "feast.infra.data_sources.contrib.iceberg_catalog.polaris_provider.PolarisProvider",
 }
 
 
@@ -241,7 +245,7 @@ class Provider(ABC):
             registry: The registry for the current feature store.
             project: Feast project to which the objects belong.
             tqdm_builder: A function to monitor the progress of materialization.
-            disable_event_timestamp: If True, materializes all available data using current datetime as event timestamp instead of source event timestamps.
+            disable_event_timestamp: If True, materializes all available data (from 1970-01-01 up to the current UTC time). Rows keep their source event timestamps.
         """
         pass
 
@@ -466,10 +470,11 @@ class Provider(ABC):
         config: RepoConfig,
         table: FeatureView,
         requested_features: List[str],
-        query: Optional[List[float]],
+        embedding: Optional[List[float]],
         top_k: int,
         distance_metric: Optional[str] = None,
         query_string: Optional[str] = None,
+        filters: Optional[Union[ComparisonFilter, CompoundFilter]] = None,
         include_feature_view_version_metadata: bool = False,
     ) -> List[
         Tuple[
@@ -486,9 +491,11 @@ class Provider(ABC):
             config: The config for the current feature store.
             table: The feature view whose embeddings should be searched.
             requested_features: the requested document feature names.
-            query: The query embedding to search for (optional).
+            embedding: The query embedding to search for (optional).
             top_k: The number of documents to return.
             query_string: The query string to search for using keyword search (bm25) (optional)
+            filters: Optional metadata filters (ComparisonFilter or CompoundFilter)
+                to narrow results before ranking.
 
         Returns:
             A list of dictionaries, where each dictionary contains the datetime, entitykey, and a dictionary

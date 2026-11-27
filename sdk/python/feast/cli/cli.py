@@ -13,7 +13,7 @@
 # limitations under the License.
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from importlib.metadata import version as importlib_version
 from pathlib import Path
 from typing import List, Optional
@@ -36,13 +36,16 @@ from feast.cli.features import (
     get_online_features,
 )
 from feast.cli.label_views import label_views_cmd
+from feast.cli.mcpServer import mcp_command
 from feast.cli.monitor import monitor_cmd
 from feast.cli.on_demand_feature_views import on_demand_feature_views_cmd
 from feast.cli.permissions import feast_permissions_cmd
 from feast.cli.projects import projects_cmd
+from feast.cli.registry import registry_cmd
 from feast.cli.saved_datasets import saved_datasets_cmd
 from feast.cli.serve import (
     serve_command,
+    serve_lineage_command,
     serve_offline_command,
     serve_registry_command,
     serve_transformations_command,
@@ -360,7 +363,7 @@ def registry_dump_command(ctx: click.Context):
 @click.option(
     "--disable-event-timestamp",
     is_flag=True,
-    help="Materialize all available data using current datetime as event timestamp (useful when source data lacks event timestamps)",
+    help="Materialize all available data, from 1970-01-01 up to the current UTC time, without specifying START_TS and END_TS (rows keep their source event timestamps)",
 )
 @click.option(
     "--version",
@@ -385,7 +388,7 @@ def materialize_command(
 
     START_TS and END_TS should be in ISO 8601 format, e.g. '2021-07-16T19:20:01'
 
-    If --disable-event-timestamp is used, timestamps are not required and all available data will be materialized using the current datetime as the event timestamp.
+    If --disable-event-timestamp is used, timestamps are not required and all available data (from 1970-01-01 up to the current UTC time) will be materialized. Rows keep their source event timestamps.
     """
     store = create_feature_store(ctx)
 
@@ -394,12 +397,9 @@ def materialize_command(
             raise click.UsageError(
                 "Cannot specify START_TS or END_TS when --disable-event-timestamp is used"
             )
-        now = datetime.now()
-        # Query all available data and use current datetime as event timestamp
-        start_date = datetime(
-            1970, 1, 1
-        )  # Beginning of time to capture all historical data
-        end_date = now
+        # Query all available data, from the beginning of time up to now (UTC)
+        start_date = datetime(1970, 1, 1, tzinfo=timezone.utc)
+        end_date = utils._utc_now()
     else:
         if not start_ts or not end_ts:
             raise click.UsageError(
@@ -477,6 +477,7 @@ def materialize_incremental_command(
             "milvus",
             "ray",
             "ray_rag",
+            "rag",
             "pytorch_nlp",
         ],
         case_sensitive=False,
@@ -643,6 +644,7 @@ cli.add_command(get_online_features)
 cli.add_command(on_demand_feature_views_cmd)
 cli.add_command(feast_permissions_cmd)
 cli.add_command(projects_cmd)
+cli.add_command(registry_cmd)
 cli.add_command(saved_datasets_cmd)
 cli.add_command(stream_feature_views_cmd)
 cli.add_command(label_views_cmd)
@@ -651,9 +653,18 @@ cli.add_command(ui)
 cli.add_command(serve_command)
 cli.add_command(serve_offline_command)
 cli.add_command(serve_registry_command)
+cli.add_command(serve_lineage_command)
 cli.add_command(serve_transformations_command)
+cli.add_command(mcp_command)
 cli.add_command(dbt_cmd)
 cli.add_command(monitor_cmd)
+
+try:
+    from feast.cli.mlflow_cmd import mlflow_cmd
+
+    cli.add_command(mlflow_cmd)
+except ImportError:
+    pass
 
 if __name__ == "__main__":
     cli()

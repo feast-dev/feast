@@ -121,7 +121,8 @@ const formDataToPayload = (formData: FeatureViewFormData, project: string) => ({
 
 const Index = () => {
   const { projectName } = useParams();
-  const { isLoading, isSuccess, isError, data } = useLoadFeatureViews();
+  const { isLoading, isSuccess, isError, isPermissionDenied, data } =
+    useLoadFeatureViews();
   const isAllProjects = projectName === "all";
 
   const entitiesQuery = useResourceQuery<any[]>({
@@ -269,7 +270,14 @@ const Index = () => {
             <EuiLoadingSpinner size="m" /> Loading
           </p>
         )}
-        {isError && <p>We encountered an error while loading.</p>}
+        {isPermissionDenied && (
+          <EuiCallOut title="Permission denied" color="warning" iconType="lock">
+            <p>You do not have permission to view feature views.</p>
+          </EuiCallOut>
+        )}
+        {isError && !isPermissionDenied && (
+          <p>We encountered an error while loading.</p>
+        )}
         {isSuccess && data?.length === 0 && <FeatureViewIndexEmptyState />}
         {isSuccess && data && data.length > 0 && filterResult && (
           <React.Fragment>

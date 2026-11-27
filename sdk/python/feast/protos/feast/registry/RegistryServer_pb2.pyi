@@ -470,6 +470,74 @@ class DeleteDataSourceRequest(google.protobuf.message.Message):
 
 global___DeleteDataSourceRequest = DeleteDataSourceRequest
 
+class ValidateDataSourceRequest(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    NAME_FIELD_NUMBER: builtins.int
+    PROJECT_FIELD_NUMBER: builtins.int
+    ALLOW_CACHE_FIELD_NUMBER: builtins.int
+    name: builtins.str
+    project: builtins.str
+    allow_cache: builtins.bool
+    def __init__(
+        self,
+        *,
+        name: builtins.str = ...,
+        project: builtins.str = ...,
+        allow_cache: builtins.bool = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["allow_cache", b"allow_cache", "name", b"name", "project", b"project"]) -> None: ...
+
+global___ValidateDataSourceRequest = ValidateDataSourceRequest
+
+class ValidateDataSourceColumn(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    NAME_FIELD_NUMBER: builtins.int
+    TYPE_FIELD_NUMBER: builtins.int
+    name: builtins.str
+    type: builtins.str
+    def __init__(
+        self,
+        *,
+        name: builtins.str = ...,
+        type: builtins.str = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["name", b"name", "type", b"type"]) -> None: ...
+
+global___ValidateDataSourceColumn = ValidateDataSourceColumn
+
+class ValidateDataSourceResponse(google.protobuf.message.Message):
+    DESCRIPTOR: google.protobuf.descriptor.Descriptor
+
+    NAME_FIELD_NUMBER: builtins.int
+    PROJECT_FIELD_NUMBER: builtins.int
+    STATUS_FIELD_NUMBER: builtins.int
+    MESSAGE_FIELD_NUMBER: builtins.int
+    TESTED_AT_FIELD_NUMBER: builtins.int
+    COLUMNS_FIELD_NUMBER: builtins.int
+    name: builtins.str
+    project: builtins.str
+    status: builtins.str
+    """One of: "success", "failed", "not_applicable", "unavailable"."""
+    message: builtins.str
+    tested_at: builtins.str
+    @property
+    def columns(self) -> google.protobuf.internal.containers.RepeatedCompositeFieldContainer[global___ValidateDataSourceColumn]: ...
+    def __init__(
+        self,
+        *,
+        name: builtins.str = ...,
+        project: builtins.str = ...,
+        status: builtins.str = ...,
+        message: builtins.str = ...,
+        tested_at: builtins.str = ...,
+        columns: collections.abc.Iterable[global___ValidateDataSourceColumn] | None = ...,
+    ) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["columns", b"columns", "message", b"message", "name", b"name", "project", b"project", "status", b"status", "tested_at", b"tested_at"]) -> None: ...
+
+global___ValidateDataSourceResponse = ValidateDataSourceResponse
+
 class ApplyFeatureViewRequest(google.protobuf.message.Message):
     """FeatureViews"""
 
@@ -1218,6 +1286,8 @@ class ListSavedDatasetsRequest(google.protobuf.message.Message):
     TAGS_FIELD_NUMBER: builtins.int
     PAGINATION_FIELD_NUMBER: builtins.int
     SORTING_FIELD_NUMBER: builtins.int
+    NAMESPACE_FIELD_NUMBER: builtins.int
+    COLLECTION_FIELD_NUMBER: builtins.int
     project: builtins.str
     allow_cache: builtins.bool
     @property
@@ -1226,6 +1296,10 @@ class ListSavedDatasetsRequest(google.protobuf.message.Message):
     def pagination(self) -> global___PaginationParams: ...
     @property
     def sorting(self) -> global___SortingParams: ...
+    namespace: builtins.str
+    """Optional logical namespace filter. Empty string means no filter."""
+    collection: builtins.str
+    """Optional collection filter. Empty string means no filter."""
     def __init__(
         self,
         *,
@@ -1234,9 +1308,11 @@ class ListSavedDatasetsRequest(google.protobuf.message.Message):
         tags: collections.abc.Mapping[builtins.str, builtins.str] | None = ...,
         pagination: global___PaginationParams | None = ...,
         sorting: global___SortingParams | None = ...,
+        namespace: builtins.str = ...,
+        collection: builtins.str = ...,
     ) -> None: ...
     def HasField(self, field_name: typing_extensions.Literal["pagination", b"pagination", "sorting", b"sorting"]) -> builtins.bool: ...
-    def ClearField(self, field_name: typing_extensions.Literal["allow_cache", b"allow_cache", "pagination", b"pagination", "project", b"project", "sorting", b"sorting", "tags", b"tags"]) -> None: ...
+    def ClearField(self, field_name: typing_extensions.Literal["allow_cache", b"allow_cache", "collection", b"collection", "namespace", b"namespace", "pagination", b"pagination", "project", b"project", "sorting", b"sorting", "tags", b"tags"]) -> None: ...
 
 global___ListSavedDatasetsRequest = ListSavedDatasetsRequest
 

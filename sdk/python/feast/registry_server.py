@@ -1,7 +1,7 @@
 import logging
 from concurrent import futures
 from datetime import datetime, timezone
-from typing import Any, Callable, List, Optional, cast
+from typing import Any, Callable, Iterable, List, Optional, Tuple, Union, cast
 
 import grpc
 from google.protobuf.empty_pb2 import Empty
@@ -12,7 +12,7 @@ from feast import FeatureService, FeatureStore
 from feast.base_feature_view import BaseFeatureView
 from feast.data_source import DataSource
 from feast.entity import Entity
-from feast.errors import FeastObjectNotFoundException
+from feast.errors import FeastObjectNotFoundException, FeastPermissionError
 from feast.feast_object import FeastObject
 from feast.feature_view import FeatureView
 from feast.grpc_error_interceptor import ErrorInterceptor
@@ -24,6 +24,8 @@ from feast.permissions.permission import Permission
 from feast.permissions.security_manager import (
     assert_permissions,
     assert_permissions_to_update,
+    get_security_manager,
+    is_auth_necessary,
     permitted_resources,
 )
 from feast.permissions.server.grpc import AuthInterceptor
@@ -182,6 +184,82 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         self.proxied_registry = registry
         self.store = store
 
+    _JOB_NAME_TEMPLATES: dict = {
+        "featureView": ["feast_apply_feature_view_{name}"],
+        "featureService": [
+            "feature_service_{name}",
+            "feast_apply_feature_service_{name}",
+        ],
+        "savedDataset": ["saved_dataset_{name}"],
+        "onDemandFeatureView": ["feast_apply_odfv_{name}"],
+    }
+
+    @property
+    def _openlineage_enabled(self) -> bool:
+        """Fast cached check: is OpenLineage configured and enabled?
+
+        Evaluated once per RegistryServer lifetime so Apply/Delete handlers
+        pay zero cost when OL is disabled.
+        """
+        cached = getattr(self, "_ol_enabled_cache", None)
+        if cached is not None:
+            return cached
+        enabled = False
+        try:
+            if self.store:
+                ol_cfg = getattr(self.store.config, "openlineage", None)
+                if ol_cfg is not None and getattr(ol_cfg, "enabled", False):
+                    enabled = True
+        except Exception:
+            pass
+        self._ol_enabled_cache = enabled
+        return enabled
+
+    def _emit_openlineage_for_objects(self, objects: list, project: str):
+        """Emit OpenLineage events for objects modified via API/gRPC.
+
+        Skips entirely when OL is disabled — no imports, no emitter access.
+        All errors are caught so registry operations never fail due to OL.
+        """
+        if not self._openlineage_enabled or not objects:
+            return
+        try:
+            emitter = self.store.openlineage_emitter
+            if emitter is not None:
+                emitter.emit_apply(objects, project)
+        except Exception as e:
+            logger.warning(f"Failed to emit OpenLineage events for API apply: {e}")
+
+    def _delete_openlineage_for_object(self, name: str, project: str, object_type: str):
+        """Remove OpenLineage data for a deleted Feast object.
+
+        Skips entirely when OL consumer is not active.
+        All errors are caught so registry deletes never fail due to OL.
+        """
+        if not self._openlineage_enabled:
+            return
+        try:
+            import feast.api.registry.rest as rest_module
+
+            ol_store = getattr(rest_module, "_ol_store_instance", None)
+            if ol_store is None:
+                return
+
+            ol_config = getattr(rest_module, "_ol_config", None)
+            namespace = (
+                ol_config.namespace if ol_config and ol_config.namespace else project
+            )
+
+            ol_store.delete_dataset(namespace, name)
+
+            for tpl in self._JOB_NAME_TEMPLATES.get(object_type, []):
+                ol_store.delete_job(namespace, tpl.format(name=name))
+
+        except Exception as e:
+            logger.warning(
+                f"Failed to delete OpenLineage data for {object_type}/{name}: {e}"
+            )
+
     def Proto(self, request: Empty, context) -> RegistryProto:
         """Build a RegistryProto from individually RBAC-filtered list calls.
 
@@ -288,6 +366,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             project=request.project,
             commit=request.commit,
         )
+        self._emit_openlineage_for_objects([entity], request.project)
 
         return Empty()
 
@@ -334,6 +413,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         self.proxied_registry.delete_entity(
             name=request.name, project=request.project, commit=request.commit
         )
+        self._delete_openlineage_for_object(request.name, request.project, "entity")
         return Empty()
 
     def ApplyDataSource(
@@ -352,6 +432,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             project=request.project,
             commit=request.commit,
         )
+        self._emit_openlineage_for_objects([data_source], request.project)
 
         return Empty()
 
@@ -405,7 +486,103 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         self.proxied_registry.delete_data_source(
             name=request.name, project=request.project, commit=request.commit
         )
+        self._delete_openlineage_for_object(request.name, request.project, "dataSource")
         return Empty()
+
+    def ValidateDataSource(
+        self, request: RegistryServer_pb2.ValidateDataSourceRequest, context
+    ) -> RegistryServer_pb2.ValidateDataSourceResponse:
+        from datetime import datetime, timezone
+
+        data_source = cast(
+            DataSource,
+            assert_permissions(
+                resource=self.proxied_registry.get_data_source(
+                    name=request.name,
+                    project=request.project,
+                    allow_cache=request.allow_cache,
+                ),
+                actions=AuthzedAction.DESCRIBE,
+            ),
+        )
+
+        tested_at = datetime.now(timezone.utc).isoformat()
+
+        def _response(
+            status: str,
+            message: str,
+            columns: Optional[Iterable[Tuple[str, str]]] = None,
+        ) -> RegistryServer_pb2.ValidateDataSourceResponse:
+            return RegistryServer_pb2.ValidateDataSourceResponse(
+                name=request.name,
+                project=request.project,
+                status=status,
+                message=message,
+                tested_at=tested_at,
+                columns=[
+                    RegistryServer_pb2.ValidateDataSourceColumn(
+                        name=col_name, type=col_type
+                    )
+                    for col_name, col_type in (columns or [])
+                ],
+            )
+
+        if self.store is None or getattr(self.store, "config", None) is None:
+            return _response(
+                "unavailable",
+                "Connection testing is not available on this registry server "
+                "(no offline store configuration).",
+            )
+
+        config = self.store.config
+
+        try:
+            columns = [
+                (col_name, col_type)
+                for col_name, col_type in data_source.get_table_column_names_and_types(
+                    config
+                )
+            ]
+            if columns:
+                return _response(
+                    "success",
+                    f"Connection succeeded. Retrieved schema with {len(columns)} "
+                    f"column{'' if len(columns) == 1 else 's'}.",
+                    columns=columns,
+                )
+            return _response(
+                "not_applicable",
+                "Connectivity could not be verified for this source type: the "
+                "schema probe returned no columns without accessing storage.",
+            )
+        except NotImplementedError:
+            pass
+        except Exception as e:
+            logger.warning(
+                "Connection test failed for data source '%s' in project '%s': %s",
+                request.name,
+                request.project,
+                e,
+            )
+            return _response("failed", str(e))
+
+        try:
+            data_source.validate(config)
+            return _response("success", "Data source validated successfully.")
+        except NotImplementedError:
+            return _response(
+                "not_applicable",
+                "This source type has no external connection to test "
+                "(for example request or push sources).",
+            )
+        except Exception as e:
+            logger.warning(
+                "Validation failed for data source '%s' in project '%s': %s",
+                request.name,
+                request.project,
+                e,
+            )
+            return _response("failed", str(e))
 
     def GetFeatureView(
         self, request: RegistryServer_pb2.GetFeatureViewRequest, context
@@ -497,13 +674,12 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         else:
             raise ValueError(f"Unexpected feature view type: {feature_view_type}")
 
-        (
-            self.proxied_registry.apply_feature_view(
-                feature_view=feature_view,
-                project=request.project,
-                commit=request.commit,
-            ),
+        self.proxied_registry.apply_feature_view(
+            feature_view=feature_view,
+            project=request.project,
+            commit=request.commit,
         )
+        self._emit_openlineage_for_objects([feature_view], request.project)
 
         return Empty()
 
@@ -689,6 +865,14 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             name=request.name, project=request.project, allow_cache=False
         )
 
+        from feast.on_demand_feature_view import OnDemandFeatureView
+
+        fv_type = (
+            "onDemandFeatureView"
+            if isinstance(feature_view, OnDemandFeatureView)
+            else "featureView"
+        )
+
         assert_permissions(
             resource=cast(FeastObject, feature_view),
             actions=[AuthzedAction.DELETE],
@@ -696,6 +880,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         self.proxied_registry.delete_feature_view(
             name=request.name, project=request.project, commit=request.commit
         )
+        self._delete_openlineage_for_object(request.name, request.project, fv_type)
         return Empty()
 
     def GetStreamFeatureView(
@@ -832,6 +1017,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             project=request.project,
             commit=request.commit,
         )
+        self._emit_openlineage_for_objects([feature_service], request.project)
 
         return Empty()
 
@@ -904,6 +1090,9 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         self.proxied_registry.delete_feature_service(
             name=request.name, project=request.project, commit=request.commit
         )
+        self._delete_openlineage_for_object(
+            request.name, request.project, "featureService"
+        )
         return Empty()
 
     def ApplySavedDataset(
@@ -922,6 +1111,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             project=request.project,
             commit=request.commit,
         )
+        self._emit_openlineage_for_objects([saved_dataset], request.project)
 
         return Empty()
 
@@ -940,6 +1130,8 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
     def ListSavedDatasets(
         self, request: RegistryServer_pb2.ListSavedDatasetsRequest, context
     ):
+        namespace_filter = request.namespace if request.namespace else None
+        collection_filter = request.collection if request.collection else None
         paginated_saved_datasets, pagination_metadata = apply_pagination_and_sorting(
             permitted_resources(
                 resources=cast(
@@ -948,6 +1140,8 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
                         project=request.project,
                         allow_cache=request.allow_cache,
                         tags=dict(request.tags),
+                        namespace=namespace_filter,
+                        collection=collection_filter,
                     ),
                 ),
                 actions=AuthzedAction.DESCRIBE,
@@ -975,6 +1169,9 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         )
         self.proxied_registry.delete_saved_dataset(
             name=request.name, project=request.project, commit=request.commit
+        )
+        self._delete_openlineage_for_object(
+            request.name, request.project, "savedDataset"
         )
 
         return Empty()
@@ -1012,6 +1209,86 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
                 pass
         return features, list(join_keys)
 
+    def _validate_saved_dataset_destination(
+        self, storage_type: str, storage_path: str, project: str
+    ) -> str:
+        import os
+        from urllib.parse import urlparse
+
+        from feast.dataset_utils import build_saved_dataset_storage
+        from feast.infra.offline_stores.file_source import (
+            FileSource,
+            SavedDatasetFileStorage,
+        )
+
+        path = (storage_path or "").strip()
+        if not path:
+            raise ValueError("storage_path must be provided.")
+
+        if not is_auth_necessary(get_security_manager()):
+            return path
+
+        repo_path = (
+            getattr(self.store.config, "repo_path", None) if self.store else None
+        )
+
+        def _norm_fs(uri: str) -> str:
+            parsed = urlparse(uri)
+            if parsed.scheme and parsed.netloc:
+                return uri
+            return os.path.realpath(
+                FileSource.get_uri_for_file_path(repo_path=repo_path, uri=uri)
+            )
+
+        registered_paths: set = set()
+        registered_tables: set = set()
+        for ds in self.proxied_registry.list_data_sources(
+            project=project, allow_cache=True
+        ):
+            ds_path = getattr(ds, "path", None) or getattr(
+                getattr(ds, "file_options", None), "uri", None
+            )
+            if ds_path:
+                registered_paths.add(_norm_fs(ds_path))
+            ds_table = getattr(ds, "table", None)
+            if ds_table:
+                registered_tables.add(str(ds_table))
+
+        storage = build_saved_dataset_storage(storage_type, path)
+        if isinstance(storage, SavedDatasetFileStorage):
+            parsed = urlparse(path)
+            if parsed.scheme and parsed.netloc:
+                if path in registered_paths or _norm_fs(path) in registered_paths:
+                    raise ValueError(
+                        "storage_path must not overwrite a registered data source."
+                    )
+                return path
+            resolved = os.path.realpath(
+                FileSource.get_uri_for_file_path(repo_path=repo_path, uri=path)
+            )
+            if repo_path is not None:
+                repo_real = os.path.realpath(str(repo_path))
+                try:
+                    inside = os.path.commonpath([resolved, repo_real]) == repo_real
+                except ValueError:
+                    inside = False
+                if not inside:
+                    raise ValueError(
+                        "storage_path must resolve to a location inside the "
+                        "feature repository directory."
+                    )
+            if resolved in registered_paths:
+                raise ValueError(
+                    "storage_path must not overwrite a registered data source."
+                )
+            return resolved
+
+        if path in registered_tables:
+            raise ValueError(
+                "storage_path must not overwrite a registered data source table."
+            )
+        return path
+
     def CreateDatasetFromRetrieval(
         self,
         request: RegistryServer_pb2.CreateDatasetFromRetrievalRequest,
@@ -1019,6 +1296,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
     ):
         import pandas as pd
 
+        from feast import utils
         from feast.dataset_job_manager import DatasetJob, get_dataset_job_manager
         from feast.dataset_utils import (
             build_entity_df_from_inline,
@@ -1035,11 +1313,16 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             join_keys=[],
             storage=SavedDatasetFileStorage(path=""),
         )
-        assert_permissions(resource=dummy_dataset, actions=[AuthzedAction.CREATE])
+        assert_permissions_to_update(
+            resource=dummy_dataset,
+            getter=self.proxied_registry.get_saved_dataset,
+            project=request.project,
+        )
 
         store = self.store
         job_manager = get_dataset_job_manager()
         dataset_name = request.name.strip()
+        project = request.project.strip()
 
         entity_source_type = request.entity_source_type
         entity_keys = list(request.entity_keys)
@@ -1055,50 +1338,83 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         tags = dict(request.tags) if request.tags else {}
         allow_overwrite = request.allow_overwrite
 
+        requested_features: Union[List[str], FeatureService] = (
+            self.proxied_registry.get_feature_service(
+                feature_service_name, project, allow_cache=True
+            )
+            if feature_service_name
+            else (features_list or [])
+        )
+        fvs_to_read, odfvs_to_read = utils._get_feature_views_to_use(
+            self.proxied_registry,
+            project,
+            requested_features,
+            allow_cache=True,
+            hide_dummy_entity=False,
+        )
+        for fv_to_read in fvs_to_read:
+            assert_permissions(
+                resource=fv_to_read, actions=[AuthzedAction.READ_OFFLINE]
+            )
+        for odfv_to_read in odfvs_to_read:
+            assert_permissions(
+                resource=odfv_to_read, actions=[AuthzedAction.READ_OFFLINE]
+            )
+
+        safe_storage_path = self._validate_saved_dataset_destination(
+            storage_type=storage_type,
+            storage_path=storage_path,
+            project=project,
+        )
+
         def _execute_create(job: DatasetJob):
-            if entity_source_type == "inline":
-                entity_df = build_entity_df_from_inline(
-                    entity_keys=entity_keys,
-                    entity_values=entity_values,
-                    start_date=start_date,
-                    end_date=end_date,
-                    extra_columns=extra_columns,
+            token = store.set_current_project(project)
+            try:
+                if entity_source_type == "inline":
+                    entity_df = build_entity_df_from_inline(
+                        entity_keys=entity_keys,
+                        entity_values=entity_values,
+                        start_date=start_date,
+                        end_date=end_date,
+                        extra_columns=extra_columns,
+                    )
+                else:
+                    entity_df = pd.read_parquet(entity_source_path)
+                    for col in ["event_timestamp", "datetime", "timestamp"]:
+                        if col in entity_df.columns:
+                            entity_df[col] = pd.to_datetime(entity_df[col])
+                            break
+                    if extra_columns:
+                        for col_line in extra_columns.strip().split("\n"):
+                            col_line = col_line.strip()
+                            if "=" in col_line:
+                                col_name, col_value = col_line.split("=", 1)
+                                col_name = col_name.strip()
+                                col_value = col_value.strip()
+                                if col_name:
+                                    entity_df[col_name] = coerce_value(col_value)
+
+                features = (
+                    store.get_feature_service(feature_service_name)
+                    if feature_service_name
+                    else features_list
                 )
-            else:
-                entity_df = pd.read_parquet(entity_source_path)
-                for col in ["event_timestamp", "datetime", "timestamp"]:
-                    if col in entity_df.columns:
-                        entity_df[col] = pd.to_datetime(entity_df[col])
-                        break
-                if extra_columns:
-                    for col_line in extra_columns.strip().split("\n"):
-                        col_line = col_line.strip()
-                        if "=" in col_line:
-                            col_name, col_value = col_line.split("=", 1)
-                            col_name = col_name.strip()
-                            col_value = col_value.strip()
-                            if col_name:
-                                entity_df[col_name] = coerce_value(col_value)
+                storage = build_saved_dataset_storage(storage_type, safe_storage_path)
 
-            features = (
-                store.get_feature_service(feature_service_name)
-                if feature_service_name
-                else features_list
-            )
-            storage = build_saved_dataset_storage(storage_type, storage_path.strip())
-
-            store.create_dataset_from_retrieval(
-                name=dataset_name,
-                entity_df=entity_df,
-                features=features,
-                storage=storage,
-                tags=tags,
-                allow_overwrite=allow_overwrite,
-            )
+                store.create_dataset_from_retrieval(
+                    name=dataset_name,
+                    entity_df=entity_df,
+                    features=features,
+                    storage=storage,
+                    tags=tags,
+                    allow_overwrite=allow_overwrite,
+                )
+            finally:
+                store.reset_current_project(token)
 
         job = job_manager.submit_job(
             name=dataset_name,
-            project=request.project.strip(),
+            project=project,
             task_fn=_execute_create,
             metadata={
                 "storage_type": storage_type,
@@ -1122,13 +1438,18 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
 
         self._require_store()
 
-        dataset = self.store.registry.get_saved_dataset(
-            request.name, self.store.project
-        )
-        assert_permissions(resource=dataset, actions=[AuthzedAction.READ_OFFLINE])
+        project = request.project or self.store.project
+        token = self.store.set_current_project(project)
+        try:
+            dataset = self.store.registry.get_saved_dataset(
+                request.name, self.store.project
+            )
+            assert_permissions(resource=dataset, actions=[AuthzedAction.READ_OFFLINE])
 
-        limit = request.limit if request.limit > 0 else 10
-        df = self.store.retrieve_dataset_data(request.name, limit=limit)
+            limit = request.limit if request.limit > 0 else 10
+            df = self.store.retrieve_dataset_data(request.name, limit=limit)
+        finally:
+            self.store.reset_current_project(token)
 
         if df.empty:
             return RegistryServer_pb2.GetDatasetDataResponse(
@@ -1244,13 +1565,20 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
     def ApplyValidationReference(
         self, request: RegistryServer_pb2.ApplyValidationReferenceRequest, context
     ):
-        validation_reference = cast(
-            ValidationReference,
-            assert_permissions_to_update(
-                resource=ValidationReference.from_proto(request.validation_reference),
-                getter=self.proxied_registry.get_validation_reference,
-                project=request.project,
-            ),
+        # Authorize against metadata only: from_proto() dill-loads the profiler,
+        # so building the full object before the permission check would run
+        # caller-supplied code pre-authorization.
+        validation_reference_meta = ValidationReference.from_proto(
+            request.validation_reference, skip_udf=True
+        )
+        assert_permissions_to_update(
+            resource=validation_reference_meta,
+            getter=self.proxied_registry.get_validation_reference,
+            project=request.project,
+        )
+
+        validation_reference = ValidationReference.from_proto(
+            request.validation_reference
         )
         self.proxied_registry.apply_validation_reference(
             validation_reference=validation_reference,
@@ -1339,7 +1667,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         self, request: RegistryServer_pb2.ApplyMaterializationRequest, context
     ):
         assert_permissions(
-            resource=FeatureView.from_proto(request.feature_view),
+            resource=FeatureView.from_proto(request.feature_view, skip_udf=True),
             actions=[AuthzedAction.WRITE_ONLINE],
         )
 
@@ -1358,10 +1686,12 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         return Empty()
 
     def UpdateInfra(self, request: RegistryServer_pb2.UpdateInfraRequest, context):
-        project = self.proxied_registry.get_project(
-            name=request.project, allow_cache=True
+        # Create-or-update so first remote apply can write infra for a new project.
+        assert_permissions_to_update(
+            resource=Project(name=request.project),
+            getter=self.proxied_registry.get_project,
+            project=request.project,
         )
-        assert_permissions(resource=project, actions=[AuthzedAction.UPDATE])
         self.proxied_registry.update_infra(
             infra=Infra.from_proto(request.infra),
             project=request.project,
@@ -1370,10 +1700,19 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         return Empty()
 
     def GetInfra(self, request: RegistryServer_pb2.GetInfraRequest, context):
-        project = self.proxied_registry.get_project(
-            name=request.project, allow_cache=True
-        )
-        assert_permissions(resource=project, actions=[AuthzedAction.DESCRIBE])
+        # plan() calls get_infra before the project is created on a shared remote
+        # registry. Mirror ListProjectMetadata: authorize when present, and for a
+        # missing project require CREATE (or allow when auth is off).
+        try:
+            project = self.proxied_registry.get_project(
+                name=request.project, allow_cache=True
+            )
+            assert_permissions(resource=project, actions=[AuthzedAction.DESCRIBE])
+        except FeastObjectNotFoundException:
+            assert_permissions(
+                resource=Project(name=request.project),
+                actions=[AuthzedAction.CREATE],
+            )
         return self.proxied_registry.get_infra(
             project=request.project, allow_cache=request.allow_cache
         ).to_proto()
@@ -1471,17 +1810,26 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         ).to_proto()
 
     def ListProjects(self, request: RegistryServer_pb2.ListProjectsRequest, context):
-        paginated_projects, pagination_metadata = apply_pagination_and_sorting(
-            permitted_resources(
-                resources=cast(
-                    list[FeastObject],
-                    self.proxied_registry.list_projects(
-                        allow_cache=request.allow_cache,
-                        tags=dict(request.tags),
-                    ),
+        from feast.constants import PROTECTED_PROJECT_TAG
+
+        permitted_projects = permitted_resources(
+            resources=cast(
+                list[FeastObject],
+                self.proxied_registry.list_projects(
+                    allow_cache=request.allow_cache,
+                    tags=dict(request.tags),
                 ),
-                actions=AuthzedAction.DESCRIBE,
             ),
+            actions=AuthzedAction.DESCRIBE,
+        )
+
+        # Exclude protected projects after RBAC check
+        visible_projects = [
+            p for p in permitted_projects if p.tags.get(PROTECTED_PROJECT_TAG) != "true"
+        ]
+
+        paginated_projects, pagination_metadata = apply_pagination_and_sorting(
+            visible_projects,
             pagination=request.pagination,
             sorting=request.sorting,
         )
@@ -1578,16 +1926,37 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         )
 
     def Commit(self, request, context):
-        for project in self.proxied_registry.list_projects(allow_cache=True):
-            assert_permissions(resource=project, actions=[AuthzedAction.UPDATE])
+        # Per-object mutations are authorized in Apply*/Delete* RPCs.
+        # Requiring UPDATE on every project breaks shared-registry multi-tenant
+        # commits (remote feastRef with different feastProjects). Require CREATE
+        # or UPDATE on at least one project when auth is enabled instead.
+        projects = cast(
+            list[FeastObject],
+            list(self.proxied_registry.list_projects(allow_cache=True)),
+        )
+        if projects and is_auth_necessary(get_security_manager()):
+            can_update = permitted_resources(
+                resources=projects, actions=AuthzedAction.UPDATE
+            )
+            can_create = permitted_resources(
+                resources=projects, actions=AuthzedAction.CREATE
+            )
+            if not can_update and not can_create:
+                raise FeastPermissionError(
+                    "Not authorized to commit registry changes: "
+                    "CREATE or UPDATE permission required on at least one project"
+                )
         self.proxied_registry.commit()
         return Empty()
 
     def Refresh(self, request, context):
-        project = self.proxied_registry.get_project(
-            name=request.project, allow_cache=True
+        # Use create-or-update authorization so first apply of a new project over
+        # a remote registry can refresh before the project exists yet.
+        assert_permissions_to_update(
+            resource=Project(name=request.project),
+            getter=self.proxied_registry.get_project,
+            project=request.project,
         )
-        assert_permissions(resource=project, actions=[AuthzedAction.UPDATE])
         self.proxied_registry.refresh(request.project)
         return Empty()
 
@@ -1708,6 +2077,57 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         )
 
 
+def _sync_protected_project_tag(store: FeatureStore):
+    """Sync the protected project tag based on FEAST_PROTECTED_PROJECT env var.
+
+    When FEAST_PROTECTED_PROJECT=true, tags the project as protected in the
+    shared registry. When the env var is absent or false, removes the tag
+    if it was previously set — allowing temporary protection that can be
+    reversed by removing the annotation from the FeatureStore CR.
+    """
+    import os
+
+    from feast.constants import FEAST_PROTECTED_PROJECT_ENV, PROTECTED_PROJECT_TAG
+
+    should_protect = os.environ.get(FEAST_PROTECTED_PROJECT_ENV, "").lower() == "true"
+
+    try:
+        existing = store.registry.get_project(name=store.project, allow_cache=False)
+    except Exception:
+        if should_protect:
+            from feast.project import Project
+
+            project = Project(
+                name=store.project,
+                tags={PROTECTED_PROJECT_TAG: "true"},
+            )
+            store.registry.apply_project(project, commit=True)
+            logger.info(
+                "Tagged project '%s' as protected (%s=true)",
+                store.project,
+                PROTECTED_PROJECT_TAG,
+            )
+        return
+
+    is_protected = existing.tags.get(PROTECTED_PROJECT_TAG) == "true"
+
+    if should_protect and not is_protected:
+        existing.tags[PROTECTED_PROJECT_TAG] = "true"
+        store.registry.apply_project(existing, commit=True)
+        logger.info(
+            "Tagged project '%s' as protected (%s=true)",
+            store.project,
+            PROTECTED_PROJECT_TAG,
+        )
+    elif not should_protect and is_protected:
+        del existing.tags[PROTECTED_PROJECT_TAG]
+        store.registry.apply_project(existing, commit=True)
+        logger.info(
+            "Removed protected tag from project '%s'",
+            store.project,
+        )
+
+
 def start_server(
     store: FeatureStore,
     port: int,
@@ -1715,6 +2135,8 @@ def start_server(
     tls_key_path: str = "",
     tls_cert_path: str = "",
 ):
+    _sync_protected_project_tag(store)
+
     auth_manager_type = str_to_auth_manager_type(store.config.auth_config.type)
     init_security_manager(auth_type=auth_manager_type, fs=store)
     init_auth_manager(

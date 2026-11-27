@@ -2,7 +2,8 @@
 
 The operator needs a Feast feature repository (a directory containing `feature_store.yaml`
 and Python feature-view definitions) to work from. `spec.feastProjectDir` controls how that
-directory is created inside the pods. Exactly one of `git` or `init` must be set.
+directory is created inside the pods. When `feastProjectDir` is specified, exactly one of
+`git`, `init`, or `packaged` must be set.
 
 ---
 
@@ -89,7 +90,7 @@ feastProjectDir:
 ### Full `git` field reference
 
 | Field | Type | Description |
-|-------|------|-------------|
+| ------- | ------ | ------------- |
 | `url` | string | Repository URL (HTTPS or SSH) |
 | `ref` | string | Branch, tag, or commit SHA. Defaults to the remote HEAD |
 | `featureRepoPath` | string | Relative path within the repo to the feature repository directory. Default: `feature_repo` |
@@ -151,9 +152,90 @@ feastProjectDir:
 
 ---
 
+## Option C — Use a repository packaged in an image (`feastProjectDir.packaged`)
+
+Use `packaged` when the feature repository is built into a feature-server image. This is
+useful in air-gapped environments and in release workflows where feature definitions and
+their Python dependencies are promoted together as an immutable image.
+
+```yaml
+apiVersion: feast.dev/v1
+kind: FeatureStore
+metadata:
+  name: packaged-feature-store
+spec:
+  feastProject: credit_scoring
+  feastProjectDir:
+    packaged:
+      image: registry.example.com/feature-server@sha256:0123456789abcdef
+      featureRepoPath: /opt/feast/feature_repo
+```
+
+The repository can be added to a Feast feature-server image with a Dockerfile such as:
+
+```dockerfile
+FROM quay.io/feastdev/feature-server:latest
+COPY feature_repo/ /opt/feast/feature_repo/
+```
+
+`featureRepoPath` must be a canonical absolute, non-root path: do not use `.`, `..`,
+repeated separators, or a trailing separator. Put it outside operator-mounted locations
+such as `/feast-data`; a volume mounted there would hide files baked into the image. When
+init containers are enabled, the packaged path also must not equal, contain, or be
+contained by the staged repository path.
+
+With init containers enabled (the default), each Pod starts in this order:
+
+1. `feast-init` replaces the operator-managed staged repository with a fresh copy of the
+   repository from `packaged.featureRepoPath`. With the default storage configuration,
+   for example, it copies `/opt/feast/feature_repo` from the image to
+   `/feast-data/<feastProject>/feature_repo`.
+2. In the staged copy only, `feast-init` replaces `feature_store.yaml` (if exists in the
+   baked image) with the configuration generated from the FeatureStore resource. The file
+   baked into the image is not modified. The Python feature definitions come from the
+   packaged repository, while the FeatureStore resource remains authoritative for runtime
+   configuration.
+3. When `services.runFeastApplyOnInit` is omitted or `true` (the default), `feast-apply`
+   runs `feast apply` from the staged repository using the packaged image. Setting it to
+   `false` skips only this step; repository staging still occurs.
+4. The Feast service containers start with the staged repository as their working
+   directory.
+
+The repository baked into the image is therefore the source artifact, while the staged
+repository is the runtime copy used by `feast apply` and the Feast services.
+
+For a baked repository whose own `feature_store.yaml` must remain authoritative, disable
+init containers:
+
+```yaml
+services:
+  disableInitContainers: true
+```
+
+In that mode, Feast service containers use `featureRepoPath` directly and neither staging
+nor `feast apply` runs during pod initialization. The Operator does not update the registry,
+so `feast apply` must be handled separately—for example, by CI/CD or a separately managed
+Kubernetes Job or CronJob—whenever the packaged feature definitions change.
+
+The packaged `image` is optional. When set, it is the default for repository initialization,
+`feast apply`, and Feast services. `services.initImage` takes precedence for the
+`feast-init` and `feast-apply` init containers, while an explicit image on an individual
+service takes precedence for that service. When the packaged image is omitted, the operator
+uses `RELATED_IMAGE_FEATURE_SERVER` or its built-in feature-server image fallback.
+
+### Full `packaged` field reference
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `featureRepoPath` | string | yes | Canonical absolute, non-root path to the feature repository in the image; it must not overlap the staged repository path |
+| `image` | string | no | Image containing the repository; defaults to the operator feature-server image |
+
+---
+
 ## `feast apply` on startup
 
-By default, when the init container completes (git clone or `feast init`), the operator runs
+By default, when repository initialization completes (git clone, `feast init`, or packaged
+repository staging), the operator runs
 `feast apply` before starting the servers. This registers all feature definitions with the
 registry.
 
@@ -175,9 +257,8 @@ services:
 
 ## When `feastProjectDir` is omitted
 
-If neither `git` nor `init` is set, the operator mounts an empty directory. In this case
-you must supply a `feature_store.yaml` through another mechanism (e.g. a ConfigMap volume
-mount via `services.volumes` + `volumeMounts`).
+If `feastProjectDir` is not set, the operator defaults to `feastProjectDir.init: {}` and
+creates a local template repository.
 
 ---
 
@@ -188,3 +269,4 @@ mount via `services.volumes` + `volumeMounts`).
 - [Sample: private git repo with token](https://github.com/feast-dev/feast/blob/stable/infra/feast-operator/config/samples/v1_featurestore_git_token.yaml)
 - [Sample: monorepo with featureRepoPath](https://github.com/feast-dev/feast/blob/stable/infra/feast-operator/config/samples/v1_featurestore_git_repopath.yaml)
 - [Sample: feast init](https://github.com/feast-dev/feast/blob/stable/infra/feast-operator/config/samples/v1_featurestore_init.yaml)
+- [Sample: packaged feature repository](https://github.com/feast-dev/feast/blob/stable/infra/feast-operator/config/samples/v1_featurestore_packaged.yaml)

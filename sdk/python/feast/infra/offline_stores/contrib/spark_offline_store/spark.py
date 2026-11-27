@@ -11,6 +11,8 @@ from typing import (
     Any,
     Callable,
     Dict,
+    Iterable,
+    Iterator,
     KeysView,
     List,
     Optional,
@@ -40,6 +42,8 @@ from feast.data_source import DataSource
 from feast.dataframe import DataFrameEngine, FeastDataFrame
 from feast.errors import EntitySQLEmptyResults, InvalidEntityType
 from feast.feature_view import DUMMY_ENTITY_ID, DUMMY_ENTITY_VAL
+from feast.feature_view_projection import FeatureViewProjection
+from feast.field import Field
 from feast.infra.offline_stores import offline_utils
 from feast.infra.offline_stores.contrib.spark_offline_store.spark_source import (
     SavedDatasetSparkStorage,
@@ -63,9 +67,16 @@ from feast.monitoring.monitoring_utils import (
     normalize_monitoring_row,
     opt_float,
 )
+from feast.protos.feast.core.FeatureViewProjection_pb2 import (
+    FeatureViewProjection as FeatureViewProjectionProto,
+)
+from feast.protos.feast.core.OnDemandFeatureView_pb2 import (
+    OnDemandFeatureView as OnDemandFeatureViewProto,
+)
 from feast.repo_config import FeastConfigBaseModel, RepoConfig
 from feast.saved_dataset import SavedDatasetStorage
 from feast.type_map import spark_schema_to_np_dtypes
+from feast.types import from_feast_to_pyarrow_type
 from feast.utils import _get_fields_with_aliases, compute_non_entity_date_range
 
 # Make sure spark warning doesn't raise more than once.
@@ -89,10 +100,12 @@ class SparkOfflineStoreConfig(FeastConfigBaseModel):
 @dataclass(frozen=True)
 class SparkFeatureViewQueryContext(offline_utils.FeatureViewQueryContext):
     min_date_partition: Optional[str]
-    max_date_partition: str
+    max_date_partition: Optional[str]
 
 
 class SparkOfflineStore(OfflineStore):
+    supports_filter_by_created_timestamp = True
+
     @staticmethod
     def pull_latest_from_table_or_query(
         config: RepoConfig,
@@ -172,15 +185,28 @@ class SparkOfflineStore(OfflineStore):
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        filter_by_created_timestamp: bool = False,
         **kwargs,
     ) -> RetrievalJob:
         assert isinstance(config.offline_store, SparkOfflineStoreConfig)
         date_partition_column_formats = []
         for fv in feature_views:
-            assert isinstance(fv.batch_source, SparkSource)
-            date_partition_column_formats.append(
-                fv.batch_source.date_partition_column_format
-            )
+            if isinstance(fv.batch_source, SparkSource):
+                date_partition_column_formats.append(
+                    fv.batch_source.date_partition_column_format
+                )
+            else:
+                from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
+                    IcebergSource,
+                )
+
+                if isinstance(fv.batch_source, IcebergSource):
+                    date_partition_column_formats.append(None)
+                else:
+                    raise ValueError(
+                        f"SparkOfflineStore requires SparkSource or IcebergSource, "
+                        f"got {type(fv.batch_source)}"
+                    )
 
         warnings.warn(
             "The spark offline store is an experimental feature in alpha development. "
@@ -191,6 +217,18 @@ class SparkOfflineStore(OfflineStore):
         spark_session = get_spark_session_or_start_new_with_repoconfig(
             store_config=config.offline_store
         )
+
+        # Pre-register IcebergSource feature views as temp views
+        from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
+            IcebergSource,
+        )
+
+        for fv in feature_views:
+            if isinstance(fv.batch_source, IcebergSource):
+                _register_iceberg_source_as_temp_view(
+                    spark_session, fv.batch_source, config
+                )
+
         tmp_entity_df_table_name = offline_utils.get_temp_entity_table_name()
 
         # Non-entity mode: synthesize a left table and timestamp range from start/end dates to avoid requiring entity_df.
@@ -275,7 +313,9 @@ class SparkOfflineStore(OfflineStore):
         )
 
         query_context = _apply_bfv_transformations(
-            spark_session, feature_views, query_context
+            spark_session=spark_session,
+            feature_views=feature_views,
+            query_contexts=query_context,
         )
 
         spark_query_context = [
@@ -284,11 +324,13 @@ class SparkOfflineStore(OfflineStore):
                 min_date_partition=datetime.fromisoformat(
                     context.min_event_timestamp
                 ).strftime(date_format)
-                if context.min_event_timestamp is not None
+                if context.min_event_timestamp is not None and date_format is not None
                 else None,
                 max_date_partition=datetime.fromisoformat(
                     context.max_event_timestamp
-                ).strftime(date_format),
+                ).strftime(date_format)
+                if date_format is not None
+                else None,
             )
             for date_format, context in zip(
                 date_partition_column_formats, query_context
@@ -304,6 +346,7 @@ class SparkOfflineStore(OfflineStore):
             entity_df_columns=entity_schema_keys,
             query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
             full_feature_names=full_feature_names,
+            filter_by_created_timestamp=filter_by_created_timestamp,
         )
 
         return SparkRetrievalJob(
@@ -329,7 +372,16 @@ class SparkOfflineStore(OfflineStore):
         table: pyarrow.Table,
         progress: Optional[Callable[[int], Any]],
     ):
+        from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
+            IcebergSource,
+        )
+
         assert isinstance(config.offline_store, SparkOfflineStoreConfig)
+
+        if isinstance(feature_view.batch_source, IcebergSource):
+            _iceberg_offline_write_batch(config, feature_view, table)
+            return
+
         assert isinstance(feature_view.batch_source, SparkSource)
 
         pa_schema, column_names = offline_utils.get_pyarrow_schema_from_batch_source(
@@ -355,16 +407,25 @@ class SparkOfflineStore(OfflineStore):
                 df_batch = spark_session.read.parquet(tmp_file.name)
 
                 # load existing data to get spark table schema
-                df_existing = spark_session.read.format(
-                    feature_view.batch_source.file_format
-                ).load(feature_view.batch_source.path)
+                df_existing = feature_view.batch_source._load_dataframe_from_path(
+                    spark_session
+                )
 
                 # cast columns if applicable
                 df_batch = _cast_data_frame(df_batch, df_existing)
 
-                df_batch.write.format(feature_view.batch_source.file_format).mode(
-                    "append"
-                ).save(feature_view.batch_source.path)
+                # Write with the same format the source is read with: the table
+                # format (and its options) when set, otherwise the file format.
+                table_format = feature_view.batch_source.table_format
+                if table_format is None:
+                    writer = df_batch.write.format(
+                        feature_view.batch_source.file_format
+                    )
+                else:
+                    writer = df_batch.write.format(table_format.format_type.value)
+                    for key, value in table_format.properties.items():
+                        writer = writer.option(key, value)
+                writer.mode("append").save(feature_view.batch_source.path)
         elif feature_view.batch_source.query:
             raise NotImplementedError(
                 "offline_write_batch not implemented for batch sources specified by query"
@@ -391,7 +452,6 @@ class SparkOfflineStore(OfflineStore):
         source table and those column names are the values passed into this function.
         """
         assert isinstance(config.offline_store, SparkOfflineStoreConfig)
-        assert isinstance(data_source, SparkSource)
         warnings.warn(
             "The spark offline store is an experimental feature in alpha development. "
             "This API is unstable and it could and most probably will be changed in the future.",
@@ -401,6 +461,25 @@ class SparkOfflineStore(OfflineStore):
         spark_session = get_spark_session_or_start_new_with_repoconfig(
             store_config=config.offline_store
         )
+
+        from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
+            IcebergSource,
+        )
+
+        if isinstance(data_source, IcebergSource):
+            return _pull_from_iceberg_source(
+                spark_session=spark_session,
+                data_source=data_source,
+                join_key_columns=join_key_columns,
+                feature_name_columns=feature_name_columns,
+                timestamp_field=timestamp_field,
+                created_timestamp_column=created_timestamp_column,
+                start_date=start_date,
+                end_date=end_date,
+                config=config,
+            )
+
+        assert isinstance(data_source, SparkSource)
 
         timestamp_fields = [timestamp_field]
         if created_timestamp_column:
@@ -524,6 +603,18 @@ class SparkOfflineStore(OfflineStore):
         )
         for stmt in _SPARK_MONITORING_DDL_STATEMENTS:
             spark_session.sql(stmt)
+        from pyspark.sql.utils import AnalysisException
+
+        for stmt in (
+            f"ALTER TABLE {MON_TABLE_FEATURE} ADD COLUMNS (max_event_timestamp TIMESTAMP)",
+            f"ALTER TABLE {MON_TABLE_FEATURE_VIEW} ADD COLUMNS (max_event_timestamp TIMESTAMP)",
+            f"ALTER TABLE {MON_TABLE_FEATURE_SERVICE} ADD COLUMNS (max_event_timestamp TIMESTAMP)",
+        ):
+            try:
+                spark_session.sql(stmt)
+            except AnalysisException:
+                # Column already exists on newly created tables.
+                pass
 
     @staticmethod
     def save_monitoring_metrics(
@@ -628,6 +719,7 @@ CREATE TABLE IF NOT EXISTS {MON_TABLE_FEATURE} (
     granularity       STRING NOT NULL,
     data_source_type  STRING NOT NULL,
     computed_at       TIMESTAMP NOT NULL,
+    max_event_timestamp TIMESTAMP,
     is_baseline       BOOLEAN NOT NULL,
     feature_type      STRING NOT NULL,
     row_count         BIGINT,
@@ -653,6 +745,7 @@ CREATE TABLE IF NOT EXISTS {MON_TABLE_FEATURE_VIEW} (
     granularity       STRING NOT NULL,
     data_source_type  STRING NOT NULL,
     computed_at       TIMESTAMP NOT NULL,
+    max_event_timestamp TIMESTAMP,
     is_baseline       BOOLEAN NOT NULL,
     total_row_count   BIGINT,
     total_features    INT,
@@ -669,6 +762,7 @@ CREATE TABLE IF NOT EXISTS {MON_TABLE_FEATURE_SERVICE} (
     granularity          STRING NOT NULL,
     data_source_type     STRING NOT NULL,
     computed_at          TIMESTAMP NOT NULL,
+    max_event_timestamp  TIMESTAMP,
     is_baseline          BOOLEAN NOT NULL,
     total_feature_views  INT,
     total_features       INT,
@@ -864,29 +958,33 @@ def _spark_sql_categorical_stats(
 ) -> Dict[str, Any]:
     q_col = f"`{col_name}`"
 
-    query = (
-        f"WITH filtered AS ("
-        f"  SELECT * FROM {from_expression} AS _src WHERE {ts_clause}"
-        f") "
+    counts_query = (
         f"SELECT "
-        f"  (SELECT COUNT(*) FROM filtered) AS row_count, "
-        f"  (SELECT COUNT(*) - COUNT({q_col}) FROM filtered) AS null_count, "
-        f"  (SELECT COUNT(DISTINCT {q_col}) FROM filtered "
-        f"   WHERE {q_col} IS NOT NULL) AS unique_count, "
-        f"  CAST({q_col} AS STRING) AS value, COUNT(*) AS cnt "
-        f"FROM filtered WHERE {q_col} IS NOT NULL "
-        f"GROUP BY {q_col} ORDER BY cnt DESC LIMIT {int(top_n)}"
+        f"  COUNT(*) AS row_count, "
+        f"  COUNT(*) - COUNT({q_col}) AS null_count, "
+        f"  COUNT(DISTINCT {q_col}) AS unique_count "
+        f"FROM {from_expression} AS _src "
+        f"WHERE {ts_clause}"
     )
-
-    rows = spark_session.sql(query).collect()
-    if not rows:
+    rows = spark_session.sql(counts_query).collect()
+    if not rows or rows[0][0] is None or int(rows[0][0]) == 0:
         return empty_categorical_metric(col_name)
 
     row_count = int(rows[0][0] or 0)
     null_count = int(rows[0][1] or 0)
     unique_count = int(rows[0][2] or 0)
 
-    top_entries = [{"value": r[3], "count": int(r[4] or 0)} for r in rows]
+    top_entries: List[Dict[str, Any]] = []
+    if row_count > null_count:
+        top_n_query = (
+            f"SELECT CAST({q_col} AS STRING) AS value, COUNT(*) AS cnt "
+            f"FROM {from_expression} AS _src "
+            f"WHERE {q_col} IS NOT NULL AND {ts_clause} "
+            f"GROUP BY {q_col} ORDER BY cnt DESC LIMIT {int(top_n)}"
+        )
+        top_rows = spark_session.sql(top_n_query).collect()
+        top_entries = [{"value": r[0], "count": int(r[1] or 0)} for r in top_rows]
+
     top_total = sum(e["count"] for e in top_entries)
     other_count = (row_count - null_count) - top_total
 
@@ -952,13 +1050,29 @@ class SparkRetrievalJob(RetrievalJob):
         return self._on_demand_feature_views
 
     def to_spark_df(self) -> pyspark.sql.DataFrame:
+        """
+        Return the result as a Spark DataFrame.
+
+        On demand transformations will be executed on the Spark executors.
+        """
+        spark_df = self._to_spark_df_internal()
+        if self.on_demand_feature_views:
+            return SparkOnDemandFeatureViewProcessor(
+                on_demand_feature_views=self.on_demand_feature_views,
+                full_feature_names=self.full_feature_names,
+                odfv_feature_refs=self._get_odfv_feature_refs(),
+            ).transform(spark_df)
+        return spark_df
+
+    def _to_spark_df_internal(self) -> pyspark.sql.DataFrame:
+        """Return dataset as Spark DataFrame, without on demand transformations"""
         statements = self.query.split("---EOS---")
         *_, last = map(self.spark_session.sql, statements)
         return last
 
     def _to_df_internal(self, timeout: Optional[int] = None) -> pd.DataFrame:
         """Return dataset as Pandas DataFrame synchronously"""
-        return self.to_spark_df().toPandas()
+        return self._to_spark_df_internal().toPandas()
 
     def _to_arrow_internal(self, timeout: Optional[int] = None) -> pyarrow.Table:
         """Return dataset as pyarrow Table synchronously"""
@@ -1105,7 +1219,7 @@ class SparkRetrievalJob(RetrievalJob):
         if not self.supports_remote_storage_export():
             raise NotImplementedError()
 
-        sdf: pyspark.sql.DataFrame = self.to_spark_df()
+        sdf: pyspark.sql.DataFrame = self._to_spark_df_internal()
         staging_location = self._config.offline_store.staging_location
 
         if staging_location.startswith("/"):
@@ -1159,6 +1273,237 @@ class SparkRetrievalJob(RetrievalJob):
         return self._metadata
 
 
+class SparkOnDemandFeatureViewProcessor:
+    """
+    Appends the requested on demand features to a Spark DataFrame on the executors.
+
+    The requested ODFV features are added under the names ``RetrievalJob.to_arrow``
+    gives them, or every declared feature of an ODFV when none of its features is
+    listed. Each executor rebuilds the ODFVs from their protos and applies them to
+    every Arrow batch, casting the results to the declared feature types where Feast
+    has an Arrow type for them.
+    """
+
+    def __init__(
+        self,
+        on_demand_feature_views: List[OnDemandFeatureView],
+        full_feature_names: bool,
+        odfv_feature_refs: Dict[str, set[str]],
+    ):
+        self.on_demand_feature_views = on_demand_feature_views
+        self.full_feature_names = full_feature_names
+        self.odfv_feature_refs = odfv_feature_refs
+
+    def transform(self, spark_df: pyspark.sql.DataFrame) -> pyspark.sql.DataFrame:
+        from pyspark.sql.types import StructField, StructType
+
+        from feast.infra.compute_engines.spark.nodes import from_feast_to_spark_type
+
+        output_features = self._get_requested_features()
+
+        spark_fields = list(spark_df.schema.fields)
+        # Feast-declared Arrow types to cast the ODFV outputs to. Types without one
+        # (e.g. Bytes) keep the type Arrow inferred.
+        output_pa_types: Dict[str, pyarrow.DataType] = {}
+        for name, feature in output_features.items():
+            spark_type = from_feast_to_spark_type(feature.dtype)
+            if spark_type is None:
+                raise ValueError(
+                    f"Could not resolve Spark type for on demand feature '{name}' "
+                    f"(dtype={feature.dtype})."
+                )
+            spark_fields.append(StructField(name, spark_type, nullable=True))
+            try:
+                pa_type = from_feast_to_pyarrow_type(feature.dtype)
+            except (ValueError, KeyError, TypeError):
+                continue
+            output_pa_types[name] = pa_type
+
+        # The ODFV proto does not carry its projection (alias, version tag), so ship
+        # the projection proto alongside and re-apply it with with_projection on the
+        # executors.
+        odfv_protos = [
+            (
+                odfv.to_proto().SerializeToString(),
+                odfv.projection.to_proto().SerializeToString(),
+            )
+            for odfv in self.on_demand_feature_views
+        ]
+        # Keep self out of the closure, so the ODFVs reach the executors only as protos.
+        full_feature_names = self.full_feature_names
+        output_columns = list(output_features)
+        return spark_df.mapInArrow(
+            lambda x: SparkOnDemandFeatureViewProcessor._map_in_arrow(
+                x,
+                odfv_protos,
+                full_feature_names=full_feature_names,
+                output_columns=output_columns,
+                output_pa_types=output_pa_types,
+            ),
+            StructType(spark_fields),
+        )
+
+    def _get_requested_features(self) -> Dict[str, Field]:
+        output_features: Dict[str, Field] = {}
+        for odfv in self.on_demand_feature_views:
+            requested_features_for_odfv = (
+                self.odfv_feature_refs.get(odfv.name)
+                if odfv.name in self.odfv_feature_refs
+                else self.odfv_feature_refs.get(odfv.projection.name_to_use())
+            )
+            for feature in odfv.features:
+                col = (
+                    f"{odfv.projection.name_to_use()}__{feature.name}"
+                    if self.full_feature_names
+                    else feature.name
+                )
+                if (
+                    requested_features_for_odfv is None
+                    or col in requested_features_for_odfv
+                ):
+                    output_features[col] = feature
+        return output_features
+
+    @staticmethod
+    def _map_in_arrow(
+        iterator: Iterable[pyarrow.RecordBatch],
+        odfv_protos: List[Tuple[bytes, bytes]],
+        full_feature_names: bool,
+        output_columns: List[str],
+        output_pa_types: Dict[str, pyarrow.DataType],
+    ) -> Iterator[pyarrow.RecordBatch]:
+        for batch in iterator:
+            features_table = pyarrow.Table.from_batches([batch])
+
+            odfvs = []
+            for serialized_odfv, serialized_projection in odfv_protos:
+                odfv_proto = OnDemandFeatureViewProto.FromString(serialized_odfv)
+                projection_proto = FeatureViewProjectionProto.FromString(
+                    serialized_projection
+                )
+                odfvs.append(
+                    OnDemandFeatureView.from_proto(odfv_proto).with_projection(
+                        FeatureViewProjection.from_proto(projection_proto)
+                    )
+                )
+
+            for odfv in odfvs:
+                transformed_arrow = odfv.transform_arrow(
+                    features_table, full_feature_names
+                )
+
+                for col in transformed_arrow.column_names:
+                    if col in output_columns:
+                        column = transformed_arrow[col]
+                        if col in output_pa_types:
+                            column = column.cast(output_pa_types[col])
+                        features_table = features_table.append_column(col, column)
+
+            # mapInArrow requires the declared column order.
+            yield from features_table.select(
+                batch.schema.names + output_columns
+            ).to_batches()
+
+
+def _register_iceberg_source_as_temp_view(
+    spark_session: SparkSession,
+    data_source: "DataSource",
+    config: "RepoConfig",
+) -> None:
+    """Register an IcebergSource as a Spark temp view for SQL queries.
+
+    Loads the table through PyIceberg (which handles all catalog types and
+    storage backends), scans it to Arrow, and creates a temp view.
+    """
+    from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
+        IcebergSource,
+    )
+
+    assert isinstance(data_source, IcebergSource)
+    view_name = f"iceberg_tmp_{data_source.iceberg_table}"
+
+    iceberg_table = _load_pyiceberg_table(data_source)
+    arrow_table = iceberg_table.scan().to_arrow()
+    df = spark_session.createDataFrame(arrow_table)
+    df.createOrReplaceTempView(view_name)
+
+
+def _load_pyiceberg_table(data_source: "DataSource"):
+    """Load an Iceberg table via PyIceberg, respecting the source's catalog_type."""
+    from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
+        IcebergSource,
+    )
+
+    assert isinstance(data_source, IcebergSource)
+    return data_source.load_pyiceberg_table()
+
+
+def _iceberg_offline_write_batch(
+    config: "RepoConfig",
+    feature_view: "FeatureView",
+    table: "pyarrow.Table",
+) -> None:
+    """Write a PyArrow table to an IcebergSource via PyIceberg.
+
+    Uses PyIceberg's append() API which produces proper Iceberg snapshots,
+    handles schema evolution, and updates catalog metadata — making the
+    written data discoverable via any Iceberg-compatible engine.
+    """
+    from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
+        IcebergSource,
+    )
+
+    assert isinstance(feature_view.batch_source, IcebergSource)
+    data_source: IcebergSource = feature_view.batch_source
+
+    iceberg_table = _load_pyiceberg_table(data_source)
+    iceberg_table.append(table)
+
+
+def _pull_from_iceberg_source(
+    spark_session: SparkSession,
+    data_source: "DataSource",
+    join_key_columns: List[str],
+    feature_name_columns: List[str],
+    timestamp_field: str,
+    created_timestamp_column: Optional[str],
+    start_date: Optional[datetime],
+    end_date: Optional[datetime],
+    config: "RepoConfig",
+) -> "SparkRetrievalJob":
+    """Read from an IcebergSource using Spark.
+
+    Loads the table via PyIceberg into a temp view, then queries with time filter.
+    """
+    from feast.infra.data_sources.contrib.iceberg_catalog.iceberg_source import (
+        IcebergSource,
+    )
+
+    assert isinstance(data_source, IcebergSource)
+
+    tmp_view = f"iceberg_tmp_{data_source.iceberg_table}"
+
+    # Register the source as a temp view (reuses the same resolution logic)
+    _register_iceberg_source_as_temp_view(spark_session, data_source, config)
+
+    all_columns = join_key_columns + feature_name_columns + [timestamp_field]
+    if created_timestamp_column:
+        all_columns.append(created_timestamp_column)
+    select_cols = ", ".join(all_columns) if feature_name_columns else "*"
+
+    timestamp_filter = get_timestamp_filter_sql(
+        start_date, end_date, timestamp_field, tz=timezone.utc, quote_fields=False
+    )
+    query = f"SELECT {select_cols} FROM {tmp_view} WHERE {timestamp_filter}"
+
+    return SparkRetrievalJob(
+        spark_session=spark_session,
+        query=query,
+        full_feature_names=False,
+        config=config,
+    )
+
+
 def get_spark_session_or_start_new_with_repoconfig(
     store_config: SparkOfflineStoreConfig,
 ) -> SparkSession:
@@ -1208,10 +1553,10 @@ def _create_temp_entity_union_view(
     for fv, ctx, date_format in zip(
         feature_views, fv_query_contexts, date_partition_column_formats
     ):
-        assert isinstance(fv.batch_source, SparkSource)
+        assert fv.batch_source is not None
         from_expression = fv.batch_source.get_table_query_string()
         timestamp_field = fv.batch_source.timestamp_field or "event_timestamp"
-        date_partition_column = fv.batch_source.date_partition_column
+        date_partition_column = getattr(fv.batch_source, "date_partition_column", None)
         partition_clause = ""
         if date_partition_column and date_format:
             partition_clause = (
@@ -1267,9 +1612,16 @@ def _apply_bfv_transformations(
     query_contexts: List[offline_utils.FeatureViewQueryContext],
 ) -> List[offline_utils.FeatureViewQueryContext]:
     """
-    For BatchFeatureViews with a UDF, read the raw source into a Spark DataFrame,
-    invoke the transformation, register the result as a temp view, and replace the
-    table_subquery in the query context so the PIT join reads transformed data.
+    For BatchFeatureViews, update each query context in one of two ways:
+
+    1. Pre-computed path shortcut: if ``offline=True`` and
+       ``batch_source.path`` is set, read the pre-materialized parquet
+       directly — avoids re-running the UDF on every training call.
+    2. UDF execution: if the BFV has a transformation, run it against
+       the raw source and register the result as a temp view.
+
+    Plain FeatureViews and BFVs with neither a path nor a UDF pass
+    through unchanged.
     """
     from dataclasses import replace
 
@@ -1284,11 +1636,41 @@ def _apply_bfv_transformations(
     updated_contexts = []
     for ctx in query_contexts:
         fv = fv_by_name.get(ctx.name)
+        if fv is None or not isinstance(fv, BatchFeatureView):
+            updated_contexts.append(ctx)
+            continue
+
+        # 1. Pre-computed path shortcut
         if (
-            fv is not None
-            and isinstance(fv, BatchFeatureView)
-            and has_transformation(fv)
+            getattr(fv, "offline", False)
+            and isinstance(fv.batch_source, SparkSource)
+            and fv.batch_source.path
         ):
+            tmp_view = f"__feast_offline_{ctx.name}_{uuid.uuid4().hex[:8]}"
+            file_format = fv.batch_source.file_format or "parquet"
+            try:
+                df = spark_session.read.format(file_format).load(fv.batch_source.path)
+                df.createOrReplaceTempView(tmp_view)
+                updated_contexts.append(replace(ctx, table_subquery=tmp_view))
+                continue
+            except (FileNotFoundError, PermissionError) as e:
+                warnings.warn(
+                    f"Offline path '{fv.batch_source.path}' not accessible for "
+                    f"'{ctx.name}': {e}; falling back to source query.",
+                    RuntimeWarning,
+                    stacklevel=2,
+                )
+            except Exception as e:
+                warnings.warn(
+                    f"Unexpected error loading offline path "
+                    f"'{fv.batch_source.path}' for '{ctx.name}': {e}; "
+                    f"falling back to source query.",
+                    RuntimeWarning,
+                    stacklevel=2,
+                )
+
+        # 2. UDF execution fallback
+        if has_transformation(fv):
             udf = get_transformation_function(fv)
             if udf is not None:
                 source_info = resolve_feature_view_source_with_fallback(fv)
@@ -1304,12 +1686,9 @@ def _apply_bfv_transformations(
                 source_df = spark_session.sql(
                     f"SELECT * FROM {source_query} WHERE {timestamp_filter}"
                 )
-
                 transformed_df = udf(source_df)
-
                 tmp_view_name = "feast_bfv_" + uuid.uuid4().hex
                 transformed_df.createOrReplaceTempView(tmp_view_name)
-
                 ctx = replace(ctx, table_subquery=tmp_view_name)
 
         updated_contexts.append(ctx)
@@ -1538,7 +1917,7 @@ CREATE OR REPLACE TEMPORARY VIEW entity_dataframe AS (
         {% for featureview in featureviews %}
             ,CONCAT(
                 {% for entity in featureview.entities %}
-                    CAST({{entity}} AS STRING),
+                    CAST(LENGTH(CAST({{entity}} AS STRING)) AS STRING), ':', CAST({{entity}} AS STRING),
                 {% endfor %}
                 CAST({{entity_df_event_timestamp_col}} AS STRING)
             ) AS {{featureview.name}}__entity_row_unique_id
@@ -1615,6 +1994,10 @@ CREATE OR REPLACE TEMPORARY VIEW {{ featureview.name }}__cleaned AS (
 
             {% if featureview.ttl == 0 %}{% else %}
             AND subquery.event_timestamp >= entity_dataframe.entity_timestamp - {{ featureview.ttl }} * interval '1' second
+            {% endif %}
+
+            {% if filter_by_created_timestamp and featureview.created_timestamp_column %}
+            AND subquery.created_timestamp <= entity_dataframe.entity_timestamp
             {% endif %}
 
             {% for entity in featureview.entities %}

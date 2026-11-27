@@ -20,6 +20,7 @@ import {
   EuiHealth,
   EuiFilterGroup,
   EuiFilterButton,
+  EuiCallOut,
 } from "@elastic/eui";
 
 import { ComputeEngineIcon } from "../../graphics/ComputeEngineIcon";
@@ -49,12 +50,25 @@ function formatRange(iso: string | undefined): string {
   }
 }
 
-function buildJobsFromFeatureViews(
+export function buildJobsFromFeatureViews(
   featureViewInfos: FeatureViewEngineInfo[],
 ): MaterializationJobRow[] {
   const jobs: MaterializationJobRow[] = [];
 
   featureViewInfos.forEach((fv) => {
+    // A run in progress has no saved interval yet; the registry only knows
+    // the view is MATERIALIZING, not the date range being written.
+    if (fv.state === "MATERIALIZING") {
+      jobs.push({
+        id: `${fv.name}-running`,
+        featureView: fv.name,
+        status: "RUNNING",
+        rangeStart: "—",
+        rangeEnd: "—",
+        sortKey: Number.MAX_SAFE_INTEGER,
+      });
+    }
+
     if (fv.materializationIntervals && fv.materializationIntervals.length > 0) {
       fv.materializationIntervals.forEach((interval, idx) => {
         const startTime =
@@ -466,8 +480,14 @@ const Index = () => {
   const { projectName } = useParams();
   const navigate = useNavigate();
 
-  const { isLoading, isSuccess, isError, engineInfo, featureViewInfos } =
-    useLoadComputeEngine(projectName);
+  const {
+    isLoading,
+    isSuccess,
+    isError,
+    isPermissionDenied,
+    engineInfo,
+    featureViewInfos,
+  } = useLoadComputeEngine(projectName);
 
   useDocumentTitle(`Compute & Jobs | Feast`);
 
@@ -501,7 +521,14 @@ const Index = () => {
             <EuiLoadingSpinner size="m" /> Loading
           </p>
         )}
-        {isError && <p>We encountered an error while loading.</p>}
+        {isPermissionDenied && (
+          <EuiCallOut title="Permission denied" color="warning" iconType="lock">
+            <p>You do not have permission to view compute engines.</p>
+          </EuiCallOut>
+        )}
+        {isError && !isPermissionDenied && (
+          <p>We encountered an error while loading.</p>
+        )}
         {isSuccess && (
           <Routes>
             <Route

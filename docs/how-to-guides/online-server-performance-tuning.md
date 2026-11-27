@@ -32,7 +32,13 @@ When the server processes a `get_online_features()` call, it groups the requeste
 **Guideline:** For features that share the same entity key and are frequently requested together, consolidate them into a **single feature view**. This reduces the number of store round-trips per request. Split feature views only when features have different entities, different materialization schedules, or different data source update frequencies.
 
 {% hint style="info" %}
-**Redis exception:** The Redis online store overrides `get_online_features()` to batch all `HMGET` commands across every feature view into a **single pipeline execution**. Because all feature views for the same entity share one Redis hash key, the number of Redis round trips is always **1**, regardless of how many feature views the request touches. This means the "fewer feature views" guideline is less critical for Redis than for other stores — but consolidating feature views still reduces serialization and protobuf overhead at the application layer.
+**Redis exception:** The Redis online store overrides `_read_features_per_fv()` to batch all `HMGET` commands across every feature view into a **single pipeline execution**. Because all feature views for the same entity share one Redis hash key, the number of Redis round trips is always **1**, regardless of how many feature views the request touches. This means the "fewer feature views" guideline is less critical for Redis than for other stores — but consolidating feature views still reduces serialization and protobuf overhead at the application layer.
+
+**PostgreSQL exception:** PostgreSQL stores each feature view in its own table and overrides `_read_features_per_fv()` to combine the per-view reads into a **single `UNION ALL` statement**, so a request touching any number of feature views costs **1** query on both the sync and async paths. This helps most where round trips dominate — a handful of entities against a remote database. Requests larger than `max_batched_result_rows` (entity rows × feature views, default 2048) fall back to one query per view, because at that size the saved round trips no longer offset holding every view's rows at once. A single-view request is never batched, since there is nothing to combine. Set `max_batched_result_rows: 0` in the online store config to turn batching off. As with Redis, consolidating feature views still reduces application-layer overhead.
+
+**DynamoDB exception:** DynamoDB stores each feature view in its own table and overrides `_read_features_per_fv()` to pack the keys of every feature view into **shared `BatchGetItem` requests**, since one request can read from several tables. A request touching any number of feature views costs as few as **1** request (up to `batch_size` keys per request, sent in parallel) on both the sync and async paths. As with PostgreSQL, requests larger than `max_batched_result_rows` (entity rows × feature views, default 2048) read one view at a time, single-view requests are never batched, and `max_batched_result_rows: 0` turns batching off.
+
+**Bigtable exception:** Bigtable keeps every feature view keyed on the same entities in one shared table, with rows keyed `{entity_id}#{feature_view_name}`, and overrides `_read_features_per_fv()` to fetch the rows of all those views with **one `ReadRows` call per table**. A request touching any number of feature views on the same entities costs **1** call; views on different entity sets cost one call per entity set. This applies to the sync path, which is the only read path Bigtable has. As with PostgreSQL and DynamoDB, requests larger than `max_batched_result_rows` (entity rows × feature views, default 2048) read one view at a time, single-view requests are never batched, and `max_batched_result_rows: 0` turns batching off. The call's row filter selects, for the rows of each view, only the features requested from that view. A request whose filter would come close to Bigtable's 20 KB row filter limit also reads one view at a time.
 {% endhint %}
 
 ### Feature services are free (and can be faster)
@@ -87,7 +93,7 @@ Requesting just `combined_score` triggers reads from **both** `driver_stats_fv` 
 
 ## Pre-computed feature vectors
 
-When a `get_online_features()` request touches multiple feature views, the server issues a separate store read per feature view. For services spanning 5–15+ feature views, this fan-out dominates latency — even with Redis pipeline batching, the protobuf deserialization and response-building overhead grows linearly with the number of views.
+When a `get_online_features()` request touches multiple feature views, the server issues a separate store read per feature view. For services spanning 5–15+ feature views, this fan-out dominates latency — even where the store batches its reads (Redis, PostgreSQL, DynamoDB), the protobuf deserialization and response-building overhead grows linearly with the number of views.
 
 **Pre-computed feature vectors** solve this by storing all of a feature service's features for each entity as a single serialized blob. At read time, the server fetches one blob per entity instead of N reads per feature view, reducing the operation to O(1).
 
@@ -183,6 +189,10 @@ feast serve \
 **Sizing rule of thumb:** Start with `workers = 2 × vCPU + 1` and allocate ~256–512 MB memory per worker. Monitor RSS per process and adjust. If p99 latency is high under load, add more workers or scale horizontally rather than increasing connections.
 {% endhint %}
 
+### Garbage collection pauses
+
+Every full Python garbage collection walks all live objects, including the registry and feature definitions that live for the whole process. In a worker this blocks the event loop, and while it runs every waiting request stalls. The stall shows up as a slow online store read. With `--gc-freeze` (or `feature_server.gc_freeze: true` in `feature_store.yaml`) the server runs `gc.freeze()` after it has loaded the registry and before the workers start, so full collections skip these objects and stay short. Try it if p99.9 latency has spikes that the online store does not explain.
+
 ---
 
 ## Registry cache tuning
@@ -266,6 +276,8 @@ The `registryTTLSeconds` field on the Operator CR (or `--registry_ttl_sec` CLI f
 | Production (low-latency) | `thread` | 300 |
 | Production (frequent schema changes) | `thread` | 60 |
 
+For SQL registries that are too large to load at startup, `cache_mode: none` turns the cache off and sends every registry read to the database. See [SQL Registry](../reference/registries/sql.md).
+
 ---
 
 ## Online store selection
@@ -275,10 +287,11 @@ The online store is the single largest factor in `get_online_features()` latency
 | Store | Typical p50 latency | Async read | Best for | Key trade-off |
 | ----- | ------------------- | ---------- | -------- | ------------- |
 | **Redis / Dragonfly** | < 1 ms | No (threadpool) | Ultra-low latency, high throughput; all FV reads batched into 1 pipeline | Requires in-memory capacity for your dataset |
-| **DynamoDB** | 2–5 ms | Yes | Serverless, auto-scaling on AWS | Pay-per-request cost; batch API limits (100 items) |
-| **PostgreSQL** | 3–10 ms | No (threadpool) | Teams with existing Postgres infra | Connection pooling needed at scale |
+| **DynamoDB** | 2–5 ms | Yes | Serverless, auto-scaling on AWS; FV reads packed into shared batch requests | Pay-per-request cost; batch API limits (100 items) |
+| **PostgreSQL** | 3–10 ms | No (threadpool) | Teams with existing Postgres infra; all FV reads batched into 1 query | Connection pooling needed at scale |
 | **MongoDB** | 2–5 ms | Yes | Flexible schema, async-native | Requires index tuning for large datasets |
-| **Bigtable** | 3–8 ms | No (threadpool) | Large-scale GCP workloads | Row-key design affects read performance |
+| **Aerospike** | < 1 ms | No (threadpool) | Ultra-low latency, hybrid memory (RAM + SSD), large datasets | Namespace must be pre-configured on the cluster |
+| **Bigtable** | 3–8 ms | No (threadpool) | Large-scale GCP workloads; FV reads on the same entities batched into 1 `ReadRows` call | Row-key design affects read performance |
 | **Cassandra / ScyllaDB** | 2–5 ms | No (threadpool) | Multi-region, write-heavy | Tunable consistency; requires DC-aware routing |
 | **Remote** | Varies | No (threadpool) | Centralized feature server architecture | Adds an HTTP hop; tune connection pool |
 | **SQLite** | N/A | No | Local development only | No concurrent access; not suitable for production |
@@ -301,10 +314,11 @@ The feature server can read from the online store using either an **async** or *
 
 | Store | Async read | Async write | Notes |
 | ----- | ---------- | ----------- | ----- |
-| **DynamoDB** | Yes | Yes | Uses `aiobotocore` for non-blocking I/O |
+| **DynamoDB** | Yes | Yes | Uses `aiobotocore` for non-blocking I/O. `_read_features_per_fv` is overridden to pack all feature view reads into shared `BatchGetItem` requests |
 | **MongoDB** | Yes | Yes | Uses `motor` (async MongoDB driver) |
-| **PostgreSQL** | Implemented | No | Has `online_read_async` but does not yet advertise via `async_supported`; uses sync/threadpool path |
-| **Redis** | Implemented | **Yes** | `online_read_async` and `online_write_batch_async` both implemented; uses sync/threadpool path for `get_online_features` (overridden with batched single pipeline) |
+| **PostgreSQL** | Implemented | No | Has `online_read_async` but does not yet advertise via `async_supported`; uses sync/threadpool path. `_read_features_per_fv` is overridden to batch all feature view reads into a single `UNION ALL` query |
+| **Redis** | Implemented | **Yes** | `online_read_async` and `online_write_batch_async` both implemented; uses sync/threadpool path for `get_online_features` (`_read_features_per_fv` overridden with batched single pipeline) |
+| **Aerospike** | Implemented | No | Async methods wrap the blocking C client via `run_in_executor`; does not yet advertise via `async_supported`, so the server still uses the threadpool path |
 | All others | No | No | Fall back to sync with `run_in_threadpool()` |
 
 **When async matters most:**
@@ -322,6 +336,7 @@ online_store:
   batch_size: 100
   max_read_workers: 10
   consistent_reads: false
+  warmup_connections: true
   max_pool_connections: 100
   keepalive_timeout: 30.0
   connect_timeout: 3
@@ -334,7 +349,9 @@ Key knobs:
 
 - **`batch_size`**: DynamoDB's `BatchGetItem` accepts up to 100 items per request. For 500 entities, this means 5 batches. Keep at 100 unless hitting the 16 MB response limit.
 - **`max_read_workers`**: Controls parallelism for batch reads. With 10 workers, those 5 batches run concurrently (~10 ms) instead of sequentially (~50 ms).
+- **`max_batched_result_rows`**: Requests spanning several feature views pack every view's keys into shared `BatchGetItem` requests, up to this many entity rows × feature views (default 2048). Set to `0` to read one feature view at a time.
 - **`consistent_reads: false`**: Eventually consistent reads are faster and cheaper. Use `true` only if you need read-after-write consistency.
+- **`warmup_connections: true`**: Pre-warms the DynamoDB connection pool on server startup by making `max_pool_connections` concurrent lightweight calls (`describe_endpoints`). This avoids a cold-start latency penalty (~20ms) on the first feature requests, including concurrent ones.
 - **`max_pool_connections`**: Increase for high-throughput deployments to improve HTTP connection reuse to the DynamoDB endpoint.
 - **`keepalive_timeout`**: Longer keep-alive reduces TLS handshake overhead on reused connections.
 - **`connect_timeout` / `read_timeout`**: Lower values fail fast, improving p99. Set aggressively if your retry strategy covers transient failures.
@@ -383,7 +400,7 @@ online_store:
 
 #### Batched multi-feature-view reads
 
-The Redis online store overrides `get_online_features()` to issue all `HMGET` commands — across every feature view in the request — in a **single pipeline execution**. This reduces Redis round trips from `N` (one per feature view) to `1` regardless of request size.
+The Redis online store overrides `_read_features_per_fv()` to issue all `HMGET` commands — across every feature view in the request — in a **single pipeline execution**. This reduces Redis round trips from `N` (one per feature view) to `1` regardless of request size.
 
 | Feature views | Round trips (other stores) | Round trips (Redis) |
 | :---: | :---: | :---: |
@@ -466,6 +483,34 @@ online_store:
 - **`maxPoolSize` / `minPoolSize`**: Controls the driver connection pool. Default `maxPoolSize` is 100 in PyMongo, but explicitly setting it ensures predictability across versions.
 - **`connectTimeoutMS` / `socketTimeoutMS`**: Tighter timeouts improve p99 by failing fast on slow connections.
 - MongoDB is one of the stores with **full async support** (read and write), so it benefits from concurrent feature view reads via `asyncio.gather()`.
+
+### Aerospike tuning
+
+Aerospike offers sub-millisecond reads thanks to its hybrid-memory architecture (primary index in RAM, data on SSD or RAM). Tune the per-call policies in the Feast config and rely on the Aerospike cluster's own tuning for everything else:
+
+```yaml
+online_store:
+  type: aerospike
+  hosts:
+    - ["aerospike-1.internal", 3000]
+    - ["aerospike-2.internal", 3000]
+  namespace: feast
+  read_timeout_ms: 150           # hard deadline for a single-record get
+  write_timeout_ms: 300           # hard deadline for a single-record put/operate
+  batch_total_timeout_ms: 500     # hard deadline for online_read / online_write_batch
+  socket_timeout_ms: 50           # per-attempt deadline so max_retries can actually fire
+  max_retries: 2
+  ttl_seconds: 86400              # record-level TTL; omit to use the namespace default
+  client_kwargs:                  # escape hatch for any client-config field not surfaced above
+    policies:
+      batch:
+        concurrent_nodes: 0       # 0 = parallel to every node (lowest latency on multi-node clusters)
+```
+
+- **`*_timeout_ms` (total)** vs **`socket_timeout_ms` (per-attempt)**: `*_timeout_ms` is the hard deadline for a whole call *including* retries; `socket_timeout_ms` is the per-attempt deadline that allows `max_retries` to actually fire within that budget. Without `socket_timeout_ms`, a single slow attempt can consume the entire total deadline and retries never run.
+- **`hosts`**: List every seed node. The Aerospike client discovers the rest of the cluster automatically and opens one connection pool per node.
+- **`ttl_seconds: 0`** means "never expire"; omit the key to inherit the namespace's `default-ttl`. Expiry is enforced by the server's `nsup` thread — nothing to delete on the client side.
+- Co-locate the feature server in the **same availability zone / rack** as the Aerospike cluster; sub-millisecond reads are bandwidth- and RTT-sensitive.
 
 ### Remote online store tuning
 
@@ -700,6 +745,7 @@ This applies to every connection-oriented online store:
 | **DynamoDB** | `max_pool_connections` (HTTP pool) | 10 | No hard limit, but AWS SDK has per-process pool caps; monitor throttling |
 | **Redis** | Connection per worker | 1 | `maxclients` on the Redis server (default: 10,000) |
 | **MongoDB** | `maxPoolSize` (in `client_kwargs`) | 100 | Server's `net.maxIncomingConnections` |
+| **Aerospike** | Driver manages pool per seed node | Auto | `proto-fd-max` (default 15000) on each Aerospike node |
 | **Cassandra** | Driver manages pool per node | Auto | `native_transport_max_threads` on each Cassandra node |
 | **Remote** | `connection_pool_size` (HTTP pool) | 50 | The target feature server's worker capacity |
 
@@ -787,7 +833,7 @@ This exposes a `/metrics` endpoint on port 8000. If the Prometheus Operator's `S
 | `feast_feature_server_transformation_duration_seconds` | ODFV execution time (requires `track_metrics=True` on the ODFV). |
 | `feast_feature_server_cpu_usage` | Per-worker CPU. Sustained > 80% means you need more workers or replicas. |
 | `feast_feature_server_memory_usage` | Per-worker memory. Growing over time may indicate a memory leak — use `maxRequests` to recycle. |
-| `feast_feature_server_request_total` | Request throughput and error rates by endpoint and status. |
+| `feast_feature_server_request_total` | Request throughput and error rates by endpoint and status. Filter on `status_class="5xx"` to alert on server errors only. |
 | `feast_feature_freshness_seconds` | Seconds since last materialization per feature view. Alerts you to stale data. |
 
 #### Example Prometheus alert rules
