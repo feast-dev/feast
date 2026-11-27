@@ -510,8 +510,7 @@ raw_event = {"type": "click", "target": "button_1", "metadata": {"page": "home"}
 # Option 2: pass an already-serialized JSON string — Feast validates it via json.loads()
 raw_event = '{"type": "click", "target": "button_1", "metadata": {"page": "home"}}'
 
-# When building a DataFrame for store.push(), values must be strings since
-# Pandas/PyArrow columns expect uniform types:
+# A DataFrame for store.push() can hold either form:
 import pandas as pd
 event_df = pd.DataFrame({
     "user_id": ["user_1"],
