@@ -12,6 +12,7 @@ from typing import (
     Union,
 )
 
+import numpy as np
 import pandas as pd
 import pyarrow as pa
 from tqdm import tqdm
@@ -93,6 +94,20 @@ def _dict_feature_columns(
     return columns
 
 
+def _to_python_value(value: Any) -> Any:
+    """Turn pandas missing values into None and NumPy scalars into Python values,
+    at any depth. Dict keys are kept as they are."""
+    if isinstance(value, dict):
+        return {key: _to_python_value(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple, np.ndarray)):
+        return [_to_python_value(item) for item in value]
+    if pd.api.types.is_scalar(value) and pd.isna(value):
+        return None
+    if isinstance(value, (np.number, np.bool_)):
+        return value.item()
+    return value
+
+
 def _set_dict_feature_values(
     rows: Sequence[
         Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
@@ -102,8 +117,7 @@ def _set_dict_feature_values(
 ) -> None:
     """Convert dict-valued feature columns straight from the DataFrame values."""
     for column, (feature_name, value_type) in dict_columns.items():
-        series = df[column]
-        values = series.astype(object).where(series.notna(), None).tolist()
+        values = [_to_python_value(value) for value in df[column]]
         for row, value in zip(rows, python_values_to_proto_values(values, value_type)):
             row[1][feature_name] = value
 
@@ -415,7 +429,9 @@ class PassthroughProvider(Provider):
         dict_columns = _dict_feature_columns(feature_view, df, column_to_feature)
         if dict_columns:
             # Arrow gets an all-null placeholder; the real values are set below.
-            df_for_arrow = df.assign(**{column: None for column in dict_columns})
+            df_for_arrow = df.copy()
+            for column in dict_columns:
+                df_for_arrow[column] = None
         else:
             df_for_arrow = df
 

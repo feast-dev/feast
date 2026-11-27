@@ -123,3 +123,28 @@ def test_ingest_dict_feature_values_with_nulls_and_field_mapping() -> None:
         None,
         None,
     ]
+
+
+@pytest.mark.parametrize(
+    "dtype,values,expected",
+    [
+        (Json, [{"a": np.int64(1), "b": np.bool_(True)}], [{"a": 1, "b": True}]),
+        (Json, [{"a": pd.NA}, {"a": np.nan}], [{"a": None}, {"a": None}]),
+        (Array(Json), [[{"a": np.int64(1)}]], [[{"a": 1}]]),
+        (Map, [{"a": pd.NA, "b": np.array([1, 2])}], [{"a": None, "b": [1, 2]}]),
+        (Array(Map), [[{"a": pd.NA}]], [[{"a": None}]]),
+        (
+            Struct({"a": Int64, "b": String}),
+            [{"a": pd.NA, "b": "x"}],
+            [{"a": None, "b": "x"}],
+        ),
+    ],
+)
+def test_ingest_dict_feature_values_with_numpy_and_missing_values(
+    dtype: FeastType, values: List[Any], expected: List[Any]
+) -> None:
+    assert _with_types(_ingest(dtype, values)) == _with_types(expected)
+
+
+def test_ingest_dict_feature_column_named_self() -> None:
+    assert _ingest(Map, [{"a": 1}], field_mapping={"self": "payload"}) == [{"a": 1}]
