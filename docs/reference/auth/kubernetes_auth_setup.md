@@ -224,7 +224,7 @@ Run `feast apply` from CLI/API/SDK on server or from client(if permitted) to app
 
 ## Related Documentation
 
-- [Authorization Manager](./authz_manager.md)
-- [Permission Model](../concepts/permission.md)
-- [RBAC Architecture](../architecture/rbac.md)
-- [Kubernetes RBAC Authorization](./authz_manager.md#kubernetes-rbac-authorization)
+- [Authorization Manager](../../getting-started/components/authz_manager.md)
+- [Permission Model](../../getting-started/concepts/permission.md)
+- [RBAC Architecture](../../getting-started/architecture/rbac.md)
+- [Kubernetes RBAC Authorization](../../getting-started/components/authz_manager.md#kubernetes-rbac-authorization)
