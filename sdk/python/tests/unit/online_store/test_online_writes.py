@@ -17,7 +17,7 @@ import os
 import shutil
 import tempfile
 import unittest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import pandas as pd
@@ -630,3 +630,312 @@ class TestOnlineWritesWithTransform(unittest.TestCase):
                 feature_view_name="transform_pdf_on_write_view",
                 df=input_df,
             )
+
+
+class TestSingletonTransformOnWrite(unittest.TestCase):
+    def setUp(self):
+        self.data_dir = tempfile.mkdtemp()
+        self.store = FeatureStore(
+            config=RepoConfig(
+                project="test_singleton_transform_on_write",
+                registry=os.path.join(self.data_dir, "registry.db"),
+                provider="local",
+                entity_key_serialization_version=3,
+                online_store=SqliteOnlineStoreConfig(
+                    path=os.path.join(self.data_dir, "online.db")
+                ),
+            )
+        )
+        self.driver = Entity(
+            name="driver", join_keys=["driver_id"], value_type=ValueType.INT64
+        )
+        self.request_source = RequestSource(
+            name="driver_request",
+            schema=[
+                Field(name="driver_id", dtype=Int64),
+                Field(name="conv_rate", dtype=Float64),
+                Field(name="acc_rate", dtype=Float64),
+            ],
+        )
+
+    def tearDown(self):
+        shutil.rmtree(self.data_dir)
+
+    def _read_online(self, feature_view_name: str, feature: str, entity_keys):
+        return self.store.get_online_features(
+            features=[f"{feature_view_name}:{feature}"],
+            entity_rows=[{"driver_id": key} for key in entity_keys],
+        ).to_dict()[feature]
+
+    def test_scalar_outputs_are_written_for_every_row(self):
+        @on_demand_feature_view(
+            entities=[self.driver],
+            sources=[self.request_source],
+            schema=[
+                Field(name="driver_id", dtype=Int64),
+                Field(name="conv_plus_acc", dtype=Float64),
+            ],
+            mode="python",
+            write_to_online_store=True,
+            singleton=True,
+        )
+        def conv_plus_acc_view(inputs: dict[str, Any]) -> dict[str, Any]:
+            return {"conv_plus_acc": inputs["conv_rate"] + inputs["acc_rate"]}
+
+        self.store.apply([self.driver, conv_plus_acc_view])
+
+        df = pd.DataFrame(
+            {
+                "driver_id": [1001, 1002, 1003],
+                "conv_rate": [0.25, 0.5, 0.75],
+                "acc_rate": [1.0, 2.0, 3.0],
+            }
+        )
+        transformed = self.store._transform_on_demand_feature_view_df(
+            conv_plus_acc_view, df
+        )
+        # Input columns outside the schema are kept for scalar outputs.
+        assert transformed["conv_rate"].tolist() == [0.25, 0.5, 0.75]
+
+        self.store.write_to_online_store(feature_view_name="conv_plus_acc_view", df=df)
+
+        assert self._read_online(
+            "conv_plus_acc_view", "conv_plus_acc", [1001, 1002, 1003]
+        ) == [1.25, 2.5, 3.75]
+
+    def test_list_outputs_are_written_when_index_does_not_start_at_zero(self):
+        @on_demand_feature_view(
+            entities=[self.driver],
+            sources=[self.request_source],
+            schema=[
+                Field(name="driver_id", dtype=Int64),
+                Field(name="conv_plus_acc", dtype=Float64),
+            ],
+            mode="python",
+            write_to_online_store=True,
+            singleton=True,
+        )
+        def split_view(inputs: dict[str, Any]) -> dict[str, Any]:
+            # One input row fans out to two output rows.
+            return {
+                "driver_id": [inputs["driver_id"], inputs["driver_id"] + 1],
+                "conv_plus_acc": [inputs["conv_rate"], inputs["acc_rate"]],
+            }
+
+        self.store.apply([self.driver, split_view])
+
+        df = pd.DataFrame(
+            {
+                "driver_id": [1, 1001, 1003],
+                "conv_rate": [0.0, 0.25, 0.75],
+                "acc_rate": [0.0, 1.0, 3.0],
+            }
+        )
+        # A filtered dataframe keeps its original index labels (1 and 2).
+        self.store.write_to_online_store(
+            feature_view_name="split_view", df=df[df["driver_id"] > 1]
+        )
+
+        assert self._read_online(
+            "split_view", "conv_plus_acc", [1001, 1002, 1003, 1004]
+        ) == [0.25, 1.0, 0.75, 3.0]
+
+    def _chunking_view(self, returns_join_key: bool):
+        document_source = RequestSource(
+            name="document_request",
+            schema=[
+                Field(name="driver_id", dtype=Int64),
+                Field(name="pdf_bytes", dtype=PdfBytes),
+                Field(name="file_name", dtype=String),
+            ],
+        )
+
+        @on_demand_feature_view(
+            entities=[self.driver],
+            sources=[document_source],
+            schema=[Field(name="chunk_text", dtype=String)],
+            mode="python",
+            write_to_online_store=True,
+            singleton=True,
+        )
+        def chunk_view(inputs: dict[str, Any]) -> dict[str, Any]:
+            # Each document fans out to one row per chunk.
+            chunks = inputs["pdf_bytes"].decode(errors="ignore").split()
+            output = {"chunk_text": chunks}
+            if returns_join_key:
+                output["driver_id"] = [
+                    inputs["driver_id"] + i for i in range(len(chunks))
+                ]
+            return output
+
+        return chunk_view
+
+    def test_fan_out_does_not_copy_input_only_columns(self):
+        chunk_view = self._chunking_view(returns_join_key=True)
+        self.store.apply([self.driver, chunk_view])
+
+        df = pd.DataFrame(
+            {
+                "driver_id": [1001, 1003],
+                "pdf_bytes": [b"alpha beta", b"gamma delta"],
+                "file_name": ["a.pdf", "b.pdf"],
+            }
+        )
+        transformed = self.store._transform_on_demand_feature_view_df(chunk_view, df)
+
+        assert sorted(transformed.columns) == ["chunk_text", "driver_id"]
+        assert transformed["driver_id"].tolist() == [1001, 1002, 1003, 1004]
+        assert transformed["chunk_text"].tolist() == [
+            "alpha",
+            "beta",
+            "gamma",
+            "delta",
+        ]
+
+    def test_fan_out_takes_missing_join_key_from_input_row(self):
+        chunk_view = self._chunking_view(returns_join_key=False)
+        self.store.apply([self.driver, chunk_view])
+
+        df = pd.DataFrame(
+            {
+                "driver_id": [1001, 1003],
+                "pdf_bytes": [b"alpha beta", b"gamma delta"],
+                "file_name": ["a.pdf", "b.pdf"],
+            }
+        )
+        transformed = self.store._transform_on_demand_feature_view_df(chunk_view, df)
+
+        assert sorted(transformed.columns) == ["chunk_text", "driver_id"]
+        assert transformed["driver_id"].tolist() == [1001, 1001, 1003, 1003]
+        assert transformed["chunk_text"].tolist() == [
+            "alpha",
+            "beta",
+            "gamma",
+            "delta",
+        ]
+
+    def _materialize_singleton_view(self, source: dict, udf) -> None:
+        """Materialize a singleton write ODFV over a file-backed feature view."""
+        now = datetime.now(timezone.utc)
+        source_path = os.path.join(self.data_dir, "driver_stats.parquet")
+        num_rows = len(source["driver_id"])
+        pd.DataFrame(
+            {**source, "event_timestamp": [now - timedelta(hours=1)] * num_rows}
+        ).to_parquet(source_path)
+        stats_view = FeatureView(
+            name="driver_stats",
+            entities=[self.driver],
+            schema=[
+                Field(name="conv_rate", dtype=Float64),
+                Field(name="acc_rate", dtype=Float64),
+            ],
+            source=FileSource(path=source_path, timestamp_field="event_timestamp"),
+            ttl=timedelta(days=1),
+        )
+        singleton_view = on_demand_feature_view(
+            entities=[self.driver],
+            sources=[stats_view],
+            schema=[
+                Field(name="driver_id", dtype=Int64),
+                Field(name="conv_plus_acc", dtype=Float64),
+            ],
+            mode="python",
+            write_to_online_store=True,
+            singleton=True,
+        )(udf)
+
+        self.store.apply([self.driver, stats_view, singleton_view])
+        self.store.materialize(
+            now - timedelta(days=1), now, feature_views=[singleton_view.name]
+        )
+
+    def test_materialize_writes_scalar_outputs(self):
+        def materialized_view(inputs: dict[str, Any]) -> dict[str, Any]:
+            return {"conv_plus_acc": inputs["conv_rate"] + inputs["acc_rate"]}
+
+        self._materialize_singleton_view(
+            {
+                "driver_id": [1001, 1002],
+                "conv_rate": [0.25, 0.5],
+                "acc_rate": [1.0, 2.0],
+            },
+            materialized_view,
+        )
+
+        assert self._read_online(
+            "materialized_view", "conv_plus_acc", [1001, 1002]
+        ) == [1.25, 2.5]
+
+    def test_materialize_keeps_inputs_for_one_element_list_output(self):
+        def one_element_view(inputs: dict[str, Any]) -> dict[str, Any]:
+            return {"conv_plus_acc": [inputs["conv_rate"] + inputs["acc_rate"]]}
+
+        self._materialize_singleton_view(
+            {"driver_id": [1001], "conv_rate": [0.25], "acc_rate": [1.0]},
+            one_element_view,
+        )
+
+        assert self._read_online("one_element_view", "conv_plus_acc", [1001]) == [1.25]
+
+    def test_nullable_int64_outputs_keep_precision(self):
+        @on_demand_feature_view(
+            entities=[self.driver],
+            sources=[self.request_source],
+            schema=[
+                Field(name="driver_id", dtype=Int64),
+                Field(name="trip_count", dtype=Int64),
+            ],
+            mode="python",
+            write_to_online_store=True,
+            singleton=True,
+        )
+        def trip_count_view(inputs: dict[str, Any]) -> dict[str, Any]:
+            # 2**53 + 1 is the smallest integer a float64 cannot hold exactly.
+            trip_count = None if inputs["driver_id"] == 1002 else 2**53 + 1
+            return {"trip_count": trip_count}
+
+        self.store.apply([self.driver, trip_count_view])
+
+        df = pd.DataFrame(
+            {
+                "driver_id": [1001, 1002],
+                "conv_rate": [0.25, 0.5],
+                "acc_rate": [1.0, 2.0],
+            }
+        )
+        self.store.write_to_online_store(feature_view_name="trip_count_view", df=df)
+
+        assert self._read_online("trip_count_view", "trip_count", [1001, 1002]) == [
+            9007199254740993,
+            None,
+        ]
+
+    def test_fan_out_keeps_join_key_popped_by_udf(self):
+        @on_demand_feature_view(
+            entities=[self.driver],
+            sources=[self.request_source],
+            schema=[Field(name="conv_plus_acc", dtype=Float64)],
+            mode="python",
+            write_to_online_store=True,
+            singleton=True,
+        )
+        def popping_view(inputs: dict[str, Any]) -> dict[str, Any]:
+            inputs.pop("driver_id")
+            return {"conv_plus_acc": [inputs["conv_rate"], inputs["acc_rate"]]}
+
+        self.store.apply([self.driver, popping_view])
+
+        df = pd.DataFrame(
+            {
+                "driver_id": [1001, 1003],
+                "conv_rate": [0.25, 0.75],
+                "acc_rate": [1.0, 3.0],
+            }
+        )
+        self.store.write_to_online_store(feature_view_name="popping_view", df=df)
+
+        # Each driver's second output row is written last.
+        assert self._read_online("popping_view", "conv_plus_acc", [1001, 1003]) == [
+            1.0,
+            3.0,
+        ]
