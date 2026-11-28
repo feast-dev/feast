@@ -297,7 +297,10 @@ def get_pyarrow_schema_from_batch_source(
     pa_schema = []
     column_names = []
     for column_name, column_type in column_names_and_types:
-        value_type = batch_source.source_datatype_to_feast_value_type()(column_type)
+        try:
+            value_type = batch_source.source_datatype_to_feast_value_type()(column_type)
+        except ValueError as e:
+            raise ValueError(f"column '{column_name}': {e}") from e
         if value_type in (ValueType.VALUE_LIST, ValueType.VALUE_SET):
             pa_type = _parse_pa_type_str(column_type)
         else:
