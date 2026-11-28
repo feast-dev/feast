@@ -1,22 +1,26 @@
 import importlib
 
-TORCH_AVAILABLE = False
 _torch = None
 _torch_import_error = None
+_torch_checked = False
 
 
-def _import_torch():
-    global _torch, TORCH_AVAILABLE, _torch_import_error
-    try:
-        _torch = importlib.import_module("torch")
-        TORCH_AVAILABLE = True
-    except Exception as e:
-        # Catch import errors including CUDA lib missing
-        TORCH_AVAILABLE = False
-        _torch_import_error = e
+def _ensure_torch():
+    global _torch, _torch_import_error, _torch_checked
+    if not _torch_checked:
+        try:
+            _torch = importlib.import_module("torch")
+        except Exception as e:
+            # Catch import errors including CUDA lib missing
+            _torch = None
+            _torch_import_error = e
+        _torch_checked = True
 
 
-_import_torch()
+def is_torch_available() -> bool:
+    """Check if torch is available without crashing."""
+    _ensure_torch()
+    return _torch is not None
 
 
 def get_torch():
@@ -25,7 +29,8 @@ def get_torch():
 
     This prevents crashing on import if CUDA libs are missing.
     """
-    if TORCH_AVAILABLE:
+    _ensure_torch()
+    if _torch is not None:
         return _torch
     else:
         error_message = (
@@ -37,3 +42,9 @@ def get_torch():
             "Or check your CUDA installation if using GPU torch.\n"
         )
         raise ImportError(error_message) from _torch_import_error
+
+
+def __getattr__(name: str):
+    if name == "TORCH_AVAILABLE":
+        return is_torch_available()
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
