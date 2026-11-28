@@ -3,7 +3,7 @@ import json
 import os
 import uuid
 import warnings
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from functools import reduce
 from pathlib import Path
@@ -366,13 +366,21 @@ class SnowflakeOfflineStore(OfflineStore):
                 entity_schema, expected_join_keys, entity_df_event_timestamp_col
             )
 
+            uploaded_range = _get_uploaded_entity_df_event_timestamp_range(
+                entity_df,
+                table_name,
+                entity_df_event_timestamp_col,
+                snowflake_conn,
+                entity_df_event_timestamp_range,
+            )
+
             # Build a query context containing all information required to template the Snowflake SQL query
             query_context = offline_utils.get_feature_view_query_context(
                 feature_refs,
                 feature_views,
                 registry,
                 project,
-                entity_df_event_timestamp_range,
+                _pruning_timestamp_range(uploaded_range),
             )
 
             query_context = _fix_entity_selections_identifiers(query_context)
@@ -1340,21 +1348,71 @@ def _get_entity_df_event_timestamp_range(
             entity_df_event_timestamp.max().to_pydatetime(),
         )
     elif isinstance(entity_df, str):
-        # If the entity_df is a string (SQL query), determine range
-        # from table
-        query = f'SELECT MIN("{entity_df_event_timestamp_col}") AS "min_value", MAX("{entity_df_event_timestamp_col}") AS "max_value" FROM ({entity_df})'
-        results = execute_snowflake_statement(snowflake_conn, query).fetchall()
-
-        entity_df_event_timestamp_range = cast(Tuple[datetime, datetime], results[0])
-        if (
-            entity_df_event_timestamp_range[0] is None
-            or entity_df_event_timestamp_range[1] is None
-        ):
-            raise EntitySQLEmptyResults(entity_df)
+        entity_df_event_timestamp_range = _query_event_timestamp_range(
+            f"({entity_df})", entity_df_event_timestamp_col, snowflake_conn, entity_df
+        )
     else:
         raise InvalidEntityType(type(entity_df))
 
     return entity_df_event_timestamp_range
+
+
+def _query_event_timestamp_range(
+    from_expression: str,
+    entity_df_event_timestamp_col: str,
+    snowflake_conn: SnowflakeConnection,
+    entity_df: str,
+) -> Tuple[datetime, datetime]:
+    query = f'SELECT MIN("{entity_df_event_timestamp_col}") AS "min_value", MAX("{entity_df_event_timestamp_col}") AS "max_value" FROM {from_expression}'
+    results = execute_snowflake_statement(snowflake_conn, query).fetchall()
+
+    timestamp_range = cast(Tuple[datetime, datetime], results[0])
+    if timestamp_range[0] is None or timestamp_range[1] is None:
+        raise EntitySQLEmptyResults(entity_df)
+    return timestamp_range
+
+
+def _get_uploaded_entity_df_event_timestamp_range(
+    entity_df: Union[pd.DataFrame, str],
+    table_name: str,
+    entity_df_event_timestamp_col: str,
+    snowflake_conn: SnowflakeConnection,
+    entity_df_event_timestamp_range: Tuple[datetime, datetime],
+) -> Tuple[datetime, datetime]:
+    """Return the entity timestamp range of the uploaded entity table.
+
+    A SQL entity_df is re-executed by _upload_entity_df, so it may return rows
+    that were not there when entity_df_event_timestamp_range was measured.
+    Measure the uploaded table instead. A DataFrame is uploaded as is, so its
+    range is still accurate.
+    """
+    if isinstance(entity_df, str):
+        return _query_event_timestamp_range(
+            f'"{table_name}"',
+            entity_df_event_timestamp_col,
+            snowflake_conn,
+            entity_df,
+        )
+    return entity_df_event_timestamp_range
+
+
+def _pruning_timestamp_range(
+    entity_df_event_timestamp_range: Tuple[datetime, datetime],
+) -> Tuple[datetime, datetime]:
+    """Adjust the entity timestamp range for feature-table pruning.
+
+    The minimum is converted to UTC so that get_feature_view_query_context
+    subtracts the TTL as elapsed time, matching the per-row TTL in SQL. Wall-clock
+    subtraction on a ZoneInfo datetime is off by an hour across DST transitions.
+
+    The maximum is padded by a millisecond because Python datetimes hold
+    microseconds while the uploaded entity rows and feature table can hold
+    nanoseconds.
+    """
+    min_ts, max_ts = entity_df_event_timestamp_range
+    if min_ts.tzinfo is not None:
+        min_ts = min_ts.astimezone(timezone.utc)
+    return min_ts, max_ts + timedelta(milliseconds=1)
 
 
 MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN = """
@@ -1411,6 +1469,11 @@ WITH "entity_dataframe" AS (
             "{{ feature }}" as {% if full_feature_names %}"{{ featureview.name }}__{{featureview.field_mapping.get(feature, feature)}}"{% else %}"{{ featureview.field_mapping.get(feature, feature) }}"{% endif %}{% if loop.last %}{% else %}, {% endif %}
         {% endfor %}
     FROM {{ featureview.table_subquery }}
+    WHERE
+        "{{ featureview.timestamp_field }}" <= TIMESTAMP '{{ featureview.max_event_timestamp }}'
+    {% if featureview.ttl %}
+        AND "{{ featureview.timestamp_field }}" >= TIMESTAMP '{{ featureview.min_event_timestamp }}'
+    {% endif %}
 ),
 
 /*
