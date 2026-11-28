@@ -96,6 +96,7 @@ from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.online_response import OnlineResponse
 from feast.permissions.permission import Permission
 from feast.project import Project
+from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.protos.feast.serving.ServingService_pb2 import (
     FieldStatus,
     GetOnlineFeaturesResponse,
@@ -1996,12 +1997,54 @@ class FeatureStore:
 
         entities = self.list_entities()
 
+        # Computed before teardown_infra: building infra objects can open
+        # connections (a SqliteTable creates its database file), which must not
+        # happen once the provider has removed them.
+        remaining_infra = self._infra_remaining_after_teardown(tables)
+
         self._get_provider().teardown_infra(self.project, tables, entities)  # type: ignore[arg-type]
+
+        # Forget the torn-down infra objects, otherwise the next apply diffs
+        # against them and does not re-create the tables. This runs while the
+        # project is still registered, so the file registry does not re-create
+        # it. SQL registries also drop the record in delete_project.
+        self.registry.update_infra(remaining_infra, self.project, commit=True)
 
         for project in self.list_projects():
             self.registry.delete_project(project.name)
 
         self._teardown_openlineage()
+
+    def _infra_remaining_after_teardown(self, tables: List[BaseFeatureView]) -> Infra:
+        """Returns the tracked infra minus the objects that tearing down `tables` removes.
+
+        The file registry keeps a single infra record for every project in it,
+        so it can't simply be cleared: records of other projects' tables must
+        survive, or a later apply of those projects can't reconcile them.
+        """
+        torn_down_views = RegistryProto()
+        for table in tables:
+            if isinstance(table, LabelView):
+                torn_down_views.label_views.append(table.to_proto())
+            elif isinstance(table, StreamFeatureView):
+                torn_down_views.stream_feature_views.append(table.to_proto())
+            else:
+                torn_down_views.feature_views.append(table.to_proto())
+        torn_down = [
+            infra_object.to_infra_object_proto()
+            for infra_object in self._get_provider()
+            .plan_infra(self.config, torn_down_views)
+            .infra_objects
+        ]
+
+        current_infra = self.registry.get_infra(self.project)
+        return Infra(
+            infra_objects=[
+                infra_object
+                for infra_object in current_infra.infra_objects
+                if infra_object.to_infra_object_proto() not in torn_down
+            ]
+        )
 
     def _teardown_openlineage(self):
         """Clean up OpenLineage data for this project's namespace during teardown."""

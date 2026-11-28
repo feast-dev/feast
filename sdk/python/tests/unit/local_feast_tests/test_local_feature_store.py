@@ -1,3 +1,4 @@
+import sqlite3
 from datetime import datetime, timedelta, timezone
 from tempfile import mkstemp
 from unittest.mock import AsyncMock, Mock, patch
@@ -23,7 +24,9 @@ from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.action import AuthzedAction
 from feast.permissions.permission import Permission
 from feast.permissions.policy import RoleBasedPolicy
+from feast.project import Project
 from feast.repo_config import RegistryConfig, RepoConfig
+from feast.repo_contents import RepoContents
 from feast.saved_dataset import SavedDataset
 from feast.stream_feature_view import stream_feature_view
 from feast.transformation.pandas_transformation import PandasTransformation
@@ -1004,6 +1007,142 @@ def feature_store_with_local_registry():
             entity_key_serialization_version=3,
         )
     )
+
+
+def _sqlite_tables(path) -> set:
+    conn = sqlite3.connect(path)
+    try:
+        return {
+            row[0] for row in conn.execute("SELECT name FROM sqlite_master").fetchall()
+        }
+    finally:
+        conn.close()
+
+
+def _sqlite_store_config(
+    tmp_path, project: str, online_store: str = "online_store.db"
+) -> RepoConfig:
+    return RepoConfig(
+        registry=str(tmp_path / "registry.db"),
+        project=project,
+        provider="local",
+        online_store=SqliteOnlineStoreConfig(path=str(tmp_path / online_store)),
+        entity_key_serialization_version=3,
+    )
+
+
+def _plan_and_apply(store: FeatureStore, entity: Entity, feature_views) -> None:
+    """Applies like `feast apply` does: plan against the registry, then apply the diffs."""
+    repo_contents = RepoContents(
+        projects=[Project(name=store.project)],
+        data_sources=[fv.batch_source for fv in feature_views],
+        feature_views=list(feature_views),
+        on_demand_feature_views=[],
+        stream_feature_views=[],
+        label_views=[],
+        entities=[entity],
+        feature_services=[],
+        permissions=[],
+    )
+    registry_diff, infra_diff, new_infra = store.plan(repo_contents)
+    store._apply_diffs(registry_diff, infra_diff, new_infra)
+
+
+def _driver_stats_view(tmp_path, entity: Entity, name: str) -> FeatureView:
+    return FeatureView(
+        name=name,
+        entities=[entity],
+        schema=[Field(name="conv_rate", dtype=Float32)],
+        source=FileSource(
+            path=str(tmp_path / "driver_stats.parquet"),
+            timestamp_field="event_timestamp",
+        ),
+    )
+
+
+def test_apply_after_teardown_recreates_online_store_tables(tmp_path):
+    config = _sqlite_store_config(tmp_path, "teardown_apply")
+    online_store_path = tmp_path / "online_store.db"
+    entity = Entity(name="driver", join_keys=["driver_id"], value_type=ValueType.INT64)
+    feature_view = _driver_stats_view(tmp_path, entity, "driver_stats")
+
+    store = FeatureStore(config=config)
+    _plan_and_apply(store, entity, [feature_view])
+    assert "teardown_apply_driver_stats" in _sqlite_tables(online_store_path)
+
+    store.teardown()
+    assert not online_store_path.exists()
+
+    store = FeatureStore(config=config)
+    _plan_and_apply(store, entity, [feature_view])
+    assert "teardown_apply_driver_stats" in _sqlite_tables(online_store_path)
+
+    store.teardown()
+
+
+def test_registry_only_project_delete_keeps_tracked_infra(tmp_path):
+    """`feast projects delete` only deletes registry metadata, not online store
+    tables, so the tracked infra must survive it: a later apply of a renamed view
+    still has to drop the obsolete table."""
+    config = _sqlite_store_config(tmp_path, "projects_delete")
+    online_store_path = tmp_path / "online_store.db"
+    entity = Entity(name="driver", join_keys=["driver_id"], value_type=ValueType.INT64)
+
+    store = FeatureStore(config=config)
+    _plan_and_apply(store, entity, [_driver_stats_view(tmp_path, entity, "old_stats")])
+    assert "projects_delete_old_stats" in _sqlite_tables(online_store_path)
+
+    # Same as `feast projects delete`: registry metadata only, no teardown_infra.
+    store.registry.delete_project("projects_delete")
+
+    store = FeatureStore(config=config)
+    _plan_and_apply(store, entity, [_driver_stats_view(tmp_path, entity, "new_stats")])
+
+    tables = _sqlite_tables(online_store_path)
+    assert "projects_delete_new_stats" in tables
+    assert "projects_delete_old_stats" not in tables
+
+    store.teardown()
+
+
+def test_teardown_keeps_infra_of_other_projects_in_shared_registry(tmp_path):
+    """Two projects share a file registry but not an online store. Tearing one
+    down must not forget the other's tables, or a later apply of the other
+    project can no longer drop the tables it removes."""
+    entity = Entity(name="driver", join_keys=["driver_id"], value_type=ValueType.INT64)
+    gone_config = _sqlite_store_config(tmp_path, "gone", "gone_online.db")
+    kept_config = _sqlite_store_config(tmp_path, "kept", "kept_online.db")
+    gone_online_store_path = tmp_path / "gone_online.db"
+    kept_online_store_path = tmp_path / "kept_online.db"
+
+    gone_store = FeatureStore(config=gone_config)
+    _plan_and_apply(gone_store, entity, [_driver_stats_view(tmp_path, entity, "stats")])
+    kept_store = FeatureStore(config=kept_config)
+    _plan_and_apply(
+        kept_store, entity, [_driver_stats_view(tmp_path, entity, "old_stats")]
+    )
+    assert "kept_old_stats" in _sqlite_tables(kept_online_store_path)
+
+    gone_store = FeatureStore(config=gone_config)
+    gone_store.teardown()
+    assert not gone_online_store_path.exists()
+
+    kept_store = FeatureStore(config=kept_config)
+    tracked = {
+        infra_object.name
+        for infra_object in kept_store.registry.get_infra("kept").infra_objects
+    }
+    assert tracked == {"kept_old_stats"}
+
+    _plan_and_apply(
+        kept_store, entity, [_driver_stats_view(tmp_path, entity, "new_stats")]
+    )
+    tables = _sqlite_tables(kept_online_store_path)
+    assert "kept_new_stats" in tables
+    assert "kept_old_stats" not in tables
+    assert not gone_online_store_path.exists()
+
+    kept_store.teardown()
 
 
 @pytest.mark.parametrize(
