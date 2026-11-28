@@ -82,6 +82,8 @@ When pinning, the feature view definition (schema, source, transformations, etc.
 
 The snapshot's content replaces the active feature view. Version history is not modified by a pin; the existing v0, v1, v2, etc. snapshots remain intact.
 
+The registry keeps the definition it accepted with the pin, so running `feast apply` again on the same repository succeeds and leaves the restored version active. A pinned definition that matches neither that accepted definition nor the active one still raises `FeatureViewPinConflict`.
+
 After reverting with a pin, you can go back to normal auto-incrementing behavior by removing the `version` parameter (or setting it to `"latest"`) and running `feast apply` again. If the restored definition differs from the pinned snapshot, a new version will be created.
 
 ### Version string formats

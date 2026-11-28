@@ -23,11 +23,13 @@ import dill
 import pytest
 
 from feast import Field
+from feast.batch_feature_view import BatchFeatureView
 from feast.data_source import PushSource
 from feast.entity import Entity
 from feast.errors import (
     ConflictingFeatureViewNames,
     DataSourceObjectNotFoundException,
+    FeatureViewPinConflict,
     PermissionNotFoundException,
 )
 from feast.feature_view import FeatureView
@@ -442,6 +444,133 @@ def test_feature_view_name_conflict_between_stream_and_batch(sqlite_registry):
 
     with pytest.raises(ConflictingFeatureViewNames):
         sqlite_registry.apply_feature_view(stream_view, "test_project")
+
+
+def test_repeat_pin_batch_feature_view_after_udf_rollback(sqlite_registry):
+    """An accepted pin applies again unchanged, but not with a newly edited UDF."""
+    entity = Entity(name="driver", join_keys=["driver_id"])
+    sqlite_registry.apply_entity(entity, "test_project")
+    file_source = FileSource(
+        path="driver_stats.parquet",
+        timestamp_field="event_timestamp",
+        created_timestamp_column="created",
+    )
+
+    def make_view(udf, udf_string, version="latest"):
+        return BatchFeatureView(
+            name="driver_bfv",
+            entities=[entity],
+            mode="pandas",
+            source=file_source,
+            schema=[Field(name="out", dtype=Float32)],
+            ttl=timedelta(days=1),
+            udf=udf,
+            udf_string=udf_string,
+            version=version,
+        )
+
+    def udf_a(df):
+        return df
+
+    def udf_b(df):
+        return df
+
+    def udf_c(df):
+        return df
+
+    def assert_v0_active():
+        stored = sqlite_registry.get_feature_view("driver_bfv", "test_project")
+        assert stored.current_version_number == 0
+        assert stored.feature_transformation.udf_string == "udf_a source"
+        versions = sqlite_registry.list_feature_view_versions(
+            "driver_bfv", "test_project"
+        )
+        assert [v["version_number"] for v in versions] == [0, 1]
+        return stored
+
+    sqlite_registry.apply_feature_view(make_view(udf_a, "udf_a source"), "test_project")
+    sqlite_registry.apply_feature_view(make_view(udf_b, "udf_b source"), "test_project")
+
+    # Roll back by changing only the version, then apply the same repository again.
+    sqlite_registry.apply_feature_view(
+        make_view(udf_b, "udf_b source", version="v0"), "test_project"
+    )
+    stored = assert_v0_active()
+    sqlite_registry.apply_feature_view(
+        make_view(udf_b, "udf_b source", version="v0"), "test_project"
+    )
+    assert_v0_active()
+
+    # Re-applying the registry's own view, as a state update does, keeps the pin.
+    sqlite_registry.apply_feature_view(stored, "test_project")
+    sqlite_registry.apply_feature_view(
+        make_view(udf_b, "udf_b source", version="v0"), "test_project"
+    )
+    assert_v0_active()
+
+    with pytest.raises(FeatureViewPinConflict):
+        sqlite_registry.apply_feature_view(
+            make_view(udf_c, "udf_c source", version="v0"), "test_project"
+        )
+    assert_v0_active()
+
+    # Pinning with the restored definition replaces the accepted declaration,
+    # so going back to the v1 UDF is an edit again.
+    sqlite_registry.apply_feature_view(
+        make_view(udf_a, "udf_a source", version="v0"), "test_project"
+    )
+    with pytest.raises(FeatureViewPinConflict):
+        sqlite_registry.apply_feature_view(
+            make_view(udf_b, "udf_b source", version="v0"), "test_project"
+        )
+    assert_v0_active()
+
+
+def test_repeat_pin_feature_view_after_schema_rollback(sqlite_registry):
+    """The same holds for a FeatureView whose versions differ in schema."""
+    entity = Entity(name="driver", join_keys=["driver_id"])
+    sqlite_registry.apply_entity(entity, "test_project")
+    file_source = FileSource(
+        path="driver_stats.parquet",
+        timestamp_field="event_timestamp",
+        created_timestamp_column="created",
+    )
+
+    def make_view(features, version="latest"):
+        return FeatureView(
+            name="driver_fv",
+            entities=[entity],
+            ttl=timedelta(days=1),
+            schema=[Field(name=name, dtype=Float32) for name in features],
+            source=file_source,
+            version=version,
+        )
+
+    def active_features():
+        stored = sqlite_registry.get_feature_view("driver_fv", "test_project")
+        assert stored.current_version_number == 0
+        return sorted(feature.name for feature in stored.features)
+
+    sqlite_registry.apply_feature_view(make_view(["a"]), "test_project")
+    sqlite_registry.apply_feature_view(make_view(["a", "b"]), "test_project")
+
+    for _ in range(2):
+        sqlite_registry.apply_feature_view(
+            make_view(["a", "b"], version="v0"), "test_project"
+        )
+        assert active_features() == ["a"]
+
+    with pytest.raises(FeatureViewPinConflict):
+        sqlite_registry.apply_feature_view(
+            make_view(["a", "c"], version="v0"), "test_project"
+        )
+
+    sqlite_registry.apply_feature_view(make_view(["a"], version="v0"), "test_project")
+    with pytest.raises(FeatureViewPinConflict):
+        sqlite_registry.apply_feature_view(
+            make_view(["a", "b"], version="v0"), "test_project"
+        )
+    assert active_features() == ["a"]
 
 
 def _serialize_udf_referencing_module(module_name: str) -> bytes:

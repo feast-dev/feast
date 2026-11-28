@@ -41,7 +41,12 @@ from feast.errors import (
     ValidationReferenceNotFound,
 )
 from feast.feature_service import FeatureService
-from feast.feature_view import FeatureView, FeatureViewState
+from feast.feature_view import (
+    FeatureView,
+    FeatureViewState,
+    _keep_pin_declaration,
+    _repeats_accepted_pin,
+)
 from feast.importer import import_class
 from feast.infra.infra_object import Infra
 from feast.infra.registry import proto_registry_utils
@@ -699,6 +704,17 @@ class Registry(BaseRegistry):
                 # from_proto interprets cvn=0 with spec.version="latest" as None.
                 existing_proto.meta.current_version_number = 0
 
+        # Keep or drop the declaration accepted by a version pin
+        if hasattr(existing_proto.meta, "accepted_pin_declaration") and isinstance(
+            updated_fv, FeatureView
+        ):
+            if updated_fv._accepted_pin_declaration is None:
+                existing_proto.meta.ClearField("accepted_pin_declaration")
+            else:
+                existing_proto.meta.accepted_pin_declaration.CopyFrom(
+                    updated_fv._accepted_pin_declaration
+                )
+
         # Update timestamp
         existing_proto.meta.last_updated_timestamp.FromDatetime(_utc_now())
 
@@ -802,7 +818,13 @@ class Registry(BaseRegistry):
                         user_fv_copy.materialization_intervals = (
                             active_fv.materialization_intervals
                         )
-                    if user_fv_copy != active_fv:
+                    if isinstance(active_fv, FeatureView):
+                        user_fv_copy._accepted_pin_declaration = (
+                            active_fv._accepted_pin_declaration
+                        )
+                    if user_fv_copy != active_fv and not _repeats_accepted_pin(
+                        feature_view, active_fv
+                    ):
                         raise FeatureViewPinConflict(
                             feature_view.name, version_tag(pin_version)
                         )
@@ -817,6 +839,7 @@ class Registry(BaseRegistry):
                 restored_fv.version = feature_view.version
                 restored_fv.current_version_number = pin_version
                 restored_fv.last_updated_timestamp = now
+                _keep_pin_declaration(feature_view, restored_fv)
                 # Apply the restored FV using the standard path below
                 feature_view = restored_fv
             else:

@@ -7,7 +7,7 @@ from feast import Field
 from feast.batch_feature_view import BatchFeatureView
 from feast.data_source import PushSource
 from feast.entity import Entity
-from feast.errors import ConflictingFeatureViewNames
+from feast.errors import ConflictingFeatureViewNames, FeatureViewPinConflict
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.registry.registry import Registry
@@ -125,6 +125,263 @@ def test_reapply_batch_feature_view_detects_udf_change_without_source(
 
     stored = file_registry.get_feature_view("driver_bfv", "test_project")
     assert stored.feature_transformation.udf(None) == "SELECT 2"
+
+
+def test_pin_batch_feature_view_rejects_changed_udf(file_registry):
+    """Pinning a version while also changing the UDF raises instead of dropping it."""
+    entity = Entity(name="driver", join_keys=["driver_id"])
+    file_registry.apply_entity(entity, "test_project")
+    file_source, _ = _make_sources()
+
+    def make_view(udf, udf_string, version="latest"):
+        return BatchFeatureView(
+            name="driver_bfv",
+            entities=[entity],
+            mode="pandas",
+            source=file_source,
+            schema=[Field(name="out", dtype=Float32)],
+            ttl=timedelta(days=1),
+            udf=udf,
+            udf_string=udf_string,
+            version=version,
+        )
+
+    def udf_a(df):
+        return df
+
+    def udf_b(df):
+        return df
+
+    def udf_c(df):
+        return df
+
+    file_registry.apply_feature_view(make_view(udf_a, "udf_a source"), "test_project")
+    file_registry.apply_feature_view(make_view(udf_b, "udf_b source"), "test_project")
+
+    with pytest.raises(FeatureViewPinConflict):
+        file_registry.apply_feature_view(
+            make_view(udf_c, "udf_c source", version="v0"), "test_project"
+        )
+
+    # Pinning with the active definition unchanged still restores v0.
+    file_registry.apply_feature_view(
+        make_view(udf_b, "udf_b source", version="v0"), "test_project"
+    )
+    stored = file_registry.get_feature_view("driver_bfv", "test_project")
+    assert stored.feature_transformation.udf_string == "udf_a source"
+
+
+_UDF_FACTORIES = """
+import numpy as np
+
+
+def make_query_udf(query):
+    def udf(df):
+        return " ".join(word for word in query.split())
+
+    return udf
+
+
+def make_array_udf(values):
+    weights = np.array(values)
+
+    def udf(df):
+        return df * weights
+
+    return udf
+"""
+
+
+_SOURCE_EDITS = {
+    "none": lambda source: source,
+    # A line added above the factories moves every UDF down.
+    "moved": lambda source: "\n" + source,
+    # A blank line inside the UDF body changes only its line table.
+    "reformatted": lambda source: source.replace("(df):\n", "(df):\n\n"),
+}
+
+
+def _load_udf(factory, arg, edit="none"):
+    """Build a UDF from a module that is not importable, so dill stores it by value."""
+    namespace = {"__name__": "feature_definitions_not_importable"}
+    source = _SOURCE_EDITS[edit](_UDF_FACTORIES)
+    exec(compile(source, "feature_definitions.py", "exec"), namespace)
+    return namespace[factory](arg)
+
+
+@pytest.mark.parametrize(
+    "factory, arg, edit, changed",
+    [
+        ("make_query_udf", "SELECT 1", "moved", False),
+        ("make_query_udf", "SELECT 1", "reformatted", False),
+        ("make_query_udf", "SELECT 2", "moved", True),
+        ("make_array_udf", [1, 2], "none", False),
+        ("make_array_udf", [1, 3], "none", True),
+    ],
+    ids=["moved", "reformatted", "moved_and_edited", "same_array", "edited_array"],
+)
+def test_pin_batch_feature_view_compares_udf_without_source(
+    file_registry, factory, arg, edit, changed
+):
+    """Without a udf_string, moving the UDF or capturing an array is not an edit."""
+    entity = Entity(name="driver", join_keys=["driver_id"])
+    file_registry.apply_entity(entity, "test_project")
+    file_source, _ = _make_sources()
+
+    def make_view(udf, version="latest"):
+        return BatchFeatureView(
+            name="driver_bfv",
+            entities=[entity],
+            mode="pandas",
+            source=file_source,
+            schema=[Field(name="out", dtype=Float32)],
+            ttl=timedelta(days=1),
+            udf=udf,
+            udf_string="",
+            version=version,
+        )
+
+    base_arg = {"make_query_udf": "SELECT 1", "make_array_udf": [1, 2]}[factory]
+    file_registry.apply_feature_view(
+        make_view(_load_udf("make_query_udf", "SELECT 0")), "test_project"
+    )
+    file_registry.apply_feature_view(
+        make_view(_load_udf(factory, base_arg)), "test_project"
+    )
+
+    # The version check and the pin check agree on what counts as an edit.
+    active = file_registry.get_feature_view("driver_bfv", "test_project")
+    candidate = make_view(_load_udf(factory, arg, edit))
+    assert candidate._schema_or_udf_changed(active) is changed
+
+    pinned = make_view(_load_udf(factory, arg, edit), version="v0")
+    if changed:
+        with pytest.raises(FeatureViewPinConflict):
+            file_registry.apply_feature_view(pinned, "test_project")
+    else:
+        file_registry.apply_feature_view(pinned, "test_project")
+        stored = file_registry.get_feature_view("driver_bfv", "test_project")
+        assert stored.current_version_number == 0
+        assert stored.feature_transformation.udf(None) == "SELECT 0"
+
+
+def test_repeat_pin_batch_feature_view_after_udf_rollback(file_registry):
+    """An accepted pin applies again unchanged, but not with a newly edited UDF."""
+    entity = Entity(name="driver", join_keys=["driver_id"])
+    file_registry.apply_entity(entity, "test_project")
+    file_source, _ = _make_sources()
+
+    def make_view(udf, udf_string, version="latest"):
+        return BatchFeatureView(
+            name="driver_bfv",
+            entities=[entity],
+            mode="pandas",
+            source=file_source,
+            schema=[Field(name="out", dtype=Float32)],
+            ttl=timedelta(days=1),
+            udf=udf,
+            udf_string=udf_string,
+            version=version,
+        )
+
+    def udf_a(df):
+        return df
+
+    def udf_b(df):
+        return df
+
+    def udf_c(df):
+        return df
+
+    def assert_v0_active():
+        stored = file_registry.get_feature_view("driver_bfv", "test_project")
+        assert stored.current_version_number == 0
+        assert stored.feature_transformation.udf_string == "udf_a source"
+        versions = file_registry.list_feature_view_versions(
+            "driver_bfv", "test_project"
+        )
+        assert [v["version_number"] for v in versions] == [0, 1]
+        return stored
+
+    file_registry.apply_feature_view(make_view(udf_a, "udf_a source"), "test_project")
+    file_registry.apply_feature_view(make_view(udf_b, "udf_b source"), "test_project")
+
+    # Roll back by changing only the version, then apply the same repository again.
+    file_registry.apply_feature_view(
+        make_view(udf_b, "udf_b source", version="v0"), "test_project"
+    )
+    stored = assert_v0_active()
+    file_registry.apply_feature_view(
+        make_view(udf_b, "udf_b source", version="v0"), "test_project"
+    )
+    assert_v0_active()
+
+    # Re-applying the registry's own view, as a state update does, keeps the pin.
+    file_registry.apply_feature_view(stored, "test_project")
+    file_registry.apply_feature_view(
+        make_view(udf_b, "udf_b source", version="v0"), "test_project"
+    )
+    assert_v0_active()
+
+    with pytest.raises(FeatureViewPinConflict):
+        file_registry.apply_feature_view(
+            make_view(udf_c, "udf_c source", version="v0"), "test_project"
+        )
+    assert_v0_active()
+
+    # Pinning with the restored definition replaces the accepted declaration,
+    # so going back to the v1 UDF is an edit again.
+    file_registry.apply_feature_view(
+        make_view(udf_a, "udf_a source", version="v0"), "test_project"
+    )
+    with pytest.raises(FeatureViewPinConflict):
+        file_registry.apply_feature_view(
+            make_view(udf_b, "udf_b source", version="v0"), "test_project"
+        )
+    assert_v0_active()
+
+
+def test_repeat_pin_feature_view_after_schema_rollback(file_registry):
+    """The same holds for a FeatureView whose versions differ in schema."""
+    entity = Entity(name="driver", join_keys=["driver_id"])
+    file_registry.apply_entity(entity, "test_project")
+    file_source, _ = _make_sources()
+
+    def make_view(features, version="latest"):
+        return FeatureView(
+            name="driver_fv",
+            entities=[entity],
+            ttl=timedelta(days=1),
+            schema=[Field(name=name, dtype=Float32) for name in features],
+            source=file_source,
+            version=version,
+        )
+
+    def active_features():
+        stored = file_registry.get_feature_view("driver_fv", "test_project")
+        assert stored.current_version_number == 0
+        return sorted(feature.name for feature in stored.features)
+
+    file_registry.apply_feature_view(make_view(["a"]), "test_project")
+    file_registry.apply_feature_view(make_view(["a", "b"]), "test_project")
+
+    for _ in range(2):
+        file_registry.apply_feature_view(
+            make_view(["a", "b"], version="v0"), "test_project"
+        )
+        assert active_features() == ["a"]
+
+    with pytest.raises(FeatureViewPinConflict):
+        file_registry.apply_feature_view(
+            make_view(["a", "c"], version="v0"), "test_project"
+        )
+
+    file_registry.apply_feature_view(make_view(["a"], version="v0"), "test_project")
+    with pytest.raises(FeatureViewPinConflict):
+        file_registry.apply_feature_view(
+            make_view(["a", "b"], version="v0"), "test_project"
+        )
+    assert active_features() == ["a"]
 
 
 def test_same_project_name_conflict_batch_vs_stream(file_registry):
