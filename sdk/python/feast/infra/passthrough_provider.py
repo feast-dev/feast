@@ -511,14 +511,23 @@ class PassthroughProvider(Provider):
         # ToDo: replace hardcoded value
         event_ts_column = "event_timestamp"
 
+        # A dataset registered from existing storage has no event range, so
+        # leave a missing bound open instead of filtering on it.
+        start_date = None
+        if dataset.min_event_timestamp is not None:
+            start_date = make_tzaware(dataset.min_event_timestamp)
+        end_date = None
+        if dataset.max_event_timestamp is not None:
+            end_date = make_tzaware(dataset.max_event_timestamp + timedelta(seconds=1))
+
         return self.offline_store.pull_all_from_table_or_query(
             config=config,
             data_source=dataset.storage.to_data_source(),
             join_key_columns=dataset.join_keys,
             feature_name_columns=feature_name_columns,
             timestamp_field=event_ts_column,
-            start_date=make_tzaware(dataset.min_event_timestamp),  # type: ignore
-            end_date=make_tzaware(dataset.max_event_timestamp + timedelta(seconds=1)),  # type: ignore
+            start_date=start_date,
+            end_date=end_date,
         )
 
     def write_feature_service_logs(

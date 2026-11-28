@@ -728,6 +728,44 @@ def test_saved_datasets_via_rest(fastapi_test_app):
     assert data["error_type"] == "RequestValidationError"
 
 
+def test_saved_dataset_preview_without_event_range_via_rest(fastapi_test_app):
+    response = fastapi_test_app.get(
+        "/saved_datasets/test_saved_dataset?project=demo_project"
+    )
+    storage_path = response.json()["spec"]["storage"]["fileStorage"]["uri"]
+
+    # Registering existing storage stores no event range, and editing the
+    # dataset registers it again with allow_override.
+    payload = {
+        "name": "registered_dataset",
+        "project": "demo_project",
+        "features": ["user_profile:age", "user_profile:income"],
+        "join_keys": ["user_id"],
+        "storage_path": storage_path,
+    }
+    response = fastapi_test_app.post("/saved_datasets", json=payload)
+    assert response.status_code == 200
+    payload.update(description="Edited description", allow_override=True)
+    response = fastapi_test_app.post("/saved_datasets", json=payload)
+    assert response.status_code == 200
+
+    response = fastapi_test_app.get(
+        "/saved_datasets/registered_dataset?project=demo_project"
+    )
+    assert response.status_code == 200
+    meta = response.json()["meta"]
+    assert "minEventTimestamp" not in meta
+    assert "maxEventTimestamp" not in meta
+
+    response = fastapi_test_app.get(
+        "/saved_datasets/data/registered_dataset?project=demo_project"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total_rows"] == 3
+    assert sorted(row["user_id"] for row in data["rows"]) == [1, 2, 3]
+
+
 @pytest.fixture
 def fastapi_test_app_with_multiple_objects():
     """Test app with multiple objects for pagination and sorting tests."""
