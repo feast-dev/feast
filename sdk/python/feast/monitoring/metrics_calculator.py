@@ -107,16 +107,16 @@ class MetricsCalculator:
         result["p50"] = q_values[0]
         result["p75"] = q_values[1]
         result["p90"] = q_values[2]
-        result["p95"] = q_values[3]
-        result["p99"] = q_values[4]
+        result["p95"] = q_values[3]  # type: ignore
+        result["p99"] = q_values[4]  # type: ignore
 
-        np_array = float_array.to_numpy()
-        counts, bin_edges = np.histogram(np_array, bins=self.histogram_bins)
-        result["histogram"] = {
-            "bins": bin_edges.tolist(),
-            "counts": counts.tolist(),
-            "bin_width": float(bin_edges[1] - bin_edges[0])
-            if len(bin_edges) > 1
+        np_array = float_array.to_numpy()  # type: ignore
+        counts, bin_edges = np.histogram(np_array, bins=self.histogram_bins)  # type: ignore
+        result["histogram"] = {  # type: ignore
+            "bins": bin_edges.tolist(),  # type: ignore
+            "counts": counts.tolist(),  # type: ignore
+            "bin_width": float(bin_edges[1] - bin_edges[0])  # type: ignore
+            if len(bin_edges) > 1  # type: ignore
             else 0,
         }
 
