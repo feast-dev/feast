@@ -82,7 +82,9 @@ def adapt_datetime_iso(val: datetime):
 
 
 def adapt_datetime_epoch(val: datetime):
-    """Adapt datetime.datetime to Unix timestamp."""
+    """Adapt datetime.datetime to a Unix timestamp, treating naive values as UTC."""
+    if val.tzinfo is None:
+        val = val.replace(tzinfo=timezone.utc)
     return int(val.timestamp())
 
 
@@ -102,8 +104,8 @@ def convert_datetime(val: bytes):
 
 
 def convert_timestamp(val: bytes):
-    """Convert Unix epoch timestamp to datetime.datetime object."""
-    return datetime.fromtimestamp(int(val))
+    """Convert a Unix epoch timestamp to a naive UTC datetime."""
+    return datetime.fromtimestamp(int(val), tz=timezone.utc).replace(tzinfo=None)
 
 
 sqlite3.register_converter("date", convert_date)
