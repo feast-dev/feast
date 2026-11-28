@@ -76,6 +76,7 @@ from feast.types import (
     String,
     UnixTimestamp,
 )
+from feast.utils import compute_non_entity_date_range
 
 try:
     from snowflake.connector import SnowflakeConnection
@@ -326,10 +327,11 @@ class SnowflakeOfflineStore(OfflineStore):
         config: RepoConfig,
         feature_views: List[FeatureView],
         feature_refs: List[str],
-        entity_df: Union[pd.DataFrame, str],
+        entity_df: Optional[Union[pd.DataFrame, str]],
         registry: BaseRegistry,
         project: str,
         full_feature_names: bool = False,
+        **kwargs: Any,
     ) -> RetrievalJob:
         # supports_filter_by_created_timestamp stays False: the ASOF JOIN cannot
         # express a created_timestamp cutoff.
@@ -339,6 +341,19 @@ class SnowflakeOfflineStore(OfflineStore):
 
         with GetSnowflakeConnection(config.offline_store) as conn:
             snowflake_conn = conn
+
+        if entity_df is None:
+            return _get_historical_features_without_entity_df(
+                config=config,
+                snowflake_conn=snowflake_conn,
+                feature_views=feature_views,
+                feature_refs=feature_refs,
+                registry=registry,
+                project=project,
+                full_feature_names=full_feature_names,
+                start_date=kwargs.get("start_date"),
+                end_date=kwargs.get("end_date"),
+            )
 
         entity_schema = _get_entity_schema(entity_df, snowflake_conn, config)
 
@@ -1312,6 +1327,139 @@ def _upload_entity_df(
         return None
     else:
         raise InvalidEntityType(type(entity_df))
+
+
+def _get_historical_features_without_entity_df(
+    config: RepoConfig,
+    snowflake_conn: SnowflakeConnection,
+    feature_views: List[FeatureView],
+    feature_refs: List[str],
+    registry: BaseRegistry,
+    project: str,
+    full_feature_names: bool,
+    start_date: Optional[datetime],
+    end_date: Optional[datetime],
+) -> SnowflakeRetrievalJob:
+    """
+    Retrieves historical features for a time range instead of an entity dataframe.
+
+    The left side of the point-in-time join is built from the entity keys observed
+    in the feature view sources between start_date and end_date, each joined as of
+    end_date, so every entity gets its latest feature values within the TTL.
+    """
+    start_date, end_date = compute_non_entity_date_range(
+        feature_views,
+        start_date=start_date,
+        end_date=end_date,
+    )
+
+    query_context = offline_utils.get_feature_view_query_context(
+        feature_refs,
+        feature_views,
+        registry,
+        project,
+        (start_date, end_date),
+    )
+    query_context = _fix_entity_selections_identifiers(query_context)
+
+    entity_df_event_timestamp_col = offline_utils.DEFAULT_ENTITY_DF_EVENT_TIMESTAMP_COL
+    join_keys = offline_utils.gather_all_entities(query_context)
+    entity_df_columns = {
+        column: None for column in join_keys + [entity_df_event_timestamp_col]
+    }.keys()
+
+    entity_query = _build_non_entity_left_table_query(
+        query_context=query_context,
+        join_keys=join_keys,
+        start_date=start_date,
+        end_date=end_date,
+        entity_df_event_timestamp_col=entity_df_event_timestamp_col,
+    )
+
+    @contextlib.contextmanager
+    def query_generator() -> Iterator[str]:
+        table_name = offline_utils.get_temp_entity_table_name()
+
+        _upload_entity_df(entity_query, snowflake_conn, config, table_name)
+
+        yield offline_utils.build_point_in_time_query(
+            query_context,
+            left_table_query_string=table_name,
+            entity_df_event_timestamp_col=entity_df_event_timestamp_col,
+            entity_df_columns=entity_df_columns,
+            query_template=MULTIPLE_FEATURE_VIEW_POINT_IN_TIME_JOIN,
+            full_feature_names=full_feature_names,
+        )
+
+    return SnowflakeRetrievalJob(
+        query=query_generator,
+        snowflake_conn=snowflake_conn,
+        config=config,
+        full_feature_names=full_feature_names,
+        on_demand_feature_views=OnDemandFeatureView.get_requested_odfvs(
+            feature_refs, project, registry
+        ),
+        feature_views=feature_views,
+        metadata=RetrievalMetadata(
+            features=feature_refs,
+            keys=join_keys,
+            min_event_timestamp=start_date,
+            max_event_timestamp=end_date,
+        ),
+    )
+
+
+def _build_non_entity_left_table_query(
+    query_context: List[offline_utils.FeatureViewQueryContext],
+    join_keys: List[str],
+    start_date: datetime,
+    end_date: datetime,
+    entity_df_event_timestamp_col: str,
+) -> str:
+    """
+    Builds the query that stands in for the entity dataframe in non-entity mode.
+
+    It selects the distinct join keys of every feature view with entities whose
+    source has events between start_date and end_date, fills the join keys a
+    feature view does not have with NULL, and sets the event timestamp of every
+    row to end_date. Feature views without entities join on the timestamp alone,
+    so they do not contribute rows. When no feature view has entities, the query
+    returns a single row holding end_date.
+
+    The entity selections of the query context must already be quoted with
+    _fix_entity_selections_identifiers.
+    """
+    end_timestamp = _to_snowflake_timestamp_literal(end_date)
+
+    entity_selects = []
+    for context in query_context:
+        if not context.entities:
+            continue
+        selections = dict(zip(context.entities, context.entity_selections))
+        columns = ", ".join(
+            selections.get(join_key, f'NULL AS "{join_key}"') for join_key in join_keys
+        )
+        timestamp_filter = get_timestamp_filter_sql(
+            start_date, end_date, context.timestamp_field, tz=timezone.utc
+        )
+        entity_selects.append(
+            f"SELECT DISTINCT {columns} "
+            f"FROM {context.table_subquery} "
+            f"WHERE {timestamp_filter}"
+        )
+
+    if not entity_selects:
+        return f'SELECT {end_timestamp} AS "{entity_df_event_timestamp_col}"'
+
+    entity_union = "\n    UNION\n    ".join(entity_selects)
+    return f"""SELECT *, {end_timestamp} AS "{entity_df_event_timestamp_col}"
+FROM (
+    {entity_union}
+)"""
+
+
+def _to_snowflake_timestamp_literal(timestamp: datetime) -> str:
+    return f"TIMESTAMP '{timestamp.astimezone(timezone.utc).isoformat()}'"
 
 
 def _fix_entity_selections_identifiers(query_context) -> list:
