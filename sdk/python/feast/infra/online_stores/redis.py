@@ -13,6 +13,7 @@
 # limitations under the License.
 import json
 import logging
+import struct
 from datetime import datetime, timezone
 from enum import Enum
 from typing import (
@@ -43,6 +44,7 @@ from feast.infra.online_stores.helpers import (
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.supported_async_methods import SupportedAsyncMethods
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
+from feast.protos.feast.types.Value_pb2 import Map as MapProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.repo_config import FeastConfigBaseModel
 
@@ -62,6 +64,25 @@ def _versioned_fv_name(table: FeatureView, config: RepoConfig) -> str:
     return compute_versioned_name(
         table, config.registry.enable_online_feature_view_versioning
     )
+
+
+def _sequence_key_prefix(table: FeatureView, config: RepoConfig) -> bytes:
+    """Return ``seq:<project>:<feature view>:``, the start of every sequence key.
+
+    Project names can't contain ``:``, so a scan for this prefix matches one
+    project only, even when another project's name ends with this one's.
+    """
+    return f"seq:{config.project}:{_versioned_fv_name(table, config)}:".encode("utf8")
+
+
+def _epoch_micros(dt: datetime) -> int:
+    """Return microseconds since 1970-01-01 UTC. Naive datetimes are treated as UTC.
+
+    Used as the Redis score: microseconds stay exact there; nanoseconds get rounded.
+    """
+    ts = Timestamp()
+    ts.FromDatetime(utils.make_tzaware(dt))
+    return ts.ToMicroseconds()
 
 
 class RedisType(str, Enum):
@@ -334,16 +355,24 @@ class RedisOnlineStore(OnlineStore):
 
     def delete_table(self, config: RepoConfig, table: FeatureView):
         """
-        Delete all rows in Redis for a specific feature view.
-
-        Uses a two-phase pipelined approach to avoid an O(K) synchronous hkeys
-        call inside the scan loop (N+1 pattern).
+        Delete all rows in Redis for a specific feature view: its fields in the
+        entity hashes, and the sequence keys online_append wrote for it.
 
         Args:
             config: Feast config
             table: Feature view to delete
         """
         client = self._get_client(config.online_store)
+        self._delete_hash_fields(client, config, table)
+        self._delete_sequence_keys(client, config, table)
+
+    def _delete_hash_fields(self, client: Any, config: RepoConfig, table: FeatureView):
+        """
+        Delete the feature view's fields from the entity hashes.
+
+        Uses a two-phase pipelined approach to avoid an O(K) synchronous hkeys
+        call inside the scan loop (N+1 pattern).
+        """
         prefix = _redis_key_prefix(table.join_keys)
 
         fv_name = _versioned_fv_name(table, config)
@@ -380,6 +409,23 @@ class RedisOnlineStore(OnlineStore):
             pipe.execute()
 
         logger.debug(f"Deleted {deleted_count} rows for feature view {fv_name}")
+
+    def _delete_sequence_keys(
+        self, client: Any, config: RepoConfig, table: FeatureView
+    ) -> None:
+        """Delete the feature view's sequence keys written by online_append,
+        in this project only."""
+        scan_pattern = _sequence_key_prefix(table, config) + b"*"
+        keys = list(client.scan_iter(scan_pattern))
+        if not keys:
+            return
+
+        with client.pipeline(transaction=False) as pipe:
+            for key in keys:
+                pipe.delete(key)
+            pipe.execute()
+
+        logger.debug(f"Deleted {len(keys)} sequence keys for feature view {table.name}")
 
     def update(
         self,
@@ -422,6 +468,11 @@ class RedisOnlineStore(OnlineStore):
 
         for join_keys in join_keys_to_delete:
             self.delete_entity_values(config, list(join_keys))
+
+        if tables:
+            client = self._get_client(config.online_store)
+            for table in tables:
+                self._delete_sequence_keys(client, config, table)
 
         # Release the native GLIDE client, if one was ever opened, so teardown does
         # not leave its Rust-side resources and file descriptors behind.
@@ -738,6 +789,117 @@ class RedisOnlineStore(OnlineStore):
             results = await pipe.execute()
             if progress:
                 progress(len(results))
+
+    def online_append(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        data: List[
+            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+        ],
+        progress: Optional[Callable[[int], Any]] = None,
+    ) -> None:
+        """
+        Appends rows to a sorted set per entity and feature view, instead of
+        overwriting the entity's hash.
+
+        - Key: ``seq:<project>:<feature view>:`` + the entity's hash key.
+          delete_table and teardown delete these keys too.
+        - Member: the event time as an 8-byte big-endian signed integer of
+          microseconds, followed by the row's feature values as a serialized
+          ``feast.types.Map``. Writing the same event time and values again
+          adds nothing, so re-materializing a time range doesn't add duplicates.
+        - Score: the event time from _epoch_micros.
+        - Limits: after each ZADD, drop events older than max_age, then keep the
+          newest max_length. Not atomic: readers should read at most max_length.
+        - TTL: only key_ttl_seconds, the same as the hash keys.
+        """
+        online_store_config = config.online_store
+        assert isinstance(online_store_config, RedisOnlineStoreConfig)
+
+        client = self._get_client(online_store_config)
+        events_by_key = self._group_append_events(config, table, data)
+        max_length, cutoff = self._append_limits(table)
+        with client.pipeline(transaction=False) as pipe:
+            for redis_key_bin, events in events_by_key.items():
+                pipe.zadd(redis_key_bin, events)
+                if cutoff is not None:
+                    pipe.zremrangebyscore(redis_key_bin, "-inf", f"({cutoff}")
+                if max_length:
+                    pipe.zremrangebyrank(redis_key_bin, 0, -(max_length + 1))
+                if online_store_config.key_ttl_seconds:
+                    pipe.expire(
+                        name=redis_key_bin, time=online_store_config.key_ttl_seconds
+                    )
+            pipe.execute()
+
+        if progress:
+            progress(len(data))
+
+    async def online_append_async(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        data: List[
+            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+        ],
+        progress: Optional[Callable[[int], Any]] = None,
+    ) -> None:
+        """Async version of online_append using the async Redis client."""
+        online_store_config = config.online_store
+        assert isinstance(online_store_config, RedisOnlineStoreConfig)
+
+        client = await self._get_client_async(online_store_config)
+        events_by_key = self._group_append_events(config, table, data)
+        max_length, cutoff = self._append_limits(table)
+        async with client.pipeline(transaction=False) as pipe:
+            for redis_key_bin, events in events_by_key.items():
+                pipe.zadd(redis_key_bin, events)
+                if cutoff is not None:
+                    pipe.zremrangebyscore(redis_key_bin, "-inf", f"({cutoff}")
+                if max_length:
+                    pipe.zremrangebyrank(redis_key_bin, 0, -(max_length + 1))
+                if online_store_config.key_ttl_seconds:
+                    pipe.expire(
+                        name=redis_key_bin, time=online_store_config.key_ttl_seconds
+                    )
+            await pipe.execute()
+
+        if progress:
+            progress(len(data))
+
+    def _group_append_events(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        data: List[
+            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+        ],
+    ) -> Dict[bytes, Dict[Union[str, bytes], int]]:
+        """Group rows by key, so each key gets one ZADD and one trim per batch."""
+        key_prefix = _sequence_key_prefix(table, config)
+        # str | bytes keys match zadd's mapping type in the redis stubs.
+        events_by_key: Dict[bytes, Dict[Union[str, bytes], int]] = {}
+        for entity_key, values, timestamp, _ in data:
+            redis_key_bin = key_prefix + _redis_key(
+                config.project,
+                entity_key,
+                entity_key_serialization_version=config.entity_key_serialization_version,
+            )
+            event_micros = _epoch_micros(timestamp)
+            member = struct.pack(">q", event_micros) + MapProto(
+                val=values
+            ).SerializeToString(deterministic=True)
+            events_by_key.setdefault(redis_key_bin, {})[member] = event_micros
+        return events_by_key
+
+    def _append_limits(self, table: FeatureView) -> Tuple[Optional[int], Optional[int]]:
+        """Return max_length and the max_age cutoff in microseconds."""
+        online_config = table.online_config
+        max_length = online_config.max_length if online_config else None
+        max_age = online_config.max_age if online_config else None
+        cutoff = _epoch_micros(utils._utc_now() - max_age) if max_age else None
+        return max_length, cutoff
 
     def _generate_redis_keys_for_entities(
         self, config: RepoConfig, entity_keys: List[EntityKeyProto]

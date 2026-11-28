@@ -1,4 +1,5 @@
 import asyncio
+import struct
 import sys
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
@@ -8,7 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from google.protobuf.timestamp_pb2 import Timestamp
 
-from feast import Entity, FeatureView, Field, FileSource, RepoConfig
+from feast import Entity, FeatureView, Field, FileSource, OnlineConfig, RepoConfig
 from feast.errors import FeastExtrasDependencyImportError
 from feast.infra.online_stores.helpers import _mmh3
 from feast.infra.online_stores.redis import (
@@ -22,6 +23,7 @@ from feast.infra.online_stores.redis import (
     _load_glide_sync,
 )
 from feast.protos.feast.types.EntityKey_pb2 import EntityKey as EntityKeyProto
+from feast.protos.feast.types.Value_pb2 import Map as MapProto
 from feast.protos.feast.types.Value_pb2 import Value as ValueProto
 from feast.types import Int32
 
@@ -1090,3 +1092,155 @@ def test_teardown_without_a_glide_client_does_not_raise(
     redis_online_store.teardown(repo_config, [], [])
 
     assert redis_online_store._glide_client is None
+
+
+def _append_client_and_pipe():
+    """Return a mock Redis client and the pipeline it hands out."""
+    pipe = MagicMock()
+    pipe.__enter__ = MagicMock(return_value=pipe)
+    pipe.__exit__ = MagicMock(return_value=False)
+    client = MagicMock()
+    client.pipeline.return_value = pipe
+    return client, pipe
+
+
+def test_online_append_keeps_each_event_for_an_entity(
+    redis_online_store: RedisOnlineStore, feature_view
+):
+    """Each event is kept, even when its values repeat an earlier event.
+
+    An event with the same time and values as another is stored once.
+    """
+    feature_view.online_config = OnlineConfig(
+        mode="sequence", max_length=10, write_mode="append"
+    )
+    start = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    data = _single_entity_batch(
+        [
+            (start, 1),
+            (start + timedelta(seconds=1), 2),
+            (start + timedelta(seconds=2), 3),
+            (start + timedelta(seconds=3), 1),
+            (start + timedelta(seconds=3), 1),
+        ]
+    )
+    client, pipe = _append_client_and_pipe()
+
+    with patch.object(redis_online_store, "_get_client", return_value=client):
+        redis_online_store.online_append(_dedup_config(), feature_view, data)
+
+    pipe.hset.assert_not_called()
+    pipe.zadd.assert_called_once()
+    key, events = pipe.zadd.call_args.args
+    assert key.startswith(b"seq:test:feature_view_1:")
+    start_micros = int(start.timestamp()) * 1_000_000
+    values_by_offset = {}
+    for member, score in events.items():
+        (member_micros,) = struct.unpack(">q", member[:8])
+        assert member_micros == score
+        values = MapProto.FromString(member[8:])
+        values_by_offset[score - start_micros] = values.val["feature_10"].int32_val
+    assert values_by_offset == {0: 1, 1_000_000: 2, 2_000_000: 3, 3_000_000: 1}
+    pipe.zremrangebyrank.assert_called_once_with(key, 0, -11)
+    pipe.zremrangebyscore.assert_not_called()
+    pipe.expire.assert_not_called()
+
+
+@pytest.mark.parametrize("key_ttl_seconds", [None, 60])
+def test_online_append_applies_max_length_and_max_age(
+    redis_online_store: RedisOnlineStore, feature_view, key_ttl_seconds
+):
+    """Trims by max_age and max_length. Only key_ttl_seconds sets a key TTL."""
+    feature_view.online_config = OnlineConfig(
+        mode="sequence", max_length=2, max_age=timedelta(days=1), write_mode="append"
+    )
+    config = RepoConfig(
+        provider="local",
+        project="test",
+        entity_key_serialization_version=3,
+        registry="dummy_registry.db",
+        online_store=RedisOnlineStoreConfig(key_ttl_seconds=key_ttl_seconds),
+    )
+    now = datetime(2026, 1, 2, tzinfo=timezone.utc)
+    client, pipe = _append_client_and_pipe()
+
+    with patch.object(redis_online_store, "_get_client", return_value=client):
+        with patch("feast.utils._utc_now", return_value=now):
+            redis_online_store.online_append(
+                config, feature_view, _single_entity_batch([(now, 1)])
+            )
+
+    key = pipe.zadd.call_args.args[0]
+    cutoff_micros = int((now - timedelta(days=1)).timestamp()) * 1_000_000
+    pipe.zremrangebyscore.assert_called_once_with(key, "-inf", f"({cutoff_micros}")
+    pipe.zremrangebyrank.assert_called_once_with(key, 0, -3)
+    if key_ttl_seconds:
+        pipe.expire.assert_called_once_with(name=key, time=key_ttl_seconds)
+    else:
+        pipe.expire.assert_not_called()
+
+
+def test_online_append_keeps_a_newer_event_when_a_late_event_repeats_its_values(
+    redis_online_store: RedisOnlineStore, feature_view
+):
+    """A late, older event with the same values doesn't move the newer event's
+    time, so the max_age trim can't drop it. Same batch or a later write."""
+    feature_view.online_config = OnlineConfig(
+        mode="sequence", max_age=timedelta(hours=1), write_mode="append"
+    )
+    now = datetime(2026, 1, 1, 12, tzinfo=timezone.utc)
+    newer = now - timedelta(minutes=5)
+    older = now - timedelta(hours=2)
+    cutoff_micros = int((now - timedelta(hours=1)).timestamp()) * 1_000_000
+
+    def scores_left_after(writes):
+        """Replay the ZADDs and the max_age trim the way Redis applies them."""
+        client, pipe = _append_client_and_pipe()
+        with patch.object(redis_online_store, "_get_client", return_value=client):
+            with patch("feast.utils._utc_now", return_value=now):
+                for batch in writes:
+                    redis_online_store.online_append(
+                        _dedup_config(), feature_view, _single_entity_batch(batch)
+                    )
+        members: dict = {}
+        for call in pipe.zadd.call_args_list:
+            members.update(call.args[1])
+        return sorted(s for s in members.values() if s >= cutoff_micros)
+
+    newer_micros = int(newer.timestamp()) * 1_000_000
+    assert scores_left_after([[(newer, 7), (older, 7)]]) == [newer_micros]
+    assert scores_left_after([[(newer, 7)], [(older, 7)]]) == [newer_micros]
+
+
+def test_online_append_async_uses_async_client(
+    redis_online_store: RedisOnlineStore, feature_view
+):
+    """Queues the same commands on the async client's pipeline."""
+    feature_view.online_config = OnlineConfig(
+        mode="sequence", max_length=10, write_mode="append"
+    )
+    start = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    data = _single_entity_batch([(start, 1), (start + timedelta(seconds=1), 2)])
+
+    async_pipe = AsyncMock()
+    async_pipe.__aenter__ = AsyncMock(return_value=async_pipe)
+    async_pipe.__aexit__ = AsyncMock(return_value=False)
+    async_pipe.zadd = MagicMock()
+    async_pipe.zremrangebyrank = MagicMock()
+    mock_async_client = AsyncMock()
+    mock_async_client.pipeline = MagicMock(return_value=async_pipe)
+
+    with patch.object(
+        redis_online_store,
+        "_get_client_async",
+        AsyncMock(return_value=mock_async_client),
+    ):
+        asyncio.run(
+            redis_online_store.online_append_async(_dedup_config(), feature_view, data)
+        )
+
+    key, events = async_pipe.zadd.call_args.args
+    assert key.startswith(b"seq:test:feature_view_1:")
+    assert len(events) == 2
+    async_pipe.zremrangebyrank.assert_called_once_with(key, 0, -11)
+    async_pipe.execute.assert_awaited_once()

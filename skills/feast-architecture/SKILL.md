@@ -124,6 +124,7 @@ Custom providers extend `Provider` and override `update_infra` / `teardown_infra
 
 Key methods:
 - `online_write_batch` — write entity→feature values
+- `online_append` / `online_append_async` — append events without overwriting, for feature views whose `online_config` sets `write_mode="append"`; the defaults raise `NotImplementedError` (Redis implements both with a sorted set per entity key)
 - `online_read` — read by entity keys
 - `update` — provision/deprovision tables on `feast apply`
 - `teardown` — clean up on `feast teardown`

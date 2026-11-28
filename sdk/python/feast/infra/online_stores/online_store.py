@@ -103,6 +103,58 @@ class OnlineStore(ABC):
             f"Online store {self.__class__.__name__} does not support online write batch async"
         )
 
+    def online_append(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        data: List[
+            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+        ],
+        progress: Optional[Callable[[int], Any]] = None,
+    ) -> None:
+        """
+        Appends rows without overwriting earlier values for the same entity key.
+
+        Called instead of online_write_batch when the feature view's online_config
+        sets write_mode="append". Tz-naive timestamps are treated as UTC.
+
+        Args:
+            config: The config for the current feature store.
+            table: The feature view the rows belong to.
+            data: Rows as (entity key, feature values, event timestamp,
+                created timestamp or None).
+            progress: Called with the number of rows written, to show progress.
+        """
+        raise NotImplementedError(
+            f"Online store {self.__class__.__name__} does not support online append"
+        )
+
+    async def online_append_async(
+        self,
+        config: RepoConfig,
+        table: FeatureView,
+        data: List[
+            Tuple[EntityKeyProto, Dict[str, ValueProto], datetime, Optional[datetime]]
+        ],
+        progress: Optional[Callable[[int], Any]] = None,
+    ) -> None:
+        """
+        Appends rows without overwriting earlier values for the same entity key Asynchronously.
+
+        Called instead of online_write_batch when the feature view's online_config
+        sets write_mode="append". Tz-naive timestamps are treated as UTC.
+
+        Args:
+            config: The config for the current feature store.
+            table: The feature view the rows belong to.
+            data: Rows as (entity key, feature values, event timestamp,
+                created timestamp or None).
+            progress: Called with the number of rows written, to show progress.
+        """
+        raise NotImplementedError(
+            f"Online store {self.__class__.__name__} does not support online append async"
+        )
+
     @abstractmethod
     def online_read(
         self,
