@@ -1,14 +1,18 @@
 import logging
-from typing import Union
+from typing import List, Optional, Union
+
+import pandas as pd
 
 from feast.aggregation import aggregation_specs_to_agg_ops
 from feast.infra.common.materialization_job import MaterializationTask
 from feast.infra.common.retrieval_task import HistoricalRetrievalTask
 from feast.infra.compute_engines.backends.base import DataFrameBackend
+from feast.infra.compute_engines.dag.node import DAGNode
 from feast.infra.compute_engines.feature_builder import FeatureBuilder
 from feast.infra.compute_engines.local.nodes import (
     LocalAggregationNode,
     LocalDedupNode,
+    LocalEntityRowsNode,
     LocalFilterNode,
     LocalJoinNode,
     LocalOutputNode,
@@ -31,6 +35,45 @@ class LocalFeatureBuilder(FeatureBuilder):
     ):
         super().__init__(registry, task.feature_view, task)
         self.backend = backend
+
+    def _should_join_entity_df(self) -> bool:
+        # LocalJoinNode converts entity_df with pa.Table.from_pandas.
+        return isinstance(self.task, HistoricalRetrievalTask) and isinstance(
+            self.task.entity_df, pd.DataFrame
+        )
+
+    def _build(self, view, input_nodes: Optional[List[DAGNode]]) -> DAGNode:
+        # Same steps as FeatureBuilder._build, but a source-backed view is
+        # joined with entity_df so the filter node can apply the point-in-time
+        # and TTL bounds per entity row.
+        if view.data_source:
+            last_node = self.build_source_node(view)
+
+            if self._should_transform(view):
+                last_node = self.build_transformation_node(view, [last_node])
+
+            if self._should_join_entity_df():
+                last_node = self.build_join_node(view, [last_node])
+
+        elif input_nodes:
+            if self._should_transform(view):
+                last_node = self.build_transformation_node(view, input_nodes)
+            else:
+                last_node = self.build_join_node(view, input_nodes)
+        else:
+            raise ValueError(f"FeatureView {view.name} has no valid source or inputs")
+
+        last_node = self.build_filter_node(view, last_node)
+
+        if self._should_aggregate(view):
+            last_node = self.build_aggregation_node(view, last_node)
+        elif self._should_dedupe(view):
+            last_node = self.build_dedup_node(view, last_node)
+
+        if self._should_validate(view):
+            last_node = self.build_validation_node(view, last_node)
+
+        return last_node
 
     def build_source_node(self, view):
         start_time = self.task.start_time
@@ -129,6 +172,19 @@ class LocalFeatureBuilder(FeatureBuilder):
         return node
 
     def build_output_nodes(self, view, input_node):
-        node = LocalOutputNode("output", self.dag_root.view, inputs=[input_node])
+        if self._should_join_entity_df():
+            # The filter node dropped the entity rows that no feature row
+            # matched; return them with null features.
+            input_node = LocalEntityRowsNode(
+                "entity_rows", self.backend, inputs=[input_node]
+            )
+            self.nodes.append(input_node)
+
+        node = LocalOutputNode(
+            "output",
+            self.dag_root.view,
+            inputs=[input_node],
+            write_to_stores=isinstance(self.task, MaterializationTask),
+        )
         self.nodes.append(node)
         return node

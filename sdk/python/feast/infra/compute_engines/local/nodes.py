@@ -3,6 +3,7 @@ import logging
 from datetime import datetime, timedelta
 from typing import List, Optional, Set, Union
 
+import pandas as pd
 import pyarrow as pa
 
 from feast import BatchFeatureView, StreamFeatureView
@@ -14,6 +15,7 @@ from feast.infra.compute_engines.dag.node import DAGNode
 from feast.infra.compute_engines.local.arrow_table_value import ArrowTableValue
 from feast.infra.compute_engines.local.local_node import LocalNode
 from feast.infra.compute_engines.utils import (
+    ENTITY_ROW_ID,
     ENTITY_TS_ALIAS,
     create_offline_store_retrieval_job,
     infer_entity_timestamp_column,
@@ -21,6 +23,25 @@ from feast.infra.compute_engines.utils import (
 from feast.utils import _convert_arrow_to_proto
 
 logger = logging.getLogger(__name__)
+
+
+def _entity_rows(entity_df: pd.DataFrame, backend: DataFrameBackend):
+    """entity_df as a backend DataFrame, numbered and with its timestamp aliased.
+
+    Two entity rows can share their join keys and timestamp, and each is still
+    a request of its own, so every row gets an ``ENTITY_ROW_ID``.
+    """
+    entity_df = backend.from_arrow(
+        pa.Table.from_pandas(
+            entity_df.assign(**{ENTITY_ROW_ID: range(len(entity_df))}),
+            preserve_index=False,
+        )
+    )
+    entity_schema = dict(zip(entity_df.columns, entity_df.dtypes))
+    entity_ts_col = infer_entity_timestamp_column(entity_schema)
+    if entity_ts_col != ENTITY_TS_ALIAS:
+        entity_df = backend.rename_columns(entity_df, {entity_ts_col: ENTITY_TS_ALIAS})
+    return entity_df
 
 
 class LocalSourceReadNode(LocalNode):
@@ -82,32 +103,35 @@ class LocalJoinNode(LocalNode):
 
         # Convert all upstream ArrowTables to backend DataFrames
         joined_df = self.backend.from_arrow(input_values[0].data)
+        # Upstream views that were already joined with entity_df carry one
+        # row per entity row; keep those rows apart and do not join again.
+        columns = self.backend.columns(joined_df)
+        already_joined = ENTITY_TS_ALIAS in columns
+        input_join_keys = [
+            *join_keys,
+            *(key for key in (ENTITY_TS_ALIAS, ENTITY_ROW_ID) if key in columns),
+        ]
         for val in input_values[1:]:
             next_df = self.backend.from_arrow(val.data)
             joined_df = self.backend.join(
                 joined_df,
                 next_df,
-                on=join_keys,
+                on=input_join_keys,
                 how=self.how,
             )
 
         # If entity_df is provided, join it in last
-        if context.entity_df is not None:
-            entity_df = self.backend.from_arrow(pa.Table.from_pandas(context.entity_df))
+        if context.entity_df is not None and not already_joined:
+            entity_df = _entity_rows(context.entity_df, self.backend)
 
-            entity_schema = dict(zip(entity_df.columns, entity_df.dtypes))
-            entity_ts_col = infer_entity_timestamp_column(entity_schema)
-
-            if entity_ts_col != ENTITY_TS_ALIAS:
-                entity_df = self.backend.rename_columns(
-                    entity_df, {entity_ts_col: ENTITY_TS_ALIAS}
-                )
-
+            # A view without entities has no join keys: every feature row is
+            # a candidate for every entity row, and the filter node picks the
+            # ones inside the point-in-time and TTL bounds.
             joined_df = self.backend.join(
                 entity_df,
                 joined_df,
-                on=join_keys,
-                how="left",
+                on=join_keys or None,
+                how="left" if join_keys else "cross",
             )
 
         result = self.backend.to_arrow(joined_df)
@@ -178,7 +202,13 @@ class LocalAggregationNode(LocalNode):
     def execute(self, context: ExecutionContext) -> ArrowTableValue:
         input_table = self.get_single_table(context).data
         df = self.backend.from_arrow(input_table)
-        grouped_df = self.backend.groupby_agg(df, self.group_keys, self.agg_ops)
+        # Aggregate per entity row after the entity_df join.
+        columns = self.backend.columns(df)
+        group_keys = [
+            *self.group_keys,
+            *(key for key in (ENTITY_TS_ALIAS, ENTITY_ROW_ID) if key in columns),
+        ]
+        grouped_df = self.backend.groupby_agg(df, group_keys, self.agg_ops)
         result = self.backend.to_arrow(grouped_df)
         output = ArrowTableValue(result)
         return output
@@ -201,7 +231,14 @@ class LocalDedupNode(LocalNode):
         # Dedup strategy: sort and drop_duplicates. Use the mapped join key
         # names so we look up the columns that the source-read node has
         # already renamed (see issue #5942).
-        dedup_keys = self.column_info.join_keys_columns
+        dedup_keys = list(self.column_info.join_keys_columns)
+        # Keep one row per entity row, not per entity key, after the
+        # entity_df join.
+        columns = self.backend.columns(df)
+        if ENTITY_ROW_ID in columns:
+            dedup_keys = [ENTITY_ROW_ID]
+        elif dedup_keys and ENTITY_TS_ALIAS in columns:
+            dedup_keys.append(ENTITY_TS_ALIAS)
         if dedup_keys:
             sort_keys = [self.column_info.timestamp_column]
             if (
@@ -356,22 +393,72 @@ class LocalValidationNode(LocalNode):
         logger.debug("[Validation: %s] Schema validation passed.", self.name)
 
 
+class LocalEntityRowsNode(LocalNode):
+    """Returns one row per entity row, with nulls where no feature row was selected.
+
+    The filter node drops an entity row when its key has no feature row, or
+    only rows after its timestamp or older than the TTL. Historical retrieval
+    still has to answer that request, so the selected rows are left-joined
+    back onto the entity rows by ``ENTITY_ROW_ID``.
+    """
+
+    def __init__(self, name: str, backend: DataFrameBackend, inputs=None):
+        super().__init__(name, inputs=inputs)
+        self.backend = backend
+
+    def execute(self, context: ExecutionContext) -> ArrowTableValue:
+        input_table = self.get_single_table(context).data
+        if context.entity_df is None or ENTITY_ROW_ID not in input_table.column_names:
+            return ArrowTableValue(input_table)
+
+        entity_df = _entity_rows(context.entity_df, self.backend)
+        # The entity columns come from entity_df, so that they are filled in
+        # for the rows that were dropped too.
+        entity_columns = set(self.backend.columns(entity_df))
+        selected = input_table.select(
+            [
+                column
+                for column in input_table.column_names
+                if column == ENTITY_ROW_ID or column not in entity_columns
+            ]
+        )
+        joined_df = self.backend.join(
+            entity_df,
+            self.backend.from_arrow(selected),
+            on=[ENTITY_ROW_ID],
+            how="left",
+        )
+        # A backend's left join need not keep the left order; return the rows
+        # in entity_df order.
+        result = self.backend.to_arrow(joined_df).sort_by(ENTITY_ROW_ID)
+        output = ArrowTableValue(result)
+        context.node_outputs[self.name] = output
+        return output
+
+
 class LocalOutputNode(LocalNode):
     def __init__(
         self,
         name: str,
         feature_view: Union[BatchFeatureView, StreamFeatureView],
         inputs=None,
+        write_to_stores: bool = True,
     ):
         super().__init__(name, inputs=inputs)
         self.feature_view = feature_view
+        # False for historical retrieval, which only reads: its rows are as of
+        # the entity timestamps and must not replace what the stores serve.
+        self.write_to_stores = write_to_stores
 
     def execute(self, context: ExecutionContext) -> ArrowTableValue:
         input_table = self.get_single_table(context).data
+        # The row id only tells the entity rows apart while the plan runs.
+        if ENTITY_ROW_ID in input_table.column_names:
+            input_table = input_table.drop_columns([ENTITY_ROW_ID])
         output = ArrowTableValue(data=input_table)
         context.node_outputs[self.name] = output
 
-        if input_table.num_rows == 0:
+        if input_table.num_rows == 0 or not self.write_to_stores:
             return output
 
         if self.feature_view.online:
