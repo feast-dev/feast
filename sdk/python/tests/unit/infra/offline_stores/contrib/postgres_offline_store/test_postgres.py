@@ -1105,7 +1105,7 @@ class TestNonEntityRetrieval:
                     ],
                 )
 
-                assert result.exit_code == 0, result.output
+                assert result.exit_code == 2, result.output
                 assert (
                     "Either --dataframe or --start-date and/or --end-date must be provided."
                     in result.output
