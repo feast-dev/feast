@@ -23,6 +23,7 @@ from typing import (
     Callable,
     Dict,
     Iterable,
+    Iterator,
     List,
     Optional,
     Tuple,
@@ -262,6 +263,141 @@ class RetrievalJob(ABC):
 
         return features_table
 
+    def to_arrow_batches(
+        self,
+        batch_size: int = 8192,
+        validation_reference: Optional["ValidationReference"] = None,
+        timeout: Optional[int] = None,
+    ) -> Iterator[pyarrow.RecordBatch]:
+        """
+        Executes or streams the underlying query and yields bounded pyarrow.RecordBatch chunks.
+
+        Backends supporting native streaming (such as DuckDB/Ibis) yield bounded chunks
+        without materializing the full dataset in memory. On-demand transformations will be
+        applied batch-by-batch. Explicit resource cleanup is performed on early generator
+        close or cancellation.
+
+        Args:
+            batch_size: Maximum number of rows per yielded RecordBatch (default: 8192).
+            validation_reference (optional): Validation profile to apply against each batch.
+            timeout (optional): Query timeout if applicable.
+
+        Yields:
+            pyarrow.RecordBatch: Bounded Arrow RecordBatch chunks.
+
+        Example:
+            >>> store = FeatureStore(".")
+            >>> job = store.get_historical_features(entity_df=entity_df, features=features)
+            >>> for batch in job.to_arrow_batches(batch_size=8192):
+            ...     process_batch(batch)
+            >>>
+            >>> # Optional PyTorch IterableDataset integration:
+            >>> from feast.torch import FeastIterableDataset
+            >>> from torch.utils.data import DataLoader
+            >>> dataset = FeastIterableDataset(job, batch_size=8192)
+            >>> loader = DataLoader(dataset, batch_size=32, num_workers=2)
+        """
+        start_wall = time.monotonic()
+        status_label = "success"
+        total_rows = 0
+        batch_iterator = self._to_arrow_batches_internal(
+            batch_size=batch_size, timeout=timeout
+        )
+        try:
+            for batch in batch_iterator:
+                if self.on_demand_feature_views:
+                    batch = self._transform_odfv_batch(batch)
+
+                if validation_reference:
+                    if not flags_helper.is_test():
+                        warnings.warn(
+                            "Dataset validation is an experimental feature. "
+                            "This API is unstable and it could and most probably will be changed in the future. "
+                            "We do not guarantee that future changes will maintain backward compatibility.",
+                            RuntimeWarning,
+                        )
+                    validation_result = validation_reference.profile.validate(
+                        batch.to_pandas()
+                    )
+                    if not validation_result.is_success:
+                        raise ValidationFailed(validation_result)
+
+                total_rows += batch.num_rows
+                yield batch
+        except Exception:
+            status_label = "error"
+            raise
+        finally:
+            if hasattr(batch_iterator, "close"):
+                try:
+                    batch_iterator.close()
+                except Exception:
+                    pass
+            try:
+                from feast import metrics as feast_metrics
+
+                elapsed = time.monotonic() - start_wall
+
+                if feast_metrics._config.offline_features:
+                    feast_metrics.offline_store_request_total.labels(
+                        method="to_arrow_batches", status=status_label
+                    ).inc()
+                    feast_metrics.offline_store_request_latency_seconds.labels(
+                        method="to_arrow_batches"
+                    ).observe(elapsed)
+                    feast_metrics.offline_store_row_count.labels(
+                        method="to_arrow_batches"
+                    ).observe(total_rows)
+
+                if feast_metrics._config.audit_logging:
+                    feature_views, feature_count = _extract_retrieval_metadata(self)
+                    end_dt = datetime.now(tz=timezone.utc)
+                    start_dt = end_dt - timedelta(seconds=elapsed)
+                    feast_metrics.emit_offline_audit_log(
+                        method="to_arrow_batches",
+                        feature_views=feature_views,
+                        feature_count=feature_count,
+                        row_count=total_rows,
+                        status=status_label,
+                        start_time=start_dt.isoformat(),
+                        end_time=end_dt.isoformat(),
+                        duration_ms=elapsed * 1000,
+                    )
+            except Exception:
+                logging.getLogger(__name__).debug(
+                    "Failed to record offline store metrics", exc_info=True
+                )
+
+    def _transform_odfv_batch(self, batch: pyarrow.RecordBatch) -> pyarrow.RecordBatch:
+        """Applies on-demand feature view transformations to a single RecordBatch."""
+        features_table = pyarrow.Table.from_batches([batch])
+        odfv_feature_refs = self._get_odfv_feature_refs()
+
+        for odfv in self.on_demand_feature_views:
+            transformed_arrow = odfv.transform_arrow(
+                features_table, self.full_feature_names
+            )
+            requested_features_for_odfv = (
+                odfv_feature_refs.get(odfv.name)
+                if odfv.name in odfv_feature_refs
+                else odfv_feature_refs.get(odfv.projection.name_to_use())
+            )
+            for col in transformed_arrow.column_names:
+                if col.startswith("__index"):
+                    continue
+                if (
+                    requested_features_for_odfv is None
+                    or col in requested_features_for_odfv
+                ):
+                    features_table = features_table.append_column(
+                        col, transformed_arrow[col]
+                    )
+
+        batches = features_table.to_batches()
+        if batches:
+            return batches[0]
+        return pyarrow.RecordBatch.from_arrays([], schema=features_table.schema)
+
     def to_tensor(
         self,
         kind: str = "torch",
@@ -366,6 +502,25 @@ class RetrievalJob(ABC):
         `to_arrow` should be used.
         """
         raise NotImplementedError
+
+    def _to_arrow_batches_internal(
+        self, batch_size: int = 8192, timeout: Optional[int] = None
+    ) -> Iterator[pyarrow.RecordBatch]:
+        """
+        Synchronously executes or streams the underlying query and yields bounded pyarrow.RecordBatch chunks.
+
+        Backends supporting native streaming should override this method to avoid materializing
+        the full dataset in memory. The default implementation falls back to batching the
+        table returned by `_to_arrow_internal`.
+        """
+        table = self._to_arrow_internal(timeout=timeout)
+        reader = table.to_reader(max_chunksize=batch_size)
+        try:
+            for batch in reader:
+                yield batch
+        finally:
+            if hasattr(reader, "close"):
+                reader.close()
 
     def _get_odfv_feature_refs(self) -> Dict[str, set[str]]:
         """

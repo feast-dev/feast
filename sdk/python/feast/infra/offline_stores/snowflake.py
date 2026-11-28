@@ -826,7 +826,9 @@ class SnowflakeRetrievalJob(RetrievalJob):
 
         return None
 
-    def to_arrow_batches(self) -> Iterator[pyarrow.Table]:
+    def _to_arrow_batches_internal(
+        self, batch_size: int = 8192, timeout: Optional[int] = None
+    ) -> Iterator[pyarrow.RecordBatch]:
         table_name = "temp_arrow_batches_" + uuid.uuid4().hex
 
         self.to_snowflake(table_name=table_name, allow_overwrite=True, temporary=True)
@@ -836,7 +838,18 @@ class SnowflakeRetrievalJob(RetrievalJob):
             self.snowflake_conn, query
         ).fetch_arrow_batches()
 
-        return arrow_batches
+        try:
+            for table_chunk in arrow_batches:
+                reader = table_chunk.to_reader(max_chunksize=batch_size)
+                try:
+                    for batch in reader:
+                        yield batch
+                finally:
+                    if hasattr(reader, "close"):
+                        reader.close()
+        finally:
+            if hasattr(arrow_batches, "close"):
+                arrow_batches.close()
 
     def to_pandas_batches(self) -> Iterator[pd.DataFrame]:
         table_name = "temp_pandas_batches_" + uuid.uuid4().hex

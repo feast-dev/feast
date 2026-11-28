@@ -3,7 +3,7 @@ import string
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple, Union
 
 import ibis
 import numpy as np
@@ -611,6 +611,22 @@ class IbisRetrievalJob(RetrievalJob):
 
     def _to_arrow_internal(self, timeout: Optional[int] = None) -> pyarrow.Table:
         return self.table.to_pyarrow()
+
+    def _to_arrow_batches_internal(
+        self, batch_size: int = 8192, timeout: Optional[int] = None
+    ) -> Iterator[pyarrow.RecordBatch]:
+        if hasattr(self.table, "to_pyarrow_batches"):
+            reader = self.table.to_pyarrow_batches(chunk_size=batch_size)
+            try:
+                for batch in reader:
+                    yield batch
+            finally:
+                if hasattr(reader, "close"):
+                    reader.close()
+        else:
+            yield from super()._to_arrow_batches_internal(
+                batch_size=batch_size, timeout=timeout
+            )
 
     @property
     def full_feature_names(self) -> bool:
