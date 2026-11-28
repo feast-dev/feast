@@ -1,5 +1,8 @@
+import os
 import tempfile
+import threading
 from datetime import timedelta
+from unittest.mock import patch
 
 import pytest
 
@@ -11,9 +14,12 @@ from feast.errors import ConflictingFeatureViewNames
 from feast.feature_view import FeatureView
 from feast.infra.offline_stores.file_source import FileSource
 from feast.infra.registry.registry import Registry
+from feast.project import Project
+from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.repo_config import RegistryConfig
 from feast.stream_feature_view import StreamFeatureView
 from feast.types import Float32
+from feast.utils import _utc_now
 from feast.value_type import ValueType
 
 
@@ -185,3 +191,100 @@ def test_cross_project_name_does_not_conflict_batch_vs_stream(file_registry):
     )
     # Must not raise — same name, different project, different type.
     file_registry.apply_feature_view(stream_view, "project_b")
+
+
+def test_cached_read_does_not_wait_for_in_progress_refresh(
+    file_registry: Registry,
+) -> None:
+    """A read the cache can serve must not wait for a refresh in progress."""
+    results: list[list[Project]] = []
+
+    def cached_read() -> None:
+        results.append(file_registry.list_projects(allow_cache=True))
+
+    thread = threading.Thread(target=cached_read, daemon=True)
+
+    # Hold the lock to simulate a refresh stuck downloading in another thread.
+    file_registry._refresh_lock.acquire()
+    try:
+        thread.start()
+        thread.join(timeout=2)
+        assert not thread.is_alive(), "cached read waited for the refresh lock"
+    finally:
+        file_registry._refresh_lock.release()
+        thread.join(timeout=5)
+
+    assert results == [[]]
+
+
+def test_expired_cache_read_fetches_from_store(file_registry: Registry) -> None:
+    """Once the TTL has passed, a cached read must download a fresh registry."""
+    fresh_proto = RegistryProto()
+    fresh_proto.projects.append(Project(name="fresh_project").to_proto())
+    file_registry.cached_registry_proto_ttl = timedelta(seconds=1)
+    file_registry.cached_registry_proto_created = _utc_now() - timedelta(seconds=5)
+
+    with patch.object(
+        file_registry._registry_store,
+        "get_registry_proto",
+        return_value=fresh_proto,
+    ):
+        projects = file_registry.list_projects(allow_cache=True)
+
+    assert [p.name for p in projects] == ["fresh_project"]
+
+
+def test_cached_read_waits_for_reload_of_modified_local_file(
+    file_registry: Registry,
+) -> None:
+    """A cached read during a reload of a changed file must wait for the new snapshot."""
+    registry_path = file_registry._file_path
+    last_read_mtime = file_registry._file_mtime
+    assert registry_path is not None
+    assert last_read_mtime is not None
+
+    # Change the registry file and move its mtime past the last read.
+    writer = Registry("test_project", RegistryConfig(path=str(registry_path)), None)
+    writer.apply_project(Project(name="written_project"), commit=True)
+    future_mtime = last_read_mtime + 10
+    os.utime(registry_path, (future_mtime, future_mtime))
+
+    reload_started = threading.Event()
+    release_reload = threading.Event()
+    real_get_registry_proto = file_registry._registry_store.get_registry_proto
+    results: dict[str, list[Project]] = {}
+
+    def paused_get_registry_proto() -> RegistryProto:
+        reload_started.set()
+        release_reload.wait(timeout=10)
+        return real_get_registry_proto()
+
+    def cached_read(name: str) -> None:
+        results[name] = file_registry.list_projects(allow_cache=True)
+
+    reloading_read = threading.Thread(
+        target=cached_read, args=("reloading",), daemon=True
+    )
+    concurrent_read = threading.Thread(
+        target=cached_read, args=("concurrent",), daemon=True
+    )
+
+    # Pause the reload inside get_registry_proto and start a second read meanwhile.
+    with patch.object(
+        file_registry._registry_store,
+        "get_registry_proto",
+        side_effect=paused_get_registry_proto,
+    ):
+        reloading_read.start()
+        try:
+            assert reload_started.wait(timeout=5), "reload did not start"
+            concurrent_read.start()
+            concurrent_read.join(timeout=0.5)
+            assert concurrent_read.is_alive(), "cached read returned during reload"
+        finally:
+            release_reload.set()
+            reloading_read.join(timeout=5)
+    concurrent_read.join(timeout=5)
+
+    assert [p.name for p in results["reloading"]] == ["written_project"]
+    assert [p.name for p in results["concurrent"]] == ["written_project"]

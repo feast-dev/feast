@@ -1502,6 +1502,11 @@ class Registry(BaseRegistry):
 
         Returns: Returns a RegistryProto object which represents the state of the registry
         """
+        # Serve a valid cache without taking _refresh_lock, so that cached reads
+        # do not wait for a refresh stuck on a slow registry download
+        if allow_cache and self.is_cache_valid() and not self._registry_file_changed():
+            return self.cached_registry_proto
+
         with self._refresh_lock:
             # For file-based registries in sync mode, check file modification time
             # to detect changes immediately, not just based on TTL
@@ -1516,7 +1521,6 @@ class Registry(BaseRegistry):
                     current_mtime = self._file_path.stat().st_mtime
                     if self._file_mtime is None or current_mtime > self._file_mtime:
                         file_modified = True
-                        self._file_mtime = current_mtime
                 except (OSError, FileNotFoundError):
                     file_modified = True
 
@@ -1552,6 +1556,16 @@ class Registry(BaseRegistry):
                     pass
 
             return registry_proto
+
+    def _registry_file_changed(self) -> bool:
+        """Checks the sync-mode registry file mtime without updating _file_mtime."""
+        if self.cache_mode != "sync" or self._file_path is None:
+            return False
+        try:
+            current_mtime = self._file_path.stat().st_mtime
+        except OSError:
+            return True
+        return self._file_mtime is None or current_mtime > self._file_mtime
 
     def _check_conflicting_feature_view_names(
         self, feature_view: BaseFeatureView, project: str
