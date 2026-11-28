@@ -13,10 +13,13 @@
 # limitations under the License.
 import json
 import sys
+import threading
 import time
 from collections import Counter
 from datetime import timedelta
+from pathlib import Path
 from types import SimpleNamespace
+from typing import Any, Generator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -899,3 +902,94 @@ def test_get_online_features_serves_non_finite_float(store_and_client, non_finit
     assert body["results"][ix]["values"] == [
         "Infinity" if non_finite > 0 else "-Infinity"
     ]
+
+
+@pytest.fixture
+def push_store(tmp_path: Path) -> Generator[FeatureStore, None, None]:
+    store = _build_push_feature_store(tmp_path)
+    try:
+        yield store
+    finally:
+        store.teardown()
+
+
+@pytest.fixture
+def mock_timer() -> Generator[MagicMock, None, None]:
+    """Captures registry refresh timers so a test can fire them by hand."""
+    with patch("feast.feature_server.threading.Timer") as mock_timer:
+        yield mock_timer
+
+
+def _fire_scheduled_refresh(mock_timer: MagicMock) -> None:
+    mock_timer.call_args.args[1]()
+
+
+def test_periodic_registry_refresh_keeps_running_after_a_failure(
+    push_store: FeatureStore, mock_timer: MagicMock, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A failed periodic refresh must not stop later refreshes."""
+    with (
+        patch.object(
+            push_store,
+            "refresh_registry",
+            side_effect=[None, RuntimeError("transient registry error"), None],
+        ) as refresh_registry,
+        TestClient(get_app(push_store, registry_ttl_sec=60)),
+    ):
+        assert mock_timer.call_count == 1
+
+        _fire_scheduled_refresh(mock_timer)
+
+        assert mock_timer.call_count == 2
+        assert mock_timer.call_args.args[0] == 60
+        assert "transient registry error" in caplog.text
+
+        _fire_scheduled_refresh(mock_timer)
+
+        assert refresh_registry.call_count == 3
+        assert mock_timer.call_count == 3
+
+
+def test_registry_refresh_failure_at_startup_still_fails_startup(
+    push_store: FeatureStore, mock_timer: MagicMock
+) -> None:
+    """A failed first refresh must fail app startup."""
+    with (
+        patch.object(
+            push_store,
+            "refresh_registry",
+            side_effect=RuntimeError("registry unavailable"),
+        ),
+        pytest.raises(RuntimeError, match="registry unavailable"),
+    ):
+        with TestClient(get_app(push_store, registry_ttl_sec=60)):
+            pass
+
+    mock_timer.assert_not_called()
+
+
+def test_registry_refresh_timer_scheduled_during_shutdown_is_cancelled(
+    push_store: FeatureStore, mock_timer: MagicMock
+) -> None:
+    """Shutdown must cancel a refresh timer that is scheduled while it runs."""
+    scheduling = threading.Event()
+    timers: list[MagicMock] = []
+
+    def make_timer(*args: Any, **kwargs: Any) -> MagicMock:
+        timer = MagicMock()
+        timers.append(timer)
+        if len(timers) == 2:
+            scheduling.set()
+            # Hold the scheduling step open while the app shuts down
+            time.sleep(0.5)
+        return timer
+
+    mock_timer.side_effect = make_timer
+    with TestClient(get_app(push_store, registry_ttl_sec=60)):
+        refresh = threading.Thread(target=_fire_scheduled_refresh, args=(mock_timer,))
+        refresh.start()
+        assert scheduling.wait(timeout=5)
+    refresh.join()
+
+    assert len(timers) == 2
+    timers[1].cancel.assert_called_once()
