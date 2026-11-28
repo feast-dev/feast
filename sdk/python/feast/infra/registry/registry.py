@@ -53,6 +53,7 @@ from feast.permissions.auth_model import AuthConfig, NoAuthConfig
 from feast.permissions.permission import Permission
 from feast.project import Project
 from feast.project_metadata import ProjectMetadata
+from feast.proto_utils import serialize_data_source
 from feast.protos.feast.core.FeatureViewVersion_pb2 import FeatureViewVersionRecord
 from feast.protos.feast.core.Registry_pb2 import Registry as RegistryProto
 from feast.repo_config import RegistryConfig
@@ -685,6 +686,13 @@ class Registry(BaseRegistry):
             existing_proto.spec.stream_source.CopyFrom(
                 updated_fv.stream_source.to_proto()
             )
+        # LabelViewSpec has a single optional `source` field instead
+        if isinstance(updated_fv, LabelView):
+            source_proto = serialize_data_source(updated_fv.source)
+            if source_proto is not None:
+                existing_proto.spec.source.CopyFrom(source_proto)
+            else:
+                existing_proto.spec.ClearField("source")
 
         # Update or clear version pin
         if hasattr(existing_proto.meta, "current_version_number") and hasattr(
