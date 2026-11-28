@@ -4,6 +4,7 @@
 
 The Couchbase Columnar offline store provides support for reading [CouchbaseColumnarSources](../data-sources/couchbase.md). **Note that Couchbase Columnar is available through [Couchbase Capella](https://cloud.couchbase.com/).**
 * Entity dataframes can be provided as a SQL++ query or can be provided as a Pandas dataframe. A Pandas dataframe will be uploaded to Couchbase Capella Columnar as a collection.
+* Historical features can also be retrieved without an entity dataframe by passing `start_date` and/or `end_date` to `get_historical_features`. Every entity key with an event between `start_date` and `end_date` is joined as of `end_date`, so each entity gets its latest feature values within the feature view TTL. No collection is created in this mode. See [entity-less retrieval](../../getting-started/concepts/feature-retrieval.md) for details.
 
 ## Disclaimer
 
