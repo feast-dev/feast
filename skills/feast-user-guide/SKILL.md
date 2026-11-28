@@ -87,7 +87,7 @@ driver_hourly_stats = FeatureView(
 Computes features at request time from other feature views and/or request data.
 
 ```python
-from feast import on_demand_feature_view
+from feast.on_demand_feature_view import on_demand_feature_view
 import pandas as pd
 
 @on_demand_feature_view(

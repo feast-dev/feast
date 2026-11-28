@@ -80,7 +80,7 @@ source = FileSource(
 
 **BigQuerySource**:
 ```python
-from feast.infra.offline_stores.contrib.bigquery_offline_store.bigquery_source import BigQuerySource
+from feast import BigQuerySource
 
 source = BigQuerySource(
     name="driver_stats_bq",
