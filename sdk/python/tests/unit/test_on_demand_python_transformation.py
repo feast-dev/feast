@@ -25,6 +25,7 @@ from feast.field import Field
 from feast.infra.online_stores.sqlite import SqliteOnlineStoreConfig
 from feast.nlp_test_data import create_document_chunks_df
 from feast.on_demand_feature_view import on_demand_feature_view
+from feast.protos.feast.types.Value_pb2 import Value as ProtoValue
 from feast.types import (
     Array,
     Bool,
@@ -344,6 +345,30 @@ class TestOnDemandPythonTransformation(unittest.TestCase):
             == online_python_response["conv_rate"][0]
             + online_python_response["acc_rate"][0]
         )
+
+    def test_python_view_with_full_feature_names(self):
+        request_source = RequestSource(
+            name="match_request", schema=[Field(name="match_count", dtype=Int64)]
+        )
+
+        @on_demand_feature_view(
+            sources=[request_source],
+            schema=[Field(name="matches", dtype=Array(Float32))],
+            mode="python",
+        )
+        def match_view(inputs: dict[str, Any]) -> dict[str, Any]:
+            return {"matches": [[1.5] * n for n in inputs["match_count"]]}
+
+        self.store.apply([request_source, match_view])
+        response = self.store.get_online_features(
+            features=["match_view:matches"],
+            # The Python gRPC server passes request data as proto Values.
+            entity_rows=[{"match_count": ProtoValue(int64_val=0)}],
+            full_feature_names=True,
+        ).to_dict()
+
+        # An empty list converts only with its declared type, found by the long name.
+        assert response["match_view__matches"] == [[]]
 
     def test_python_docs_demo(self):
         entity_rows = [

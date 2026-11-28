@@ -1570,7 +1570,11 @@ def python_values_to_proto_values(
     value_type = feature_type
     sample = next(filter(_non_empty_value, values), None)  # first not empty value
     if sample is not None and feature_type == ValueType.UNKNOWN:
-        if isinstance(sample, (list, np.ndarray)):
+        if isinstance(sample, ProtoValue):
+            # Already converted, e.g. request data from a gRPC RepeatedValue:
+            # the field it sets names the type, and the values pass through.
+            value_type = _proto_value_to_value_type(sample)
+        elif isinstance(sample, (list, np.ndarray)):
             value_type = (
                 feature_type
                 if len(sample) == 0
