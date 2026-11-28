@@ -2,18 +2,18 @@ version: 7
 platforms:
 - name: linux-64
   virtual-packages:
-  - __unix=0=0
+  - __unix=0
   - __linux=4.18
   - __glibc=2.28
   - __archspec=0=x86_64
 - name: osx-64
   virtual-packages:
-  - __unix=0=0
+  - __unix=0
   - __osx=13.0
   - __archspec=0=x86_64
 - name: osx-arm64
   virtual-packages:
-  - __unix=0=0
+  - __unix=0
   - __osx=13.0
   - __archspec=0=m1
 environments:
@@ -2739,8 +2739,8 @@ packages:
   - pymssql>=2.3.6 ; extra == 'azure'
   - cassandra-driver>=3.26.0,<4 ; extra == 'cassandra'
   - clickhouse-connect>=0.7.19 ; extra == 'clickhouse'
-  - couchbase==4.3.2 ; extra == 'couchbase'
-  - couchbase-columnar==1.0.0 ; extra == 'couchbase'
+  - couchbase==4.3.6 ; extra == 'couchbase'
+  - couchbase-columnar==1.0.1 ; extra == 'couchbase'
   - deltalake<1.0.0 ; extra == 'delta'
   - docling>=2.135.0 ; extra == 'docling'
   - ibis-framework[duckdb]>=10.0.0 ; extra == 'duckdb'
@@ -2799,7 +2799,7 @@ packages:
   - transformers>=4.36.0 ; extra == 'rag'
   - datasets>=3.6.0 ; extra == 'rag'
   - sentence-transformers>=3.0.0 ; extra == 'rag'
-  - ray>=2.47.0 ; python_full_version == '3.11.*' and extra == 'ray'
+  - ray>=2.47.0 ; extra == 'ray'
   - codeflare-sdk>=0.31.1 ; extra == 'ray'
   - datasets>=3.6.0 ; extra == 'ray'
   - redis>=4.2.2,<8 ; extra == 'redis'

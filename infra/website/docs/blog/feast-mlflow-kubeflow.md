@@ -398,7 +398,7 @@ Kubeflow Pipelines lets you compose the entire workflow — feature retrieval, t
 ```python
 from kfp import dsl
 
-@dsl.component(base_image="python:3.10-slim", packages_to_install=["feast", "mlflow", "scikit-learn", "pandas", "pyarrow"])
+@dsl.component(base_image="python:3.11-slim", packages_to_install=["feast", "mlflow", "scikit-learn", "pandas", "pyarrow"])
 def retrieve_features(entity_df_path: str, feature_store_repo: str, output_path: dsl.Output[dsl.Dataset]):
     from feast import FeatureStore
     import pandas as pd
@@ -412,7 +412,7 @@ def retrieve_features(entity_df_path: str, feature_store_repo: str, output_path:
     df.to_parquet(output_path.path)
 
 
-@dsl.component(base_image="python:3.10-slim", packages_to_install=["feast", "mlflow", "scikit-learn", "pandas"])
+@dsl.component(base_image="python:3.11-slim", packages_to_install=["feast", "mlflow", "scikit-learn", "pandas"])
 def train_and_log(features_path: dsl.Input[dsl.Dataset], mlflow_tracking_uri: str, model_name: str):
     import mlflow, mlflow.sklearn
     import pandas as pd

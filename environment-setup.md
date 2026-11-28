@@ -1,7 +1,7 @@
 1. Install Docker and [uv](https://docs.astral.sh/uv/getting-started/installation/)
 2. Create a virtual environment and activate it:
 ```bash
-uv venv --python 3.11
+uv venv --python 3.11  # 3.11, 3.12 and 3.13 are supported
 source .venv/bin/activate
 ```
 3. Install dependencies:

@@ -30,7 +30,7 @@ The current adapter adds explicit online service errors, opt-in HTTP retries, Pa
 
 ## Edit and rebuild
 
-Run from the repository root with Python 3.10+ (standard library only; no Feast installation or running Chronon service required):
+Run from the repository root with Python 3.11+ (standard library only; no Feast installation or running Chronon service required):
 
 ```bash
 python3 docs/presentations/feast-chronon-summit/build_deck.py
