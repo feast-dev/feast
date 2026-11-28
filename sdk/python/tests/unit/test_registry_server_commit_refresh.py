@@ -274,3 +274,186 @@ def test_update_infra_allows_missing_project_with_create_permission(
 
     assert response == Empty()
     registry.update_infra.assert_called_once()
+
+
+def test_registry_server_writes_through_for_file_registry(tmp_path):
+    """Issue #6663: File Registry must persist each RPC immediately even when commit=False."""
+    from feast import FileSource
+    from feast.entity import Entity
+    from feast.infra.registry.registry import Registry
+    from feast.repo_config import RegistryConfig
+    from feast.value_type import ValueType
+
+    no_security_manager()
+    registry_path = tmp_path / "registry.db"
+    config = RegistryConfig(path=str(registry_path), cache_ttl_seconds=60)
+    registry = Registry("test_project", config, None)
+    registry.apply_entity(
+        Entity(name="stale_entity", join_keys=["id"], value_type=ValueType.INT64),
+        project="test_project",
+        commit=True,
+    )
+
+    server = RegistryServer(registry=registry)
+
+    new_entity = Entity(
+        name="fresh_entity", join_keys=["id"], value_type=ValueType.INT64
+    )
+    server.ApplyEntity(
+        RegistryServer_pb2.ApplyEntityRequest(
+            entity=new_entity.to_proto(), project="test_project", commit=False
+        ),
+        None,
+    )
+    # Delete* performs an uncached read (allow_cache=False) that previously discarded
+    # uncommitted commit=False applies still sitting only in cached_registry_proto.
+    server.DeleteEntity(
+        RegistryServer_pb2.DeleteEntityRequest(
+            name="stale_entity", project="test_project", commit=False
+        ),
+        None,
+    )
+
+    source = FileSource(
+        name="fresh_source",
+        path="data.parquet",
+    )
+    server.ApplyDataSource(
+        RegistryServer_pb2.ApplyDataSourceRequest(
+            data_source=source.to_proto(), project="test_project", commit=False
+        ),
+        None,
+    )
+
+    reloaded = Registry("test_project", config, None)
+    assert [
+        e.name
+        for e in reloaded.list_entities(project="test_project", allow_cache=False)
+    ] == ["fresh_entity"]
+    assert [
+        s.name
+        for s in reloaded.list_data_sources(project="test_project", allow_cache=False)
+    ] == ["fresh_source"]
+
+
+def test_registry_server_writes_through_all_delete_handlers():
+    """Every Delete* handler must force commit=True when proxying a file Registry."""
+    from unittest.mock import patch
+
+    from feast.infra.registry.registry import Registry
+    from feast.repo_config import RegistryConfig
+
+    no_security_manager()
+    registry = object.__new__(Registry)
+    registry.config = RegistryConfig(path="registry.db")
+
+    server = RegistryServer(registry=registry)
+
+    with (
+        patch.object(registry, "get_entity", return_value=Mock()),
+        patch.object(registry, "delete_entity") as mock_del_entity,
+        patch.object(registry, "get_data_source", return_value=Mock()),
+        patch.object(registry, "delete_data_source") as mock_del_ds,
+        patch.object(registry, "get_any_feature_view", return_value=Mock()),
+        patch.object(registry, "delete_feature_view") as mock_del_fv,
+        patch.object(registry, "get_feature_service", return_value=Mock()),
+        patch.object(registry, "delete_feature_service") as mock_del_fs,
+        patch.object(registry, "get_saved_dataset", return_value=Mock()),
+        patch.object(registry, "delete_saved_dataset") as mock_del_sd,
+        patch.object(registry, "get_validation_reference", return_value=Mock()),
+        patch.object(registry, "delete_validation_reference") as mock_del_vr,
+        patch.object(registry, "get_permission", return_value=Mock()),
+        patch.object(registry, "delete_permission") as mock_del_perm,
+        patch.object(registry, "get_project", return_value=Mock()),
+        patch.object(registry, "delete_project") as mock_del_proj,
+    ):
+        server.DeleteEntity(
+            RegistryServer_pb2.DeleteEntityRequest(name="e", project="p", commit=False),
+            None,
+        )
+        server.DeleteDataSource(
+            RegistryServer_pb2.DeleteDataSourceRequest(
+                name="ds", project="p", commit=False
+            ),
+            None,
+        )
+        server.DeleteFeatureView(
+            RegistryServer_pb2.DeleteFeatureViewRequest(
+                name="fv", project="p", commit=False
+            ),
+            None,
+        )
+        server.DeleteFeatureService(
+            RegistryServer_pb2.DeleteFeatureServiceRequest(
+                name="fs", project="p", commit=False
+            ),
+            None,
+        )
+        server.DeleteSavedDataset(
+            RegistryServer_pb2.DeleteSavedDatasetRequest(
+                name="sd", project="p", commit=False
+            ),
+            None,
+        )
+        server.DeleteValidationReference(
+            RegistryServer_pb2.DeleteValidationReferenceRequest(
+                name="vr", project="p", commit=False
+            ),
+            None,
+        )
+        server.DeletePermission(
+            RegistryServer_pb2.DeletePermissionRequest(
+                name="perm", project="p", commit=False
+            ),
+            None,
+        )
+        server.DeleteProject(
+            RegistryServer_pb2.DeleteProjectRequest(name="proj", commit=False), None
+        )
+
+    for mock_del in (
+        mock_del_entity,
+        mock_del_ds,
+        mock_del_fv,
+        mock_del_fs,
+        mock_del_sd,
+        mock_del_vr,
+        mock_del_perm,
+        mock_del_proj,
+    ):
+        assert mock_del.call_args.kwargs["commit"] is True
+
+
+def test_registry_server_preserves_commit_flag_for_non_file_registry():
+    """Non-Registry backends (e.g., SqlRegistry/SnowflakeRegistry) receive request.commit unchanged."""
+    from unittest.mock import patch
+
+    from feast.entity import Entity
+    from feast.infra.registry.sql import SqlRegistry
+    from feast.value_type import ValueType
+
+    no_security_manager()
+    sql_registry = object.__new__(SqlRegistry)
+    server = RegistryServer(registry=sql_registry)
+
+    entity = Entity(name="my_entity", join_keys=["id"], value_type=ValueType.INT64)
+    with (
+        patch.object(sql_registry, "apply_entity") as mock_apply,
+        patch.object(sql_registry, "get_entity", return_value=entity),
+        patch.object(sql_registry, "delete_entity") as mock_delete,
+    ):
+        server.ApplyEntity(
+            RegistryServer_pb2.ApplyEntityRequest(
+                entity=entity.to_proto(), project="p", commit=False
+            ),
+            None,
+        )
+        server.DeleteEntity(
+            RegistryServer_pb2.DeleteEntityRequest(
+                name="my_entity", project="p", commit=False
+            ),
+            None,
+        )
+
+    assert mock_apply.call_args.kwargs["commit"] is False
+    assert mock_delete.call_args.kwargs["commit"] is False
