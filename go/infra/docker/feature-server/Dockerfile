@@ -30,9 +30,11 @@ RUN go build -o feast ./go/main.go
 # finds a matching glibc.
 FROM debian:trixie-slim
 
-# Update the package list, install ca-certificates and libbrotli1 (patched
-# version addressing DSA-6582-1).
+# Update the package list, apply pending Debian security updates (the slim
+# base image can lag behind them, e.g. openssl, libc6 and zlib1g), and install
+# ca-certificates and libbrotli1 (patched version addressing DSA-6582-1).
 RUN apt-get update \
+    && apt-get upgrade -y --no-install-recommends \
     && apt-get install -y --no-install-recommends ca-certificates libbrotli1 \
     && rm -rf /var/lib/apt/lists/*
 
