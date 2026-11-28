@@ -81,6 +81,10 @@ func NewFeatureStore(config *registry.RepoConfig, callback transformation.Transf
 	}, nil
 }
 
+// GetOnlineFeatures returns the requested features, named by featureRefs or by featureService, for the
+// entity rows in joinKeyToEntityValues. It reads each group of feature views from the online store, then
+// applies on-demand feature views using requestData.
+//
 // TODO: Review all functions that use ODFV and Request FV since these have not been tested
 // ToDo: Split GetOnlineFeatures interface into two: GetOnlinFeaturesByFeatureService and GetOnlineFeaturesByFeatureRefs
 func (fs *FeatureStore) GetOnlineFeatures(
@@ -168,7 +172,7 @@ func (fs *FeatureStore) GetOnlineFeatures(
 	}
 
 	for _, groupRef := range groupedRefs {
-		featureData, err := fs.readFromOnlineStore(ctx, groupRef.EntityKeys, groupRef.FeatureViewNames, groupRef.FeatureNames)
+		featureData, err := fs.readFromOnlineStore(ctx, groupRef.EntityKeys, groupRef.FeatureViewNames, groupRef.FeatureNames, requestedFeatureViews)
 		if err != nil {
 			return nil, err
 		}
@@ -320,9 +324,13 @@ func (fs *FeatureStore) GetFeatureView(featureViewName string, hideDummyEntity b
 	return fv, nil
 }
 
+// readFromOnlineStore reads one group of features from the online store. views is the request's own
+// snapshot of its feature views (the one the entity keys were built from); stores that need entity names,
+// such as Bigtable, get them from it, so a registry refresh mid-request cannot mix schemas.
 func (fs *FeatureStore) readFromOnlineStore(ctx context.Context, entityRows []*prototypes.EntityKey,
 	requestedFeatureViewNames []string,
 	requestedFeatureNames []string,
+	views []*onlineserving.FeatureViewAndRefs,
 ) ([][]onlinestore.FeatureData, error) {
 	// Create a Datadog span from context
 	ctx, span := tracer.Start(ctx, "fs.readFromOnlineStore")
@@ -333,7 +341,21 @@ func (fs *FeatureStore) readFromOnlineStore(ctx context.Context, entityRows []*p
 	for index, entityKey := range entityRows {
 		entityRowsValue[index] = &prototypes.EntityKey{JoinKeys: entityKey.JoinKeys, EntityValues: entityKey.EntityValues}
 	}
+	if entityAwareStore, ok := fs.onlineStore.(onlinestore.EntityAwareOnlineStore); ok {
+		return entityAwareStore.OnlineReadWithEntities(ctx, entityRowsValue, requestedFeatureViewNames,
+			requestedFeatureNames, entityNamesByView(views))
+	}
 	return fs.onlineStore.OnlineRead(ctx, entityRowsValue, requestedFeatureViewNames, requestedFeatureNames)
+}
+
+// entityNamesByView maps each view's base name, which is the name GroupFeatureRefs passes to the online
+// store, to its entity names. Projections of one view share a base name and its entities.
+func entityNamesByView(views []*onlineserving.FeatureViewAndRefs) map[string][]string {
+	names := make(map[string][]string, len(views))
+	for _, viewAndRefs := range views {
+		names[viewAndRefs.View.Base.Name] = viewAndRefs.View.EntityNames
+	}
+	return names
 }
 
 func (fs *FeatureStore) GetFcosMap() (map[string]*model.Entity, map[string]*model.FeatureView, map[string]*model.OnDemandFeatureView, error) {

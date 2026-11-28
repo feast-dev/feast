@@ -19,7 +19,7 @@ online_store:
 
 * **provider** \("local" or "gcp"\)  — Defines the environment in which Feast will execute data flows.
 * **registry** \(a local or GCS filepath\) — Defines the location of the feature registry.
-* **online\_store** — Configures the online store. This field will have various subfields depending on the type of online store:
+* **online\_store** — Configures the online store. This field will have various subfields depending on the type of online store. Each store's page under [Online stores](online-stores/README.md) lists its options, for example the Bigtable read settings that only the Go feature server uses ([Bigtable](online-stores/bigtable.md#go-feature-server)). The sqlite and datastore options are:
   * **type** \("sqlite" or "datastore"\) — Defines the type of online store.
   * **path** \(a local filepath\) — Parameter for the sqlite online store. Defines the path to the SQLite database file.
   * **project\_id**  — Optional parameter for the datastore online store. Sets the GCP project id used by Feast, if not set Feast will use the default GCP project id in the local environment.
