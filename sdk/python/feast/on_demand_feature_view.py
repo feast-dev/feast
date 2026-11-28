@@ -937,6 +937,14 @@ class OnDemandFeatureView(BaseFeatureView):
     def _get_projected_feature_name(self, feature: str) -> str:
         return f"{self.projection.name_to_use()}__{feature}"
 
+    def _without_output_names(self, columns_to_cleanup: list[str]) -> list[str]:
+        """Keep an ODFV output that shares its name with a source feature alias."""
+        output_names = set()
+        for feature in self.features:
+            output_names.add(feature.name)
+            output_names.add(self._get_projected_feature_name(feature.name))
+        return [col for col in columns_to_cleanup if col not in output_names]
+
     def transform_ibis(
         self,
         ibis_table,
@@ -988,7 +996,7 @@ class OnDemandFeatureView(BaseFeatureView):
                     )
                     columns_to_cleanup.append(full_feature_ref)
 
-        return ibis_table, columns_to_cleanup
+        return ibis_table, self._without_output_names(columns_to_cleanup)
 
     def _postprocess_ibis_table(self, transformed_table, full_feature_names: bool):
         """
@@ -1056,7 +1064,7 @@ class OnDemandFeatureView(BaseFeatureView):
                     )
                     columns_to_cleanup.append(full_feature_ref)
 
-        return pa_table, columns_to_cleanup
+        return pa_table, self._without_output_names(columns_to_cleanup)
 
     def _postprocess_arrow_table(
         self,
@@ -1148,7 +1156,7 @@ class OnDemandFeatureView(BaseFeatureView):
                     preprocessed_dict[full_feature_ref] = feature_dict[feature.name]
                     columns_to_cleanup.append(full_feature_ref)
 
-        return preprocessed_dict, columns_to_cleanup
+        return preprocessed_dict, self._without_output_names(columns_to_cleanup)
 
     def infer_features(self) -> None:
         if self.aggregations and not self.feature_transformation:
