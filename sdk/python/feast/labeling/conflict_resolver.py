@@ -51,7 +51,7 @@ def resolve_conflicts(
         )
     elif conflict_policy == ConflictPolicy.MAJORITY_VOTE:
         return _resolve_majority_vote(
-            df, join_key_columns, feature_name_columns, timestamp_field
+            df, join_key_columns, feature_name_columns, timestamp_field, labeler_field
         )
     else:
         return _resolve_last_write_wins(df, join_key_columns, timestamp_field)
@@ -104,11 +104,13 @@ def _resolve_majority_vote(
     join_key_columns: List[str],
     feature_name_columns: List[str],
     timestamp_field: str,
+    labeler_field: str,
 ) -> pd.DataFrame:
     """For each entity, pick the most common value per feature column.
 
     Uses the most frequent value across all labelers for each feature.
-    Ties are broken by recency (latest timestamp wins).
+    Ties are broken by recency (latest timestamp wins). The resolved row has no
+    single labeler, so its labeler field is set to "majority_vote".
     """
     if not feature_name_columns:
         return _resolve_last_write_wins(df, join_key_columns, timestamp_field)
@@ -143,8 +145,8 @@ def _resolve_majority_vote(
                 row[col] = top_value
 
         row[timestamp_field] = group[timestamp_field].max()
-        if "labeler" in group.columns and "labeler" not in join_key_columns:
-            row["labeler"] = "majority_vote"
+        if labeler_field in group.columns and labeler_field not in join_key_columns:
+            row[labeler_field] = "majority_vote"
 
         resolved_rows.append(row)
 
