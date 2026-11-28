@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Feast AI DJ</title>
+<style>
+  :root {
+    --bg: #f6f4f1; --panel: #ffffff; --ink: #1b1a19; --muted: #6b6762; --line: #e6e1db;
+    --accent: #e8572e; --accent-ink: #ffffff; --soft: #fbe9e3; --ok: #2f9e5b; --bad: #c9442f;
+    --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141312; --panel: #1d1c1a; --ink: #f1eee9; --muted: #9c968e; --line: #2e2c29;
+      --accent: #ff6a3d; --accent-ink: #1b0d07; --soft: #3a2018; --ok: #4cc27c; --bad: #ff7b66;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+    padding-bottom: 96px;
+  }
+  button { font: inherit; cursor: pointer; }
+  header {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding: 14px 24px; border-bottom: 1px solid var(--line); background: var(--panel);
+  }
+  .disc {
+    width: 30px; height: 30px; border-radius: 50%; flex: none;
+    background: radial-gradient(circle, var(--accent) 0 18%, var(--ink) 19% 23%, #2a2826 24% 100%);
+    box-shadow: inset 0 0 0 2px #3a3835;
+  }
+  .disc.spin { animation: spin 1.2s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  h1 { font-size: 18px; margin: 0; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); font-size: 13px; }
+  .status { margin-left: auto; display: flex; gap: 10px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+  .status span::before {
+    content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    margin-right: 5px; background: var(--bad); vertical-align: 1px;
+  }
+  .status span.up::before { background: var(--ok); }
+  main {
+    display: grid; grid-template-columns: 320px 1fr; gap: 20px;
+    max-width: 1180px; margin: 20px auto; padding: 0 24px;
+  }
+  @media (max-width: 860px) { main { grid-template-columns: 1fr; padding: 0 16px; } header { padding: 12px 16px; } }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
+  .card + .card { margin-top: 16px; }
+  h2 {
+    font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--muted); margin: 0 0 12px; font-weight: 600;
+  }
+  h2 small { text-transform: none; letter-spacing: 0; font-weight: 400; }
+  .cluster { margin-bottom: 12px; }
+  .cluster .row { display: flex; justify-content: space-between; gap: 8px; font-size: 14px; }
+  .bar { height: 6px; background: var(--line); border-radius: 3px; margin-top: 5px; overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip {
+    border: 1px solid var(--line); background: transparent; color: var(--ink);
+    border-radius: 999px; padding: 4px 11px; font-size: 13px;
+  }
+  button.chip:hover { border-color: var(--accent); color: var(--accent); }
+  .tag { font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; white-space: nowrap; }
+  .tag.mood { color: var(--accent); border-color: var(--accent); }
+  .actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+  .btn {
+    border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+    padding: 7px 12px; border-radius: 9px; font-size: 13px;
+  }
+  .btn:hover { border-color: var(--ink); }
+  .btn:disabled { opacity: 0.5; cursor: progress; }
+  .empty { color: var(--muted); font-size: 14px; }
+  ul.tracks { list-style: none; margin: 0; padding: 0; }
+  ul.tracks li {
+    display: flex; align-items: center; gap: 10px; padding: 7px 0;
+    border-top: 1px solid var(--line); font-size: 14px;
+  }
+  ul.tracks li:first-child { border-top: 0; }
+  .t { min-width: 0; flex: 1; }
+  .t b, .t span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .t b { font-weight: 550; }
+  .t span { color: var(--muted); font-size: 13px; }
+  form.ask { display: flex; gap: 10px; }
+  form.ask input {
+    flex: 1; min-width: 0; font: inherit; font-size: 17px; padding: 12px 14px;
+    border: 1px solid var(--line); border-radius: 11px; background: var(--bg); color: var(--ink);
+  }
+  form.ask input:focus, .btn:focus-visible, .chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .primary {
+    border: 0; background: var(--accent); color: var(--accent-ink); font-weight: 600;
+    padding: 0 20px; border-radius: 11px;
+  }
+  .primary:disabled { opacity: 0.6; cursor: progress; }
+  .suggest { margin-top: 12px; }
+  .trace {
+    font: 12.5px/1.6 var(--mono); background: var(--bg); border: 1px solid var(--line);
+    border-radius: 10px; padding: 10px 12px; margin-top: 16px; max-height: 220px; overflow: auto;
+  }
+  .trace div { white-space: pre-wrap; word-break: break-word; }
+  .trace .tool { color: var(--accent); font-weight: 600; }
+  .trace .args { color: var(--muted); }
+  .trace .err { color: var(--bad); }
+  .intro { font-size: 19px; line-height: 1.4; margin: 4px 0 8px; letter-spacing: -0.01em; }
+  .meta { color: var(--muted); font-size: 13px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .meta a { color: var(--accent); }
+  .playlist li { cursor: pointer; padding: 9px 6px; border-radius: 8px; }
+  .playlist li:hover { background: var(--bg); }
+  .playlist li.playing { background: var(--soft); }
+  .num { width: 22px; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .player {
+    position: fixed; left: 0; right: 0; bottom: 0; background: var(--panel);
+    border-top: 1px solid var(--line); padding: 12px 24px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .player .t { max-width: 360px; }
+  .controls { display: flex; gap: 6px; }
+  .controls button {
+    width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--line);
+    background: var(--panel); color: var(--ink); font-size: 14px;
+  }
+  .controls button.play { background: var(--accent); color: var(--accent-ink); border: 0; }
+  .progress { flex: 1; height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
+  .progress i { display: block; height: 100%; width: 0; background: var(--accent); }
+  .hint { font-size: 12px; color: var(--muted); white-space: nowrap; }
+  @media (max-width: 640px) { .player { padding: 10px 16px; gap: 10px; } .hint { display: none; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="disc" id="disc"></div>
+  <div>
+    <h1>Feast AI DJ</h1>
+    <div class="sub" id="who">Listener, model</div>
+  </div>
+  <div class="status" id="status" aria-label="Service status"></div>
+</header>
+
+<main>
+  <aside>
+    <section class="card">
+      <h2>Your taste <small>from Feast: user_taste</small></h2>
+      <div id="taste"><div class="empty">Loading…</div></div>
+      <div class="actions">
+        <button class="btn" id="taste-btn" title="Run the clustering job on your recent plays">Update taste</button>
+        <button class="btn" id="sim-btn" title="Play the Hip-Hop and Electronic songs and skip a Rock song, through Navidrome">Simulate a listener</button>
+      </div>
+      <div class="sub" id="aside-msg" style="margin-top:8px"></div>
+    </section>
+    <section class="card">
+      <h2>Recently played <small id="plays"></small></h2>
+      <ul class="tracks" id="recent"></ul>
+    </section>
+    <section class="card" id="skipped-card" hidden>
+      <h2>Skipped</h2>
+      <ul class="tracks" id="skipped"></ul>
+    </section>
+  </aside>
+
+  <section>
+    <div class="card">
+      <h2>What do you want to hear?</h2>
+      <form class="ask" id="ask-form">
+        <input id="ask" placeholder="hype me up for a workout" autocomplete="off" aria-label="Your request">
+        <button class="primary" id="go">Spin it</button>
+      </form>
+      <div class="chips suggest" id="suggest"></div>
+      <div class="trace" id="trace" hidden aria-live="polite"></div>
+    </div>
+    <div class="card" id="result" hidden>
+      <h2>Your playlist</h2>
+      <p class="intro" id="intro"></p>
+      <div class="meta" id="meta"></div>
+      <ul class="tracks playlist" id="playlist" style="margin-top:12px"></ul>
+    </div>
+  </section>
+</main>
+
+<div class="player">
+  <div class="controls">
+    <button id="prev" aria-label="Previous">⏮</button>
+    <button id="toggle" class="play" aria-label="Play or pause">▶</button>
+    <button id="next" aria-label="Next (counts as a skip if you have heard less than half)">⏭</button>
+  </div>
+  <div class="t"><b id="np-title">Nothing playing</b><span id="np-artist">Ask the DJ for a playlist</span></div>
+  <div class="progress"><i id="bar"></i></div>
+  <div class="hint">Half a song = a play. Less = a skip.</div>
+  <audio id="audio" preload="auto"></audio>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+const SUGGEST = ["hype me up for a workout", "something chill to focus while I code", "music for a rainy evening", "party with friends", "surprise me"];
+
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(body.detail || r.statusText);
+  return body;
+}
+
+function trackRow(t, extra = "") {
+  return `<div class="t"><b>${esc(t.title)}</b><span>${esc(t.artist)}</span></div>${extra}<span class="tag">${esc(t.genre)}</span>`;
+}
+
+// ---- service status ----
+async function loadStatus() {
+  try {
+    const s = await api("/api/status");
+    $("who").textContent = `Listener "${s.user_id}" · ${s.model} on Ollama`;
+    $("status").innerHTML = Object.entries(s.services)
+      .map(([name, up]) => `<span class="${up ? "up" : ""}" title="${up ? "up" : "not answering"}">${esc(name)}</span>`).join("");
+  } catch { $("status").innerHTML = `<span>UI server</span>`; }
+}
+
+// ---- the listener, as Feast sees it ----
+async function loadListener() {
+  let l;
+  try { l = await api("/api/listener"); } catch (e) {
+    $("taste").innerHTML = `<div class="empty">Feast is not answering: ${esc(e.message)}</div>`;
+    return;
+  }
+  const clusters = [...l.taste_summary.matchAll(/(.+?) \((\d+)%\)(?:, |$)/g)];
+  $("taste").innerHTML = clusters.length
+    ? clusters.map(([, label, pct]) => `<div class="cluster"><div class="row"><span>${esc(label)}</span><span class="sub">${pct}%</span></div><div class="bar"><i style="width:${pct}%"></i></div></div>`).join("")
+      + `<div class="chips" style="margin-top:12px">${l.top_genres.map((g) => `<span class="chip">${esc(g)}</span>`).join("")}</div>`
+    : `<div class="empty">No taste yet. Play a few songs (or simulate a listener), then press Update taste.</div>`;
+  $("plays").textContent = l.plays ? `${l.plays} plays` : "";
+  $("recent").innerHTML = l.recent.length
+    ? l.recent.map((t) => `<li>${trackRow(t)}</li>`).join("")
+    : `<li class="empty">Nothing yet.</li>`;
+  $("skipped-card").hidden = !l.skipped.length;
+  $("skipped").innerHTML = l.skipped.map((t) => `<li>${trackRow(t)}</li>`).join("");
+}
+
+async function busy(btn, label, work) {
+  const old = btn.textContent;
+  btn.disabled = true; btn.textContent = label; $("aside-msg").textContent = "";
+  try { $("aside-msg").textContent = await work(); }
+  catch (e) { $("aside-msg").textContent = e.message; }
+  finally { btn.disabled = false; btn.textContent = old; loadListener(); }
+}
+$("taste-btn").onclick = () => busy($("taste-btn"), "Clustering…", async () => {
+  const r = await api("/api/taste", {method: "POST"});
+  return `Clustered ${r.plays} plays into ${r.clusters} ${r.clusters === 1 ? "group" : "groups"}.`;
+});
+$("sim-btn").onclick = () => busy($("sim-btn"), "Playing…", async () => {
+  const r = await api("/api/simulate", {method: "POST"});
+  return `${r.lines.length} songs sent through Navidrome. Plays can take a few seconds to reach Feast; then press Update taste.`;
+});
+
+// ---- ask the DJ ----
+$("suggest").innerHTML = SUGGEST.map((s) => `<button class="chip" type="button">${esc(s)}</button>`).join("");
+$("suggest").onclick = (e) => { if (e.target.matches("button")) { $("ask").value = e.target.textContent; spin(); } };
+$("ask-form").onsubmit = (e) => { e.preventDefault(); spin(); };
+
+function traceLine(text) {
+  const m = text.match(/^(LLM|Code) -> (\w+)\((.*)\)$/s);
+  const div = document.createElement("div");
+  div.innerHTML = m
+    ? `› ${m[1]} → <span class="tool">${esc(m[2])}</span><span class="args">(${esc(m[3])})</span>`
+    : `› ${esc(text)}`;
+  $("trace").append(div);
+  $("trace").scrollTop = $("trace").scrollHeight;
+}
+
+function spin() {
+  const ask = $("ask").value.trim() || $("ask").placeholder;
+  $("go").disabled = true; $("disc").classList.add("spin");
+  $("trace").hidden = false; $("trace").innerHTML = "";
+  traceLine(`Asking ${ask ? `"${ask}"` : "for a playlist"}…`);
+  const es = new EventSource(`/api/dj?ask=${encodeURIComponent(ask)}`);
+  const finish = () => { es.close(); $("go").disabled = false; $("disc").classList.remove("spin"); };
+  es.addEventListener("step", (e) => traceLine(JSON.parse(e.data)));
+  es.addEventListener("fail", (e) => {
+    const div = document.createElement("div"); div.className = "err"; div.textContent = JSON.parse(e.data);
+    $("trace").append(div); finish();
+  });
+  es.addEventListener("done", (e) => { showResult(JSON.parse(e.data)); finish(); });
+  es.onerror = () => { if (!$("go").disabled) return; traceLine("Lost the connection to the UI server."); finish(); };
+}
+
+let queue = [], current = -1;
+function showResult(r) {
+  $("result").hidden = false;
+  $("intro").textContent = r.intro || "Here is your next playlist.";
+  $("meta").innerHTML = [
+    r.vibe && `<span class="chip">${esc(r.vibe)}</span>`,
+    r.query && `<span>searched “${esc(Array.isArray(r.query) ? r.query.join("”, “") : r.query)}”</span>`,
+    `<span>${r.mood_matches} mood matches · ${r.sound_alikes} sound-alikes</span>`,
+    r.playlist.url && `<a href="${esc(r.playlist.url)}" target="_blank" rel="noopener">Open in Navidrome ↗</a>`,
+  ].filter(Boolean).join("");
+  queue = r.tracks; current = -1;
+  $("playlist").innerHTML = queue.length
+    ? queue.map((t, i) => `<li data-i="${i}"><span class="num">${i + 1}</span>${trackRow(t, `<span class="tag ${t.source === "mood" ? "mood" : ""}">${esc(t.source)}</span>`)}</li>`).join("")
+    : `<li class="empty">No new songs found. Try another request.</li>`;
+  if (queue.length) play(0);
+}
+$("playlist").onclick = (e) => { const li = e.target.closest("li[data-i]"); if (li) play(+li.dataset.i); };
+
+// ---- player: plays go through Navidrome -> bridge -> Feast ----
+const audio = $("audio");
+let listened = false;
+function scrobble(track_id, done) {
+  fetch("/api/scrobble", {method: "POST", headers: {"content-type": "application/json"}, body: JSON.stringify({track_id, listened: done})});
+}
+function play(i) {
+  if (i < 0 || i >= queue.length) return;
+  current = i; listened = false;
+  const t = queue[i];
+  audio.src = `/api/audio/${t.track_id}`;
+  audio.play().catch(() => {});
+  scrobble(t.track_id, false);
+  $("np-title").textContent = t.title; $("np-artist").textContent = `${t.artist} · ${t.genre}`;
+  document.querySelectorAll(".playlist li").forEach((li) => li.classList.toggle("playing", +li.dataset.i === i));
+}
+audio.ontimeupdate = () => {
+  if (!audio.duration) return;
+  $("bar").style.width = `${(100 * audio.currentTime) / audio.duration}%`;
+  if (!listened && audio.currentTime >= audio.duration / 2) {
+    listened = true; scrobble(queue[current].track_id, true);
+    setTimeout(loadListener, 4000);
+  }
+};
+audio.onended = () => play(current + 1);
+audio.onplay = () => { $("toggle").textContent = "⏸"; };
+audio.onpause = () => { $("toggle").textContent = "▶"; };
+$("toggle").onclick = () => { if (current < 0) { play(0); return; } audio.paused ? audio.play() : audio.pause(); };
+$("next").onclick = () => play(current + 1);
+$("prev").onclick = () => play(Math.max(0, current - 1));
+
+loadStatus(); loadListener();
+setInterval(loadStatus, 10000);
+setInterval(loadListener, 15000);
+</script>
+</body>
+</html>

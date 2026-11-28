@@ -1,0 +1,18 @@
+[project]
+name = "feast-ai-dj"
+version = "0.1.0"
+description = "A local AI DJ: Navidrome plays, Feast stores the catalog and taste, a small LLM picks songs through the standalone feast mcp server"
+requires-python = "==3.12.*"
+dependencies = [
+    "feast[milvus,mcp-server]==0.68.0",
+    "httpx>=0.28.1",
+    "librosa>=0.11.0",
+    "mcp>=2.3.0",
+    "ollama>=0.6.0",
+    "pandas>=2.2.3",
+    "pyarrow>=18.1.0",
+    "remotezip>=0.12.3",
+    "scikit-learn>=1.5.1",
+    "soundfile>=0.12.1",
+    "uvicorn>=0.30.0",
+]

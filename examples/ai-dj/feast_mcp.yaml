@@ -1,0 +1,17 @@
+# The standalone Feast MCP server: `uv run feast mcp --config feast_mcp.yaml`.
+# It holds no data. It proxies MCP tool calls to the Feast feature server
+# (dj/server.py, which embeds query text with CLaMP 3).
+
+server:
+  transport: http # serves MCP at http://127.0.0.1:6590/mcp
+  host: 127.0.0.1
+  port: 6590
+
+features:
+  url: http://127.0.0.1:6566 # mounts the features_* tools
+
+timeout: 60
+
+observability:
+  level: INFO
+  format: text

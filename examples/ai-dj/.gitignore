@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+data/
+config/.env
+config/navidrome.toml
+clamp3/.venv/
+clamp3/vendor/
+clamp3/weights/
+uv.lock
+clamp3/uv.lock
