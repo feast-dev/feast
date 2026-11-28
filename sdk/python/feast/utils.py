@@ -964,7 +964,7 @@ def _augment_response_with_on_demand_transforms(
                     )
                 elif odfv.mode in {"pandas", "substrait"}:
                     if initial_response_arrow is None:
-                        initial_response_arrow = initial_response.to_arrow()
+                        initial_response_arrow = initial_response._to_arrow()
                     initial_response_arrow = _apply_aggregations_to_response(
                         initial_response_arrow,
                         odfv.aggregations,
@@ -1016,7 +1016,7 @@ def _augment_response_with_on_demand_transforms(
                 )
             elif odfv.mode in {"pandas", "substrait"}:
                 if initial_response_arrow is None:
-                    initial_response_arrow = initial_response.to_arrow()
+                    initial_response_arrow = initial_response._to_arrow()
                 odfv_input_arrow = initial_response_arrow
                 if odfv.mode == "pandas":
                     odfv_input_arrow = initial_response_arrow.select(

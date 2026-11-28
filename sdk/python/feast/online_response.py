@@ -31,6 +31,33 @@ else:
 
 TIMESTAMP_POSTFIX: str = "__ts"
 
+# The Arrow type to_arrow() infers for a feature's values when some are present,
+# used when every value is missing so the column type does not depend on the batch.
+_ALL_MISSING_ARROW_TYPES: Dict[Optional[ValueType], pa.DataType] = {
+    ValueType.INT32: pa.int64(),
+    ValueType.INT64: pa.int64(),
+    ValueType.FLOAT: pa.float64(),
+    ValueType.DOUBLE: pa.float64(),
+    ValueType.STRING: pa.string(),
+    ValueType.BYTES: pa.binary(),
+    ValueType.PDF_BYTES: pa.binary(),
+    ValueType.IMAGE_BYTES: pa.binary(),
+    ValueType.BOOL: pa.bool_(),
+    ValueType.UNIX_TIMESTAMP: pa.timestamp("us", tz="UTC"),
+    ValueType.UUID: pa.string(),
+    ValueType.TIME_UUID: pa.string(),
+    ValueType.INT32_LIST: pa.list_(pa.int64()),
+    ValueType.INT64_LIST: pa.list_(pa.int64()),
+    ValueType.FLOAT_LIST: pa.list_(pa.float64()),
+    ValueType.DOUBLE_LIST: pa.list_(pa.float64()),
+    ValueType.STRING_LIST: pa.list_(pa.string()),
+    ValueType.BYTES_LIST: pa.list_(pa.binary()),
+    ValueType.BOOL_LIST: pa.list_(pa.bool_()),
+    ValueType.UNIX_TIMESTAMP_LIST: pa.list_(pa.timestamp("us", tz="UTC")),
+    ValueType.UUID_LIST: pa.list_(pa.string()),
+    ValueType.TIME_UUID_LIST: pa.list_(pa.string()),
+}
+
 
 class OnlineResponse:
     """
@@ -102,8 +129,20 @@ class OnlineResponse:
         Args:
         include_event_timestamps: bool Optionally include feature timestamps in the table
         """
+        return self._to_arrow(include_event_timestamps, type_missing=True)
+
+    def _to_arrow(
+        self, include_event_timestamps: bool = False, type_missing: bool = False
+    ) -> pa.Table:
+        # On demand transformations read this table through pandas, where a typed
+        # all-missing column becomes NaN/NaT instead of None, so they keep the null type.
         result = self.to_dict(include_event_timestamps)
         result = _convert_uuids_for_arrow(result)
+        if type_missing:
+            for name, values in result.items():
+                arrow_type = _ALL_MISSING_ARROW_TYPES.get(self._feature_types.get(name))
+                if arrow_type is not None and all(v is None for v in values):
+                    result[name] = pa.nulls(len(values), type=arrow_type)
         return pa.Table.from_pydict(result)
 
     def to_tensor(
