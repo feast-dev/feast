@@ -287,65 +287,78 @@ func (feast *FeastServices) AddToOpenLineageDiscovery() error {
 		return nil
 	}
 
-	cm := &corev1.ConfigMap{}
-	err = feast.Handler.Client.Get(feast.Handler.Context, types.NamespacedName{
-		Name:      OpenLineageDiscoveryConfigMapName,
-		Namespace: targetNamespace,
-	}, cm)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			logger.V(1).Info("OpenLineage discovery ConfigMap not found, creating it")
-			return feast.deployOpenLineageDiscovery()
-		}
-		return fmt.Errorf("failed to get OpenLineage discovery ConfigMap: %w", err)
-	}
-
-	existing := &OpenLineageDiscoveryData{
-		Consumers: make(map[string]OpenLineageEndpointInfo),
-	}
-	if cm.Data != nil && cm.Data[OpenLineageDiscoveryEndpointsKey] != "" {
-		if err := json.Unmarshal([]byte(cm.Data[OpenLineageDiscoveryEndpointsKey]), existing); err != nil {
-			existing = &OpenLineageDiscoveryData{
-				Consumers: make(map[string]OpenLineageEndpointInfo),
-			}
-		}
-	}
-
-	cr := feast.Handler.FeatureStore
-	key := cr.Namespace + "/" + cr.Name
-
 	consumerURL, isTLS := feast.getOpenLineageConsumerURL()
 	if consumerURL == "" {
 		return nil
 	}
 
-	endpoint := "api/v1/lineage"
-	existing.Consumers[key] = OpenLineageEndpointInfo{
-		URL:      consumerURL,
-		Endpoint: endpoint,
-		TLS:      isTLS,
-	}
-
-	endpointsBytes, err := json.Marshal(existing)
+	targetNamespaces, err := feast.discoveryConfigMapNamespaces(targetNamespace, OpenLineageDiscoveryConfigMapName)
 	if err != nil {
-		return fmt.Errorf("failed to marshal OpenLineage discovery data: %w", err)
+		return err
 	}
 
-	if cm.Data == nil {
-		cm.Data = make(map[string]string)
+	for _, namespace := range targetNamespaces {
+		cm := &corev1.ConfigMap{}
+		err = feast.Handler.Client.Get(feast.Handler.Context, types.NamespacedName{
+			Name:      OpenLineageDiscoveryConfigMapName,
+			Namespace: namespace,
+		}, cm)
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				if namespace == targetNamespace {
+					logger.V(1).Info("OpenLineage discovery ConfigMap not found, creating it", "targetNamespace", namespace)
+					if err := feast.deployOpenLineageDiscovery(); err != nil {
+						return err
+					}
+				}
+				continue
+			}
+			return fmt.Errorf("failed to get OpenLineage discovery ConfigMap: %w", err)
+		}
+
+		existing := &OpenLineageDiscoveryData{
+			Consumers: make(map[string]OpenLineageEndpointInfo),
+		}
+		if cm.Data != nil && cm.Data[OpenLineageDiscoveryEndpointsKey] != "" {
+			if err := json.Unmarshal([]byte(cm.Data[OpenLineageDiscoveryEndpointsKey]), existing); err != nil {
+				existing = &OpenLineageDiscoveryData{
+					Consumers: make(map[string]OpenLineageEndpointInfo),
+				}
+			}
+		}
+
+		cr := feast.Handler.FeatureStore
+		key := cr.Namespace + "/" + cr.Name
+
+		endpoint := "api/v1/lineage"
+		existing.Consumers[key] = OpenLineageEndpointInfo{
+			URL:      consumerURL,
+			Endpoint: endpoint,
+			TLS:      isTLS,
+		}
+
+		endpointsBytes, err := json.Marshal(existing)
+		if err != nil {
+			return fmt.Errorf("failed to marshal OpenLineage discovery data: %w", err)
+		}
+
+		if cm.Data == nil {
+			cm.Data = make(map[string]string)
+		}
+		cm.Data[OpenLineageDiscoveryEndpointsKey] = string(endpointsBytes)
+		cm.Data[OpenLineageDiscoveryUrlKey] = consumerURL
+
+		yamlContent := fmt.Sprintf("transport:\n  type: http\n  url: %s\n  endpoint: %s\n", consumerURL, endpoint)
+		cm.Data[OpenLineageDiscoveryYamlKey] = yamlContent
+
+		if err := feast.Handler.Client.Update(feast.Handler.Context, cm); err != nil {
+			return fmt.Errorf("failed to update OpenLineage discovery ConfigMap: %w", err)
+		}
+
+		logger.Info("Successfully added to OpenLineage discovery",
+			"key", key, "url", consumerURL, "targetNamespace", namespace)
 	}
-	cm.Data[OpenLineageDiscoveryEndpointsKey] = string(endpointsBytes)
-	cm.Data[OpenLineageDiscoveryUrlKey] = consumerURL
 
-	yamlContent := fmt.Sprintf("transport:\n  type: http\n  url: %s\n  endpoint: %s\n", consumerURL, endpoint)
-	cm.Data[OpenLineageDiscoveryYamlKey] = yamlContent
-
-	if err := feast.Handler.Client.Update(feast.Handler.Context, cm); err != nil {
-		return fmt.Errorf("failed to update OpenLineage discovery ConfigMap: %w", err)
-	}
-
-	logger.Info("Successfully added to OpenLineage discovery",
-		"key", key, "url", consumerURL, "targetNamespace", targetNamespace)
 	return nil
 }
 
@@ -360,64 +373,73 @@ func (feast *FeastServices) RemoveFromOpenLineageDiscovery() error {
 		return nil
 	}
 
-	cm := &corev1.ConfigMap{}
-	err = feast.Handler.Client.Get(feast.Handler.Context, client.ObjectKey{
-		Name:      OpenLineageDiscoveryConfigMapName,
-		Namespace: targetNamespace,
-	}, cm)
+	targetNamespaces, err := feast.discoveryConfigMapNamespaces(targetNamespace, OpenLineageDiscoveryConfigMapName)
 	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil
+		return err
+	}
+
+	for _, namespace := range targetNamespaces {
+		cm := &corev1.ConfigMap{}
+		err = feast.Handler.Client.Get(feast.Handler.Context, client.ObjectKey{
+			Name:      OpenLineageDiscoveryConfigMapName,
+			Namespace: namespace,
+		}, cm)
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				continue
+			}
+			return fmt.Errorf("failed to get OpenLineage discovery ConfigMap: %w", err)
 		}
-		return fmt.Errorf("failed to get OpenLineage discovery ConfigMap: %w", err)
-	}
 
-	existing := &OpenLineageDiscoveryData{
-		Consumers: make(map[string]OpenLineageEndpointInfo),
-	}
-	if cm.Data != nil && cm.Data[OpenLineageDiscoveryEndpointsKey] != "" {
-		if err := json.Unmarshal([]byte(cm.Data[OpenLineageDiscoveryEndpointsKey]), existing); err != nil {
-			return nil
+		existing := &OpenLineageDiscoveryData{
+			Consumers: make(map[string]OpenLineageEndpointInfo),
 		}
-	}
-
-	cr := feast.Handler.FeatureStore
-	key := cr.Namespace + "/" + cr.Name
-	if _, found := existing.Consumers[key]; !found {
-		logger.V(1).Info("FeatureStore not found in OpenLineage discovery, nothing to remove", "key", key)
-		return nil
-	}
-
-	delete(existing.Consumers, key)
-
-	endpointsBytes, err := json.Marshal(existing)
-	if err != nil {
-		return fmt.Errorf("failed to marshal updated OpenLineage discovery data: %w", err)
-	}
-
-	if cm.Data == nil {
-		cm.Data = make(map[string]string)
-	}
-	cm.Data[OpenLineageDiscoveryEndpointsKey] = string(endpointsBytes)
-
-	// Update url and yml keys: if consumers remain pick the first; otherwise clear them.
-	if len(existing.Consumers) > 0 {
-		for _, info := range existing.Consumers {
-			cm.Data[OpenLineageDiscoveryUrlKey] = info.URL
-			cm.Data[OpenLineageDiscoveryYamlKey] = fmt.Sprintf(
-				"transport:\n  type: http\n  url: %s\n  endpoint: %s\n", info.URL, info.Endpoint)
-			break
+		if cm.Data != nil && cm.Data[OpenLineageDiscoveryEndpointsKey] != "" {
+			if err := json.Unmarshal([]byte(cm.Data[OpenLineageDiscoveryEndpointsKey]), existing); err != nil {
+				logger.V(1).Info("Failed to unmarshal OpenLineage discovery data, nothing to remove", "targetNamespace", namespace)
+				continue
+			}
 		}
-	} else {
-		delete(cm.Data, OpenLineageDiscoveryUrlKey)
-		delete(cm.Data, OpenLineageDiscoveryYamlKey)
+
+		cr := feast.Handler.FeatureStore
+		key := cr.Namespace + "/" + cr.Name
+		if _, found := existing.Consumers[key]; !found {
+			logger.V(1).Info("FeatureStore not found in OpenLineage discovery, nothing to remove", "key", key, "targetNamespace", namespace)
+			continue
+		}
+
+		delete(existing.Consumers, key)
+
+		endpointsBytes, err := json.Marshal(existing)
+		if err != nil {
+			return fmt.Errorf("failed to marshal updated OpenLineage discovery data: %w", err)
+		}
+
+		if cm.Data == nil {
+			cm.Data = make(map[string]string)
+		}
+		cm.Data[OpenLineageDiscoveryEndpointsKey] = string(endpointsBytes)
+
+		// Update url and yml keys: if consumers remain pick the first; otherwise clear them.
+		if len(existing.Consumers) > 0 {
+			for _, info := range existing.Consumers {
+				cm.Data[OpenLineageDiscoveryUrlKey] = info.URL
+				cm.Data[OpenLineageDiscoveryYamlKey] = fmt.Sprintf(
+					"transport:\n  type: http\n  url: %s\n  endpoint: %s\n", info.URL, info.Endpoint)
+				break
+			}
+		} else {
+			delete(cm.Data, OpenLineageDiscoveryUrlKey)
+			delete(cm.Data, OpenLineageDiscoveryYamlKey)
+		}
+
+		if err := feast.Handler.Client.Update(feast.Handler.Context, cm); err != nil {
+			return fmt.Errorf("failed to update OpenLineage discovery ConfigMap: %w", err)
+		}
+
+		logger.Info("Successfully removed from OpenLineage discovery",
+			"key", key, "targetNamespace", namespace)
 	}
 
-	if err := feast.Handler.Client.Update(feast.Handler.Context, cm); err != nil {
-		return fmt.Errorf("failed to update OpenLineage discovery ConfigMap: %w", err)
-	}
-
-	logger.Info("Successfully removed from OpenLineage discovery",
-		"key", key, "targetNamespace", targetNamespace)
 	return nil
 }
