@@ -829,14 +829,8 @@ class SnowflakeRetrievalJob(RetrievalJob):
     def _to_arrow_batches_internal(
         self, batch_size: int = 8192, timeout: Optional[int] = None
     ) -> Iterator[pyarrow.RecordBatch]:
-        table_name = "temp_arrow_batches_" + uuid.uuid4().hex
-
-        self.to_snowflake(table_name=table_name, allow_overwrite=True, temporary=True)
-
-        query = f'SELECT * FROM "{table_name}"'
-        arrow_batches = execute_snowflake_statement(
-            self.snowflake_conn, query
-        ).fetch_arrow_batches()
+        cursor = execute_snowflake_statement(self.snowflake_conn, self.to_sql())
+        arrow_batches = cursor.fetch_arrow_batches()
 
         try:
             for table_chunk in arrow_batches:
@@ -850,6 +844,8 @@ class SnowflakeRetrievalJob(RetrievalJob):
         finally:
             if hasattr(arrow_batches, "close"):
                 arrow_batches.close()
+            if hasattr(cursor, "close"):
+                cursor.close()
 
     def to_pandas_batches(self) -> Iterator[pd.DataFrame]:
         table_name = "temp_pandas_batches_" + uuid.uuid4().hex

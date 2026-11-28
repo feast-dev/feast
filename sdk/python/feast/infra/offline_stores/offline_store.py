@@ -305,25 +305,29 @@ class RetrievalJob(ABC):
         )
         try:
             for batch in batch_iterator:
-                if self.on_demand_feature_views:
-                    batch = self._transform_odfv_batch(batch)
+                batches = (
+                    self._transform_odfv_batch(batch)
+                    if self.on_demand_feature_views
+                    else [batch]
+                )
 
-                if validation_reference:
-                    if not flags_helper.is_test():
-                        warnings.warn(
-                            "Dataset validation is an experimental feature. "
-                            "This API is unstable and it could and most probably will be changed in the future. "
-                            "We do not guarantee that future changes will maintain backward compatibility.",
-                            RuntimeWarning,
+                for out_batch in batches:
+                    if validation_reference:
+                        if not flags_helper.is_test():
+                            warnings.warn(
+                                "Dataset validation is an experimental feature. "
+                                "This API is unstable and it could and most probably will be changed in the future. "
+                                "We do not guarantee that future changes will maintain backward compatibility.",
+                                RuntimeWarning,
+                            )
+                        validation_result = validation_reference.profile.validate(
+                            out_batch.to_pandas()
                         )
-                    validation_result = validation_reference.profile.validate(
-                        batch.to_pandas()
-                    )
-                    if not validation_result.is_success:
-                        raise ValidationFailed(validation_result)
+                        if not validation_result.is_success:
+                            raise ValidationFailed(validation_result)
 
-                total_rows += batch.num_rows
-                yield batch
+                    total_rows += out_batch.num_rows
+                    yield out_batch
         except Exception:
             status_label = "error"
             raise
@@ -368,8 +372,10 @@ class RetrievalJob(ABC):
                     "Failed to record offline store metrics", exc_info=True
                 )
 
-    def _transform_odfv_batch(self, batch: pyarrow.RecordBatch) -> pyarrow.RecordBatch:
-        """Applies on-demand feature view transformations to a single RecordBatch."""
+    def _transform_odfv_batch(
+        self, batch: pyarrow.RecordBatch
+    ) -> List[pyarrow.RecordBatch]:
+        """Applies on-demand feature view transformations to a single RecordBatch and returns all resulting RecordBatches."""
         features_table = pyarrow.Table.from_batches([batch])
         odfv_feature_refs = self._get_odfv_feature_refs()
 
@@ -395,8 +401,8 @@ class RetrievalJob(ABC):
 
         batches = features_table.to_batches()
         if batches:
-            return batches[0]
-        return pyarrow.RecordBatch.from_arrays([], schema=features_table.schema)
+            return batches
+        return [pyarrow.RecordBatch.from_arrays([], schema=features_table.schema)]
 
     def to_tensor(
         self,

@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import zlib
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -111,6 +112,15 @@ class FeastIterableDataset(IterableDataset):
       and distributed ranks (via `rank` and `world_size` or `torch.distributed`),
       guaranteeing zero duplicate rows across all workers/ranks.
     - Deterministic ordering: Preserves schema fidelity and point-in-time ordering.
+    - Key-based vs. Positional sharding:
+      * When `partition_key` is specified (recommended for distributed / multi-worker
+        setups with unordered backend queries), rows are deterministically assigned
+        to workers via key hashing/modulo (`hash(row[partition_key]) % total_shards == worker_id`),
+        ensuring zero duplicates and complete coverage even if query results arrive in
+        different orders on each worker.
+      * When `partition_key` is None (default), positional round-robin sharding is used,
+        which assumes the underlying retrieval job produces an identical, deterministically
+        ordered stream across worker processes (e.g. sorted queries or deterministic entity DataFrames).
     - Resource cleanup: Ensures Arrow readers and iterators are cleanly closed on
       early generator break or cancellation.
     - Flexible output: Can yield individual row sample dicts (default, ready for standard
@@ -123,7 +133,7 @@ class FeastIterableDataset(IterableDataset):
         >>>
         >>> store = FeatureStore(".")
         >>> job = store.get_historical_features(entity_df=entity_df, features=features)
-        >>> dataset = FeastIterableDataset(job, batch_size=8192)
+        >>> dataset = FeastIterableDataset(job, batch_size=8192, partition_key="driver_id")
         >>> dataloader = DataLoader(dataset, batch_size=32, num_workers=2)
         >>> for batch in dataloader:
         ...     train(batch)
@@ -138,6 +148,7 @@ class FeastIterableDataset(IterableDataset):
         yield_batches: bool = False,
         return_tensors: bool = True,
         field_names: Optional[List[str]] = None,
+        partition_key: Optional[str] = None,
         validation_reference: Optional["ValidationReference"] = None,
         timeout: Optional[int] = None,
     ) -> None:
@@ -158,6 +169,9 @@ class FeastIterableDataset(IterableDataset):
             return_tensors: If True (default), numeric/boolean columns are returned as PyTorch
                 Tensors. Strings and non-numeric types remain Python objects.
             field_names: Optional subset of feature/column names to project and yield.
+            partition_key: Optional column name (e.g. entity id or primary key) to use for
+                deterministic key-based row routing. When specified, guarantees zero duplicate
+                rows even if underlying queries yield rows in non-deterministic order across workers.
             validation_reference: Optional validation profile for Feast dataset validation.
             timeout: Optional query timeout.
         """
@@ -169,6 +183,7 @@ class FeastIterableDataset(IterableDataset):
         self.yield_batches = yield_batches
         self.return_tensors = return_tensors
         self.field_names = field_names
+        self.partition_key = partition_key
         self.validation_reference = validation_reference
         self.timeout = timeout
 
@@ -226,6 +241,32 @@ class FeastIterableDataset(IterableDataset):
 
                 if total_shards == 1:
                     sharded_batch = batch
+                elif self.partition_key is not None:
+                    if self.partition_key not in batch.schema.names:
+                        raise KeyError(
+                            f"partition_key '{self.partition_key}' was not found in batch schema: {batch.schema.names}"
+                        )
+                    key_col = batch[self.partition_key]
+                    keys = key_col.to_pylist()
+                    if pa.types.is_integer(key_col.type):
+                        indices = [
+                            i
+                            for i, k in enumerate(keys)
+                            if k is not None
+                            and (abs(k) % total_shards) == global_worker_id
+                        ]
+                    else:
+                        indices = [
+                            i
+                            for i, k in enumerate(keys)
+                            if k is not None
+                            and (zlib.crc32(str(k).encode("utf-8")) % total_shards)
+                            == global_worker_id
+                        ]
+                    if not indices:
+                        start_idx += batch_len
+                        continue
+                    sharded_batch = batch.take(pa.array(indices, type=pa.int64()))
                 else:
                     first_i = (
                         global_worker_id - (start_idx % total_shards)

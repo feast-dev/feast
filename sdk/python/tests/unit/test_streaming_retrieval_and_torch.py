@@ -13,7 +13,7 @@
 # limitations under the License.
 import subprocess
 import sys
-from typing import Iterator, List, Optional
+from typing import Callable, Iterator, List, Optional
 from unittest.mock import MagicMock
 
 import pyarrow as pa
@@ -34,10 +34,10 @@ from feast.torch import FeastIterableDataset
 class DummyRetrievalJob(RetrievalJob):
     """A minimal RetrievalJob implementation for unit testing batching and cleanup."""
 
-    def __init__(self, table: pa.Table, close_spy: Optional[MagicMock] = None):
+    def __init__(self, table: pa.Table, close_spy: Optional[Callable[[], None]] = None):
         super().__init__()
         self._table = table
-        self._close_spy = close_spy or MagicMock()
+        self._close_spy = close_spy
         self._odfv_list: List[OnDemandFeatureView] = []
 
     def _to_arrow_internal(self, timeout: Optional[int] = None) -> pa.Table:
@@ -51,7 +51,8 @@ class DummyRetrievalJob(RetrievalJob):
             for batch in reader:
                 yield batch
         finally:
-            self._close_spy()
+            if self._close_spy is not None:
+                self._close_spy()
             if hasattr(reader, "close"):
                 reader.close()
 
@@ -74,6 +75,16 @@ class DummyRetrievalJob(RetrievalJob):
     @property
     def metadata(self) -> Optional[RetrievalMetadata]:
         return None
+
+
+class PicklableJobFactory:
+    """Module-level callable factory to test multi-process picklability with spawn."""
+
+    def __init__(self, table: pa.Table):
+        self.table = table
+
+    def __call__(self) -> DummyRetrievalJob:
+        return DummyRetrievalJob(self.table)
 
 
 def test_core_feast_does_not_import_torch():
@@ -155,7 +166,8 @@ def test_to_arrow_batches_error_propagation():
                 yield pa.RecordBatch.from_arrays([pa.array([1])], names=["id"])
                 raise RuntimeError("Connection broken")
             finally:
-                self._close_spy()
+                if self._close_spy is not None:
+                    self._close_spy()
 
     close_spy = MagicMock()
     table = pa.Table.from_arrays([pa.array([1])], names=["id"])
@@ -169,6 +181,97 @@ def test_to_arrow_batches_error_propagation():
         next(gen)
 
     assert close_spy.call_count == 1
+
+
+def test_odfv_chunked_batches_preserves_every_single_row():
+    """Verify that when an ODFV produces multiple RecordBatches, all rows are preserved without truncation."""
+    # 4 rows in base table
+    table = pa.Table.from_arrays(
+        [pa.array([1, 2, 3, 4], type=pa.int64())], names=["entity_id"]
+    )
+    job = DummyRetrievalJob(table)
+
+    mock_odfv = MagicMock()
+    mock_odfv.name = "chunked_odfv"
+    mock_odfv.projection.name_to_use.return_value = "chunked_odfv"
+
+    c1 = pa.array([10.0, 20.0], type=pa.float64())
+    c2 = pa.array([30.0, 40.0], type=pa.float64())
+    chunked_col = pa.chunked_array([c1, c2])
+    transformed_table = pa.table({"chunked_odfv__score": chunked_col})
+    mock_odfv.transform_arrow.return_value = transformed_table
+
+    job._odfv_list = [mock_odfv]
+
+    batches = list(job.to_arrow_batches(batch_size=4))
+    total_rows = sum(b.num_rows for b in batches)
+    assert total_rows == 4
+    assert len(batches) == 2  # Table.to_batches() sliced into 2 batches
+    assert batches[0].num_rows == 2
+    assert batches[1].num_rows == 2
+
+    combined = pa.Table.from_batches(batches)
+    assert combined["entity_id"].to_pylist() == [1, 2, 3, 4]
+    assert combined["chunked_odfv__score"].to_pylist() == [
+        10.0,
+        20.0,
+        30.0,
+        40.0,
+    ]
+
+
+def test_snowflake_retrieval_job_streaming_single_odfv_pass():
+    """Verify SnowflakeRetrievalJob streams untransformed batches and applies ODFV exactly once without duplicate columns."""
+    from feast.infra.offline_stores.snowflake import SnowflakeRetrievalJob
+
+    mock_conn = MagicMock()
+    mock_cursor = MagicMock()
+    mock_conn.cursor.return_value.execute.return_value = mock_cursor
+
+    raw_table = pa.table(
+        {
+            "id": [1, 2, 3, 4],
+            "feature_raw": [100, 200, 300, 400],
+        }
+    )
+    mock_cursor.fetch_arrow_batches.return_value = [raw_table]
+
+    mock_odfv = MagicMock()
+    mock_odfv.name = "derived_odfv"
+    mock_odfv.projection.name_to_use.return_value = "derived_odfv"
+    mock_odfv.transform_arrow.side_effect = lambda t, full_names: pa.table(
+        {"derived_odfv__val": pa.array([x * 2 for x in t["feature_raw"].to_pylist()])}
+    )
+
+    mock_config = MagicMock()
+    mock_config.offline_store.blob_export_location = None
+
+    job = SnowflakeRetrievalJob(
+        query="SELECT id, feature_raw FROM test_snowflake_table",
+        snowflake_conn=mock_conn,
+        config=mock_config,
+        full_feature_names=False,
+        on_demand_feature_views=[mock_odfv],
+    )
+
+    # 1. Verify _to_arrow_batches_internal streams untransformed batches directly from SQL query
+    internal_batches = list(job._to_arrow_batches_internal(batch_size=2))
+    assert len(internal_batches) == 2
+    assert internal_batches[0].schema.names == ["id", "feature_raw"]
+
+    # 2. Verify to_arrow_batches applies ODFV transformation exactly once
+    batches = list(job.to_arrow_batches(batch_size=2))
+    assert len(batches) == 2
+    for b in batches:
+        assert b.schema.names == ["id", "feature_raw", "derived_odfv__val"]
+        assert (
+            len([name for name in b.schema.names if name == "derived_odfv__val"]) == 1
+        )
+
+    assert sum(b.num_rows for b in batches) == 4
+    combined = pa.Table.from_batches(batches)
+    assert combined["derived_odfv__val"].to_pylist() == [200, 400, 600, 800]
+    assert mock_odfv.transform_arrow.call_count == 2
 
 
 def test_dataset_single_worker_fidelity_and_ordering():
@@ -221,6 +324,36 @@ def test_dataset_multi_rank_deterministic_sharding():
     assert sorted(all_rank_ids) == list(range(n_samples))
 
 
+def test_key_based_partitioning_with_unordered_worker_streams():
+    """Verify that partition_key ensures zero duplicate rows and full coverage even when workers observe rows in different orders."""
+    # Worker 0 receives rows in order: ["user_2", "user_0", "user_1"]
+    t0 = pa.Table.from_arrays(
+        [pa.array(["user_2", "user_0", "user_1"])], names=["user_id"]
+    )
+    # Worker 1 receives rows in reversed order: ["user_1", "user_2", "user_0"]
+    t1 = pa.Table.from_arrays(
+        [pa.array(["user_1", "user_2", "user_0"])], names=["user_id"]
+    )
+
+    job0 = DummyRetrievalJob(t0)
+    job1 = DummyRetrievalJob(t1)
+
+    ds0 = FeastIterableDataset(
+        job0, batch_size=2, rank=0, world_size=2, partition_key="user_id"
+    )
+    ds1 = FeastIterableDataset(
+        job1, batch_size=2, rank=1, world_size=2, partition_key="user_id"
+    )
+
+    w0_rows = [s["user_id"] for s in ds0]
+    w1_rows = [s["user_id"] for s in ds1]
+
+    # Disjoint sets: zero duplicates
+    assert len(set(w0_rows).intersection(set(w1_rows))) == 0
+    # Complete coverage: all 3 users retrieved
+    assert set(w0_rows).union(set(w1_rows)) == {"user_0", "user_1", "user_2"}
+
+
 def test_dataset_dataloader_multi_worker_zero_duplicates():
     """Verify PyTorch DataLoader with num_workers > 1 yields all samples with zero duplicates."""
     n_samples = 80
@@ -233,11 +366,8 @@ def test_dataset_dataloader_multi_worker_zero_duplicates():
         names=["id", "feature_a"],
     )
 
-    # Pass a factory callable to ensure clean worker isolation
-    def job_factory():
-        return DummyRetrievalJob(table)
-
-    dataset = FeastIterableDataset(job_factory, batch_size=16)
+    factory = PicklableJobFactory(table)
+    dataset = FeastIterableDataset(factory, batch_size=16)
     loader = DataLoader(dataset, batch_size=8, num_workers=num_workers)
 
     collected_ids = []
@@ -260,12 +390,9 @@ def test_dataset_combined_multi_rank_and_multi_worker():
     all_collected = []
 
     for rank in range(world_size):
-
-        def job_factory():
-            return DummyRetrievalJob(table)
-
+        factory = PicklableJobFactory(table)
         dataset = FeastIterableDataset(
-            job_factory, batch_size=10, rank=rank, world_size=world_size
+            factory, batch_size=10, rank=rank, world_size=world_size
         )
         loader = DataLoader(dataset, batch_size=5, num_workers=num_workers)
         for batch in loader:
@@ -273,6 +400,27 @@ def test_dataset_combined_multi_rank_and_multi_worker():
 
     assert len(all_collected) == n_samples
     assert sorted(all_collected) == list(range(n_samples))
+
+
+def test_dataset_dataloader_spawn_context():
+    """Verify DataLoader with spawn multiprocessing context runs and unpacks without pickling errors."""
+    ctx = torch.multiprocessing.get_context("spawn")
+    n_samples = 40
+    table = pa.Table.from_arrays(
+        [pa.array(list(range(n_samples)), type=pa.int64())], names=["id"]
+    )
+    factory = PicklableJobFactory(table)
+    dataset = FeastIterableDataset(factory, batch_size=8)
+    loader = DataLoader(
+        dataset, batch_size=4, num_workers=2, multiprocessing_context=ctx
+    )
+
+    collected = []
+    for batch in loader:
+        collected.extend(batch["id"].tolist())
+
+    assert len(collected) == n_samples
+    assert sorted(collected) == list(range(n_samples))
 
 
 def test_dataset_yield_batches_mode():
