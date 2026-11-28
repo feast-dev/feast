@@ -35,7 +35,7 @@ from feast import Entity, utils
 from feast.errors import FeastProviderLoginError
 from feast.feature_view import FeatureView
 from feast.infra.infra_object import DATASTORE_INFRA_OBJECT_CLASS_TYPE, InfraObject
-from feast.infra.online_stores.helpers import compute_entity_id
+from feast.infra.online_stores.helpers import compute_entity_id, compute_versioned_name
 from feast.infra.online_stores.online_store import OnlineStore
 from feast.protos.feast.core.DatastoreTable_pb2 import (
     DatastoreTable as DatastoreTableProto,
@@ -116,9 +116,11 @@ class DatastoreOnlineStore(OnlineStore):
         assert isinstance(online_config, DatastoreOnlineStoreConfig)
         client = self._get_client(online_config)
         feast_project = config.project
+        versioning = config.registry.enable_online_feature_view_versioning
 
         for table in tables_to_keep:
-            key = client.key("Project", feast_project, "Table", table.name)
+            table_id = _table_id(table, versioning)
+            key = client.key("Project", feast_project, "Table", table_id)
             entity = datastore.Entity(
                 key=key, exclude_from_indexes=("created_ts", "event_ts", "values")
             )
@@ -126,12 +128,13 @@ class DatastoreOnlineStore(OnlineStore):
             client.put(entity)
 
         for table in tables_to_delete:
+            table_id = _table_id(table, versioning)
             _delete_all_values(
-                client, client.key("Project", feast_project, "Table", table.name)
+                client, client.key("Project", feast_project, "Table", table_id)
             )
 
             # Delete the table metadata datastore entity
-            key = client.key("Project", feast_project, "Table", table.name)
+            key = client.key("Project", feast_project, "Table", table_id)
             client.delete(key)
 
     def teardown(
@@ -144,14 +147,16 @@ class DatastoreOnlineStore(OnlineStore):
         assert isinstance(online_config, DatastoreOnlineStoreConfig)
         client = self._get_client(online_config)
         feast_project = config.project
+        versioning = config.registry.enable_online_feature_view_versioning
 
         for table in tables:
+            table_id = _table_id(table, versioning)
             _delete_all_values(
-                client, client.key("Project", feast_project, "Table", table.name)
+                client, client.key("Project", feast_project, "Table", table_id)
             )
 
             # Delete the table metadata datastore entity
-            key = client.key("Project", feast_project, "Table", table.name)
+            key = client.key("Project", feast_project, "Table", table_id)
             client.delete(key)
 
     def _get_client(self, online_config: DatastoreOnlineStoreConfig):
@@ -215,6 +220,9 @@ class DatastoreOnlineStore(OnlineStore):
         config: RepoConfig,
     ):
         entities = []
+        table_id = _table_id(
+            table, config.registry.enable_online_feature_view_versioning
+        )
         for entity_key, features, timestamp, created_ts in data:
             document_id = compute_entity_id(
                 entity_key,
@@ -225,7 +233,7 @@ class DatastoreOnlineStore(OnlineStore):
                 "Project",
                 project,
                 "Table",
-                table.name,
+                table_id,
                 "Row",
                 document_id,
             )
@@ -265,6 +273,9 @@ class DatastoreOnlineStore(OnlineStore):
         client = self._get_client(online_config)
 
         feast_project = config.project
+        table_id = _table_id(
+            table, config.registry.enable_online_feature_view_versioning
+        )
 
         keys: List[Key] = []
         result: List[Tuple[Optional[datetime], Optional[Dict[str, ValueProto]]]] = []
@@ -274,7 +285,7 @@ class DatastoreOnlineStore(OnlineStore):
                 entity_key_serialization_version=config.entity_key_serialization_version,
             )
             key = client.key(
-                "Project", feast_project, "Table", table.name, "Row", document_id
+                "Project", feast_project, "Table", table_id, "Row", document_id
             )
             keys.append(key)
 
@@ -295,6 +306,10 @@ class DatastoreOnlineStore(OnlineStore):
                 result.append((None, None))
 
         return result
+
+
+def _table_id(table: FeatureView, enable_versioning: bool = False) -> str:
+    return compute_versioned_name(table, enable_versioning)
 
 
 def _delete_all_values(client, key):
