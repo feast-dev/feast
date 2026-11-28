@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import List, Mapping, Optional
 
+from feast.infra.compute_engines.dag.change import ChangeSet, KeyedRows
 from feast.infra.compute_engines.dag.context import ExecutionContext
 from feast.infra.compute_engines.dag.value import DAGValue
 
@@ -48,3 +49,26 @@ class DAGNode(ABC):
 
     @abstractmethod
     def execute(self, context: ExecutionContext) -> DAGValue: ...
+
+    def initialize_incremental(
+        self, context: ExecutionContext, primary_keys: tuple[str, ...]
+    ) -> None:
+        value = context.node_outputs[self.name]
+        table = getattr(value, "data", None)
+        if table is None or not hasattr(table, "to_pylist"):
+            raise TypeError(
+                f"DAGNode '{self.name}' requires an Arrow-like batch output "
+                "to initialize incremental state"
+            )
+        context.node_states[self.name] = KeyedRows.from_rows(
+            table.to_pylist(), primary_keys
+        )
+
+    def execute_incremental(
+        self,
+        context: ExecutionContext,
+        input_changes: Mapping[str, ChangeSet],
+    ) -> ChangeSet:
+        raise NotImplementedError(
+            f"DAGNode '{self.name}' does not support incremental execution"
+        )

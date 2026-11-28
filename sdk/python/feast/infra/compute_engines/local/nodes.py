@@ -1,17 +1,23 @@
 import json
 import logging
 from datetime import datetime, timedelta
-from typing import List, Optional, Set, Union
+from typing import List, Mapping, Optional, Set, Union
 
 import pyarrow as pa
 
 from feast import BatchFeatureView, StreamFeatureView
 from feast.data_source import DataSource
 from feast.infra.compute_engines.backends.base import DataFrameBackend
+from feast.infra.compute_engines.dag.change import ChangeSet
 from feast.infra.compute_engines.dag.context import ColumnInfo, ExecutionContext
 from feast.infra.compute_engines.dag.model import DAGFormat
 from feast.infra.compute_engines.dag.node import DAGNode
 from feast.infra.compute_engines.local.arrow_table_value import ArrowTableValue
+from feast.infra.compute_engines.local.incremental_join import (
+    IncrementalInnerJoinState,
+    execute_incremental_inner_join,
+    initialize_inner_join_state,
+)
 from feast.infra.compute_engines.local.local_node import LocalNode
 from feast.infra.compute_engines.utils import (
     ENTITY_TS_ALIAS,
@@ -112,6 +118,48 @@ class LocalJoinNode(LocalNode):
 
         result = self.backend.to_arrow(joined_df)
         return ArrowTableValue(result)
+
+    def initialize_incremental(
+        self, context: ExecutionContext, primary_keys: tuple[str, ...]
+    ) -> None:
+        if len(self.inputs) != 2:
+            raise ValueError(
+                f"Incremental join '{self.name}' requires exactly two inputs"
+            )
+        if self.how != "inner":
+            raise ValueError(
+                f"Incremental join '{self.name}' only supports inner joins"
+            )
+        output = context.node_outputs[self.name]
+        output.assert_format(DAGFormat.ARROW)
+        input_names = (self.inputs[0].name, self.inputs[1].name)
+        context.node_states[self.name] = initialize_inner_join_state(
+            node_name=self.name,
+            input_names=input_names,
+            node_states=context.node_states,
+            output_rows=output.data.to_pylist(),
+            output_primary_keys=primary_keys,
+            join_keys=tuple(self.column_info.join_keys_columns),
+        )
+
+    def execute_incremental(
+        self,
+        context: ExecutionContext,
+        input_changes: Mapping[str, ChangeSet],
+    ) -> ChangeSet:
+        state = context.node_states[self.name]
+        if not isinstance(state, IncrementalInnerJoinState):
+            raise TypeError(f"Incremental join '{self.name}' is not initialized")
+        input_names = (self.inputs[0].name, self.inputs[1].name)
+        updated, output_changes = execute_incremental_inner_join(
+            node_name=self.name,
+            input_names=input_names,
+            state=state,
+            input_changes=input_changes,
+            backend=self.backend,
+        )
+        context.node_states[self.name] = updated
+        return output_changes
 
 
 class LocalFilterNode(LocalNode):
