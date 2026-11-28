@@ -18,6 +18,7 @@ from feast.feature_view import FeatureView
 from feast.grpc_error_interceptor import ErrorInterceptor
 from feast.infra.infra_object import Infra
 from feast.infra.registry.base_registry import BaseRegistry
+from feast.infra.registry.registry import Registry
 from feast.on_demand_feature_view import OnDemandFeatureView
 from feast.permissions.action import AuthzedAction
 from feast.permissions.permission import Permission
@@ -183,6 +184,15 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         super().__init__()
         self.proxied_registry = registry
         self.store = store
+
+    def _resolve_commit(self, commit: bool) -> bool:
+        # File/blob Registry queues commit=False mutations in cached_registry_proto,
+        # which any allow_cache=False read (e.g. Delete* handlers or concurrent RPCs)
+        # overwrites from backing storage. Persist each mutation eagerly for Registry
+        # while preserving caller semantics for SQL/Snowflake registries.
+        if isinstance(self.proxied_registry, Registry):
+            return True
+        return commit
 
     _JOB_NAME_TEMPLATES: dict = {
         "featureView": ["feast_apply_feature_view_{name}"],
@@ -364,7 +374,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         self.proxied_registry.apply_entity(
             entity=entity,
             project=request.project,
-            commit=request.commit,
+            commit=self._resolve_commit(request.commit),
         )
         self._emit_openlineage_for_objects([entity], request.project)
 
@@ -411,7 +421,9 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         )
 
         self.proxied_registry.delete_entity(
-            name=request.name, project=request.project, commit=request.commit
+            name=request.name,
+            project=request.project,
+            commit=self._resolve_commit(request.commit),
         )
         self._delete_openlineage_for_object(request.name, request.project, "entity")
         return Empty()
@@ -430,7 +442,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         self.proxied_registry.apply_data_source(
             data_source=data_source,
             project=request.project,
-            commit=request.commit,
+            commit=self._resolve_commit(request.commit),
         )
         self._emit_openlineage_for_objects([data_source], request.project)
 
@@ -484,7 +496,9 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         )
 
         self.proxied_registry.delete_data_source(
-            name=request.name, project=request.project, commit=request.commit
+            name=request.name,
+            project=request.project,
+            commit=self._resolve_commit(request.commit),
         )
         self._delete_openlineage_for_object(request.name, request.project, "dataSource")
         return Empty()
@@ -677,7 +691,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         self.proxied_registry.apply_feature_view(
             feature_view=feature_view,
             project=request.project,
-            commit=request.commit,
+            commit=self._resolve_commit(request.commit),
         )
         self._emit_openlineage_for_objects([feature_view], request.project)
 
@@ -878,7 +892,9 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             actions=[AuthzedAction.DELETE],
         )
         self.proxied_registry.delete_feature_view(
-            name=request.name, project=request.project, commit=request.commit
+            name=request.name,
+            project=request.project,
+            commit=self._resolve_commit(request.commit),
         )
         self._delete_openlineage_for_object(request.name, request.project, fv_type)
         return Empty()
@@ -1015,7 +1031,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         self.proxied_registry.apply_feature_service(
             feature_service=feature_service,
             project=request.project,
-            commit=request.commit,
+            commit=self._resolve_commit(request.commit),
         )
         self._emit_openlineage_for_objects([feature_service], request.project)
 
@@ -1088,7 +1104,9 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             actions=[AuthzedAction.DELETE],
         )
         self.proxied_registry.delete_feature_service(
-            name=request.name, project=request.project, commit=request.commit
+            name=request.name,
+            project=request.project,
+            commit=self._resolve_commit(request.commit),
         )
         self._delete_openlineage_for_object(
             request.name, request.project, "featureService"
@@ -1109,7 +1127,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         self.proxied_registry.apply_saved_dataset(
             saved_dataset=saved_dataset,
             project=request.project,
-            commit=request.commit,
+            commit=self._resolve_commit(request.commit),
         )
         self._emit_openlineage_for_objects([saved_dataset], request.project)
 
@@ -1168,7 +1186,9 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             actions=[AuthzedAction.DELETE],
         )
         self.proxied_registry.delete_saved_dataset(
-            name=request.name, project=request.project, commit=request.commit
+            name=request.name,
+            project=request.project,
+            commit=self._resolve_commit(request.commit),
         )
         self._delete_openlineage_for_object(
             request.name, request.project, "savedDataset"
@@ -1583,7 +1603,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         self.proxied_registry.apply_validation_reference(
             validation_reference=validation_reference,
             project=request.project,
-            commit=request.commit,
+            commit=self._resolve_commit(request.commit),
         )
 
         return Empty()
@@ -1640,7 +1660,9 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             actions=[AuthzedAction.DELETE],
         )
         self.proxied_registry.delete_validation_reference(
-            name=request.name, project=request.project, commit=request.commit
+            name=request.name,
+            project=request.project,
+            commit=self._resolve_commit(request.commit),
         )
         return Empty()
 
@@ -1681,7 +1703,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             end_date=datetime.fromtimestamp(
                 request.end_date.seconds + request.end_date.nanos / 1e9, tz=timezone.utc
             ),
-            commit=request.commit,
+            commit=self._resolve_commit(request.commit),
         )
         return Empty()
 
@@ -1695,7 +1717,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         self.proxied_registry.update_infra(
             infra=Infra.from_proto(request.infra),
             project=request.project,
-            commit=request.commit,
+            commit=self._resolve_commit(request.commit),
         )
         return Empty()
 
@@ -1731,7 +1753,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         self.proxied_registry.apply_permission(
             permission=permission,
             project=request.project,
-            commit=request.commit,
+            commit=self._resolve_commit(request.commit),
         )
         return Empty()
 
@@ -1780,7 +1802,9 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             actions=[AuthzedAction.DELETE],
         )
         self.proxied_registry.delete_permission(
-            name=request.name, project=request.project, commit=request.commit
+            name=request.name,
+            project=request.project,
+            commit=self._resolve_commit(request.commit),
         )
 
         return Empty()
@@ -1796,7 +1820,7 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
         )
         self.proxied_registry.apply_project(
             project=project,
-            commit=request.commit,
+            commit=self._resolve_commit(request.commit),
         )
         return Empty()
 
@@ -1847,7 +1871,9 @@ class RegistryServer(RegistryServer_pb2_grpc.RegistryServerServicer):
             resource=project,
             actions=[AuthzedAction.DELETE],
         )
-        self.proxied_registry.delete_project(name=request.name, commit=request.commit)
+        self.proxied_registry.delete_project(
+            name=request.name, commit=self._resolve_commit(request.commit)
+        )
 
         return Empty()
 
